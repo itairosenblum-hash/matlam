@@ -183,7 +183,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
 .tab-btn{padding:7px 16px;border-radius:6px;border:none;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;color:var(--text2);background:transparent;transition:all .2s}
 .tab-btn.active{background:var(--surface);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.3)}
 /* ---- HAMBURGER MENU ---- */
-.hamburger-btn{display:none;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:8px;border-radius:var(--radius)}
+.hamburger-btn{display:none;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:8px;border-radius:var(--radius);margin-left:auto}
 .hamburger-btn span{display:block;width:22px;height:2px;background:var(--text);border-radius:2px;transition:all .25s}
 .notif-badge{background:var(--danger);color:#fff;border-radius:10px;font-size:10px;font-weight:700;padding:1px 5px;margin-right:4px;vertical-align:middle;min-width:16px;display:inline-block;text-align:center}
 .bell-btn{transition:color .2s}
@@ -193,7 +193,8 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
 .hamburger-btn.open span:nth-child(2){opacity:0}
 .hamburger-btn.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
 @media(max-width:768px){
-  .hamburger-btn{display:flex}
+  .nav-inner{justify-content:flex-start}
+  .hamburger-btn{display:flex;margin-left:auto;order:10}
   .nav-tabs{
     display:none;position:fixed;top:56px;right:0;left:0;
     background:var(--surface);border-bottom:1px solid var(--border);
