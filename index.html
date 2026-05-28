@@ -1881,10 +1881,12 @@ function renderAdminSchedule(schedule, month) {
 
     html += `
     <div class="${dayCls}">
-      <div class="cal-day-num">${d}</div>
-      ${typeBadge}
-      ${vTag}${aTag}${bTag}${v2Tag}
-      <button class="cal-edit-btn" onclick="openCalEntry('${entryKey}','${month}')">✏️ ערוך</button>
+      <div class="cal-day-header">
+        <div class="cal-day-num">${d}</div>
+        <div class="cal-day-type">${typeBadge}</div>
+      </div>
+      <div class="cal-persons">${vTag}${aTag}${bTag}${v2Tag}</div>
+      <button class="cal-edit-btn" onclick="openCalEntry('${entryKey}','${month}')">✏️</button>
     </div>`;
   }
 
