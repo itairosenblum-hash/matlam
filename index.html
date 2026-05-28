@@ -691,74 +691,206 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
 
       <!-- GUIDE TAB (all users) -->
       <div id="tab-guide" class="tab-content hidden">
-        <div class="section-title" style="margin-bottom:24px">📖 מדריך מפקד תורן מטל"מ</div>
+        <div class="section-title" style="margin-bottom:24px">📖 מדריך מערכת התורנויות</div>
         <div style="max-width:800px;display:grid;gap:16px">
 
+          <!-- שיטת הניקוד -->
           <div class="card">
             <div class="card-title" style="font-size:16px;margin-bottom:16px">📊 שיטת הניקוד</div>
-            <p style="color:var(--text2);font-size:14px;line-height:1.8;margin-bottom:16px">ניקוד נמוך = עדיפות ראשונה בשיבוץ. הניקוד מצטבר לאורך זמן.</p>
+            <p style="color:var(--text2);font-size:14px;line-height:1.8;margin-bottom:16px">
+              כל תורנות מקבלת ניקוד בהתאם לסוגה ולעצימותה. המטרה: שיוויון בנטל בין כל התורנים לאורך זמן.
+            </p>
             <div style="overflow-x:auto">
-              <table class="schedule-table" style="min-width:300px">
-                <thead><tr><th>סוג תורנות</th><th>ניקוד</th></tr></thead>
+              <table class="schedule-table" style="min-width:400px">
+                <thead><tr><th>סוג תורנות</th><th>ניקוד</th><th>הסבר</th></tr></thead>
                 <tbody>
-                  <tr><td>חול</td><td style="font-weight:700;color:var(--accent)">10</td></tr>
-                  <tr><td>חמישי</td><td style="font-weight:700;color:var(--accent)">12</td></tr>
-                  <tr><td>חול 24 שעות</td><td style="font-weight:700;color:var(--accent)">15</td></tr>
-                  <tr><td>חמישי 24 שעות</td><td style="font-weight:700;color:var(--accent)">16</td></tr>
-                  <tr><td>הדממה</td><td style="font-weight:700;color:var(--warn)">18</td></tr>
-                  <tr><td>סוף שבוע (יום בנפרד)</td><td style="font-weight:700;color:var(--warn)">20</td></tr>
-                  <tr><td>ערב חג / חג</td><td style="font-weight:700;color:var(--warn)">25</td></tr>
-                  <tr><td>סוף שבוע מלא (שישי+שבת)</td><td style="font-weight:700;color:var(--danger)">40</td></tr>
+                  <tr><td>דולג</td><td><span style="color:var(--text3);font-weight:700">0</span></td><td class="text-muted text-sm">פטור / לא שובץ</td></tr>
+                  <tr><td>פטור</td><td><span style="color:var(--text3);font-weight:700">10</span></td><td class="text-muted text-sm">ניקוד סמלי</td></tr>
+                  <tr><td>חול</td><td><span style="color:var(--accent);font-weight:700">10</span></td><td class="text-muted text-sm">יום חול רגיל</td></tr>
+                  <tr><td>חמישי</td><td><span style="color:var(--accent);font-weight:700">12</span></td><td class="text-muted text-sm">יום חמישי</td></tr>
+                  <tr><td>חול 24 שעות</td><td><span style="color:var(--accent);font-weight:700">15</span></td><td class="text-muted text-sm">24 שעות ביום חול</td></tr>
+                  <tr><td>חמישי 24 שעות</td><td><span style="color:var(--accent);font-weight:700">16</span></td><td class="text-muted text-sm">24 שעות בחמישי</td></tr>
+                  <tr><td>הדממה</td><td><span style="color:var(--accent);font-weight:700">18</span></td><td class="text-muted text-sm">תורנות הדממה</td></tr>
+                  <tr><td>חמישי הדממה</td><td><span style="color:var(--accent);font-weight:700">19</span></td><td class="text-muted text-sm">הדממה בחמישי</td></tr>
+                  <tr><td>סוף שבוע</td><td><span style="color:var(--warn);font-weight:700">20</span></td><td class="text-muted text-sm">שישי או שבת בנפרד</td></tr>
+                  <tr><td>חול + חמישי</td><td><span style="color:var(--warn);font-weight:700">22</span></td><td class="text-muted text-sm">חול + חמישי</td></tr>
+                  <tr><td>חול + חול</td><td><span style="color:var(--warn);font-weight:700">24</span></td><td class="text-muted text-sm">שני ימי חול</td></tr>
+                  <tr><td>חג / ערב חג</td><td><span style="color:var(--warn);font-weight:700">25</span></td><td class="text-muted text-sm">יום חג או ערב חג</td></tr>
+                  <tr><td>חול 24 שעות + חול</td><td><span style="color:var(--warn);font-weight:700">25</span></td><td class="text-muted text-sm">—</td></tr>
+                  <tr><td>חמישי 24 שעות + חול</td><td><span style="color:var(--warn);font-weight:700">26</span></td><td class="text-muted text-sm">—</td></tr>
+                  <tr><td>הדממה + חול</td><td><span style="color:var(--warn);font-weight:700">28</span></td><td class="text-muted text-sm">—</td></tr>
+                  <tr><td>חול + שבת / שבת הקפצה</td><td><span style="color:var(--warn);font-weight:700">30</span></td><td class="text-muted text-sm">—</td></tr>
+                  <tr><td>חול 24 שעות + חול 24 שעות</td><td><span style="color:var(--warn);font-weight:700">30</span></td><td class="text-muted text-sm">—</td></tr>
+                  <tr><td>הדממה + חמישי</td><td><span style="color:var(--warn);font-weight:700">30</span></td><td class="text-muted text-sm">—</td></tr>
+                  <tr><td>חול 24 שעות + חמישי</td><td><span style="color:var(--warn);font-weight:700">31</span></td><td class="text-muted text-sm">—</td></tr>
+                  <tr><td>סוף שבוע + חמישי</td><td><span style="color:var(--danger);font-weight:700">32</span></td><td class="text-muted text-sm">—</td></tr>
+                  <tr><td>חול 24 שעות + שבת</td><td><span style="color:var(--danger);font-weight:700">35</span></td><td class="text-muted text-sm">—</td></tr>
+                  <tr><td>חג + חול</td><td><span style="color:var(--danger);font-weight:700">35</span></td><td class="text-muted text-sm">—</td></tr>
+                  <tr><td>סוף שבוע + חול</td><td><span style="color:var(--danger);font-weight:700">36</span></td><td class="text-muted text-sm">—</td></tr>
+                  <tr><td>חג + חמישי</td><td><span style="color:var(--danger);font-weight:700">37</span></td><td class="text-muted text-sm">—</td></tr>
+                  <tr><td>סוף שבוע מלא</td><td><span style="color:var(--danger);font-weight:700">40</span></td><td class="text-muted text-sm">שישי + שבת ביחד</td></tr>
+                  <tr><td>חג + סוף שבוע</td><td><span style="color:var(--danger);font-weight:700">45</span></td><td class="text-muted text-sm">—</td></tr>
+                  <tr><td>יומיים חג / סוף שבוע מלא + חול</td><td><span style="color:var(--danger);font-weight:700">50</span></td><td class="text-muted text-sm">הניקוד הגבוה ביותר</td></tr>
                 </tbody>
               </table>
             </div>
-          </div>
-
-          <div class="card">
-            <div class="card-title" style="font-size:16px;margin-bottom:16px">👤 קטגוריות תורנים</div>
-            <div style="display:grid;gap:8px;font-size:14px">
-              <div style="padding:10px;background:var(--surface2);border-radius:8px"><strong>רגיל</strong> — משובץ לכל סוגי התורנויות לפי ניקוד.</div>
-              <div style="padding:10px;background:var(--surface2);border-radius:8px"><strong>משרת אב</strong> — חמישי בלבד. חודש כן, חודש לא. מקסימום תורנות אחת בחודש.</div>
-              <div style="padding:10px;background:var(--surface2);border-radius:8px"><strong>פטור</strong> — לא משובץ אוטומטית.</div>
-              <div style="padding:10px;background:var(--surface2);border-radius:8px"><strong>לא מוסמך</strong> — לא משובץ. תורנים בתהליך הכשרה.</div>
+            <div style="background:var(--surface3);border-radius:8px;padding:14px;margin-top:16px;font-size:13px;color:var(--text2);line-height:1.7">
+              💡 <strong style="color:var(--text)">חשוב לדעת:</strong> הניקוד הוא <strong>מצטבר</strong> — ככל שהניקוד שלך גבוה יותר, 
+              כך תשובץ מאוחר יותר לתורנויות הבאות. המטרה: אחרי מספר חודשים כל התורנים יהיו בניקוד דומה.
             </div>
           </div>
 
+          <!-- שיטת השיבוץ -->
           <div class="card">
-            <div class="card-title" style="font-size:16px;margin-bottom:16px">📅 סוגי סוף שבוע</div>
-            <div style="display:grid;gap:8px;font-size:14px">
-              <div style="padding:10px;background:var(--surface2);border-radius:8px"><strong>🗓️ מלא</strong> — שישי+שבת ביחד (40 נקודות). אחת לחצי שנה.</div>
-              <div style="padding:10px;background:var(--surface2);border-radius:8px"><strong>📅 בנפרד</strong> — שישי או שבת בנפרד (20 נקודות). כל שלושה חודשים.</div>
+            <div class="card-title" style="font-size:16px;margin-bottom:16px">⚡ שיטת השיבוץ האוטומטי</div>
+            <p style="color:var(--text2);font-size:14px;line-height:1.8;margin-bottom:12px">
+              האלגוריתם מבצע שיבוץ לפי עדיפות ובשלבים:
+            </p>
+            <!-- עיקרון הניקוד -->
+            <div style="background:rgba(46,160,67,0.08);border:1px solid rgba(46,160,67,0.3);border-radius:8px;padding:16px;margin-bottom:16px">
+              <div style="font-weight:700;font-size:15px;color:var(--accent);margin-bottom:10px">🔑 עיקרון יחיד: ניקוד מצטבר</div>
+              <div style="font-size:14px;line-height:2;color:var(--text)">
+                <strong>מי שניקוד המצטבר שלו נמוך יותר — משובץ קודם, לכל סוג תורנות.</strong>
+              </div>
+              <div style="color:var(--text2);font-size:13px;line-height:1.8;margin-top:8px">
+                אין עדיפות לסוג תורנות מסוים. אם לתורן א׳ ניקוד 650 והוא מוגדר "סוף שבוע מלא", 
+                ולתורן ב׳ ניקוד 640 המוגדר "ימים בנפרד" — תורן ב׳ ישובץ קודם לשבת שלו (ניקוד 20), 
+                ורק אחר כך תורן א׳ לשבת המלאה שלו (ניקוד 40).<br>
+                <strong style="color:var(--text)">הניקוד הנמוך מנצח — תמיד.</strong>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+              <div style="background:var(--surface3);border-radius:8px;padding:14px">
+                <div style="font-weight:600;font-size:13px;margin-bottom:6px">✅ מה שקובע את הסדר</div>
+                <div style="font-size:13px;color:var(--text2);line-height:1.7">
+                  ניקוד מצטבר נמוך = משובץ ראשון<br>
+                  אילוץ ✕ = לא משובץ כלל<br>
+                  סוג הגדרה (מלא/בנפרד) = קובע <em>איזה</em> תורנות, לא <em>מתי</em>
+                </div>
+              </div>
+              <div style="background:var(--surface3);border-radius:8px;padding:14px">
+                <div style="font-weight:600;font-size:13px;margin-bottom:6px">📅 בכל יום נבחרים</div>
+                <div style="font-size:13px;color:var(--text2);line-height:1.7">
+                  <span style="color:var(--accent);font-weight:700">V</span> מבצע — ניקוד נמוך ביותר<br>
+                  <span style="color:var(--info);font-weight:700">א׳</span> עתודה ראשונה — שני בניקוד<br>
+                  <span style="color:var(--warn);font-weight:700">ב׳</span> עתודה שנייה — שלישי בניקוד
+                </div>
+              </div>
+            </div>
+
+            <div style="background:var(--surface3);border-radius:8px;padding:14px;font-size:13px;color:var(--text2);line-height:1.8">
+              💡 <strong style="color:var(--text)">דוגמה:</strong> ביום שישי, 5 תורנים זמינים עם ניקוד: 640, 645, 650, 655, 660.<br>
+              → יקבלו שיבוץ: <strong style="color:var(--accent)">640</strong> (מבצע V) · 
+              <strong style="color:var(--info)">645</strong> (עתודה א׳) · 
+              <strong style="color:var(--warn)">650</strong> (עתודה ב׳)<br>
+              → <strong>655 ו-660</strong> לא משובצים לאותו יום — ייאספו לשיבוצים עתידיים.
             </div>
           </div>
 
+          <!-- אילוצים -->
           <div class="card">
-            <div class="card-title" style="font-size:16px;margin-bottom:16px">🚫 אילוצים</div>
-            <div style="font-size:14px;color:var(--text2);line-height:1.8">
-              לכל יום בחודש ניתן לסמן: <strong>✓ עדיפות</strong> / <strong>ניטרלי</strong> / <strong>✕ לא יכול</strong>.<br>
-              האילוצים פתוחים להגשה עד שהמנהל נועל את החודש.
+            <div class="card-title" style="font-size:16px;margin-bottom:16px">🚫 הגשת אילוצים</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div style="background:rgba(218,54,51,0.08);border:1px solid rgba(218,54,51,0.25);border-radius:8px;padding:14px">
+                <div style="font-size:20px;margin-bottom:6px">✕</div>
+                <div style="font-weight:600;font-size:14px;color:var(--danger)">לא יכול</div>
+                <div style="font-size:13px;color:var(--text2);margin-top:4px;line-height:1.6">
+                  אילוץ חובה — לא תשובץ לתורנות ביום זה בשום מצב.
+                </div>
+              </div>
+              <div style="background:rgba(46,160,67,0.08);border:1px solid rgba(46,160,67,0.25);border-radius:8px;padding:14px">
+                <div style="font-size:20px;margin-bottom:6px">✓</div>
+                <div style="font-weight:600;font-size:14px;color:var(--accent)">מעדיף</div>
+                <div style="font-size:13px;color:var(--text2);margin-top:4px;line-height:1.6">
+                  העדפה — מסמן שאתה זמין ומעדיף לשרת ביום זה (לא מחייב).
+                </div>
+              </div>
+            </div>
+            <div style="background:var(--surface3);border-radius:8px;padding:14px;margin-top:12px;font-size:13px;color:var(--text2);line-height:1.7">
+              ⚠️ <strong style="color:var(--text)">שים לב:</strong> ניתן להגיש אילוצים רק כאשר המנהל <strong>פתח</strong> את הגשת האילוצים לאותו חודש.
+              לחיצה על יום מחזורית: ריק → ✓ מעדיף → ✕ לא יכול → ריק
             </div>
           </div>
 
+          <!-- מבנה התורנות -->
           <div class="card">
-            <div class="card-title" style="font-size:16px;margin-bottom:16px">🔄 החלפת תורנויות</div>
-            <div style="font-size:14px;color:var(--text2);display:grid;gap:8px">
-              <div style="display:flex;gap:10px;align-items:flex-start"><span style="background:var(--accent);color:white;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0">1</span><span>תורן א׳ בוחר תורנות שלו + עם מי + תורנות שלהם ← שולח</span></div>
-              <div style="display:flex;gap:10px;align-items:flex-start"><span style="background:var(--accent);color:white;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0">2</span><span>תורן ב׳ מקבל התראה ← מאשר / דוחה</span></div>
-              <div style="display:flex;gap:10px;align-items:flex-start"><span style="background:var(--accent);color:white;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0">3</span><span>מנהל מאשר סופי ← הלוח והניקוד מתעדכנים אוטומטית</span></div>
+            <div class="card-title" style="font-size:16px;margin-bottom:16px">👥 מבנה התורנות</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px">
+              <div style="background:var(--accent-glow);border:1px solid rgba(46,160,67,0.3);border-radius:8px;padding:14px;text-align:center">
+                <div style="font-size:22px;font-weight:800;color:var(--accent)">V</div>
+                <div style="font-weight:600;font-size:13px;margin-top:4px">מבצע</div>
+                <div style="font-size:12px;color:var(--text2);margin-top:4px">התורן הראשי, מקבל ניקוד מלא</div>
+              </div>
+              <div style="background:rgba(56,139,253,0.08);border:1px solid rgba(56,139,253,0.3);border-radius:8px;padding:14px;text-align:center">
+                <div style="font-size:22px;font-weight:800;color:var(--info)">א׳</div>
+                <div style="font-weight:600;font-size:13px;margin-top:4px">עתודה ראשונה</div>
+                <div style="font-size:12px;color:var(--text2);margin-top:4px">מגיע אם המבצע אינו זמין</div>
+              </div>
+              <div style="background:rgba(210,153,34,0.08);border:1px solid rgba(210,153,34,0.3);border-radius:8px;padding:14px;text-align:center">
+                <div style="font-size:22px;font-weight:800;color:var(--warn)">ב׳</div>
+                <div style="font-weight:600;font-size:13px;margin-top:4px">עתודה שנייה</div>
+                <div style="font-size:12px;color:var(--text2);margin-top:4px">גיבוי אחרון למקרה הצורך</div>
+              </div>
+            </div>
+            <div style="font-size:13px;color:var(--text2);line-height:1.7">
+              סוגי הימים: <strong style="color:var(--text)">חול</strong> (א׳–ד׳) · 
+              <strong style="color:var(--warn)">חמישי</strong> · 
+              <strong style="color:#a855f7">סוף שבוע</strong> (שישי/שבת) · 
+              <strong style="color:var(--danger)">חג</strong> · 
+              <strong style="color:var(--accent)">24 שעות</strong>
             </div>
           </div>
 
+
+          <!-- החלפת תורנות -->
           <div class="card">
-            <div class="card-title" style="font-size:16px;margin-bottom:16px">👤 פרופיל אישי</div>
-            <div style="font-size:14px;color:var(--text2);line-height:1.8">
-              עדכון שם, טלפון, אימייל, סוג סוף שבוע ושינוי סיסמה.<br>
-              <strong>סיסמת ברירת מחדל:</strong> Aa123456
+            <div class="card-title" style="font-size:16px;margin-bottom:16px">🔄 החלפת תורנות</div>
+            <p style="color:var(--text2);font-size:14px;line-height:1.8;margin-bottom:16px">
+              תורן יכול לבקש להחליף תורנות עם תורן אחר. ההחלפה עוברת שלושה שלבי אישור.
+            </p>
+            <div style="display:grid;gap:12px;margin-bottom:16px">
+              <div style="display:flex;gap:12px;align-items:flex-start">
+                <div style="background:var(--accent);color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0">1</div>
+                <div>
+                  <div style="font-weight:600;font-size:14px">שליחת בקשה</div>
+                  <div style="color:var(--text2);font-size:13px;margin-top:3px">לשונית <strong>"🔄 החלפה"</strong> ← בחר חודש ← בחר תורנות ← בחר עם מי ← הסבר ← לחץ <strong>"שלח בקשה"</strong>.</div>
+                </div>
+              </div>
+              <div style="display:flex;gap:12px;align-items:flex-start">
+                <div style="background:var(--info);color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0">2</div>
+                <div>
+                  <div style="font-weight:600;font-size:14px">אישור התורן השני</div>
+                  <div style="color:var(--text2);font-size:13px;margin-top:3px">התורן האחר יראה בקשה בלשונית שלו עם <strong>✓ אשר / ✕ דחה</strong>. לאחר אישורו הבקשה עוברת למנהל.</div>
+                </div>
+              </div>
+              <div style="display:flex;gap:12px;align-items:flex-start">
+                <div style="background:var(--warn);color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0">3</div>
+                <div>
+                  <div style="font-weight:600;font-size:14px">אישור המנהל</div>
+                  <div style="color:var(--text2);font-size:13px;margin-top:3px">המנהל מאשר בלשונית <strong>"🔄 החלפות"</strong>. הוא יכול לאשר, לדחות, או למחוק בקשה בכל שלב.</div>
+                </div>
+              </div>
+              <div style="display:flex;gap:12px;align-items:flex-start">
+                <div style="background:var(--accent);color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0">4</div>
+                <div>
+                  <div style="font-weight:600;font-size:14px">עדכון אוטומטי</div>
+                  <div style="color:var(--text2);font-size:13px;margin-top:3px">הלוח מתעדכן אוטומטית. אם הניקוד שונה בין התורנויות — גם הניקוד מתעדכן בהתאם.</div>
+                </div>
+              </div>
+            </div>
+            <div style="background:var(--surface3);border-radius:8px;padding:14px;font-size:13px;line-height:1.9">
+              <div style="font-weight:600;margin-bottom:6px">מצבי הבקשה:</div>
+              <div>⏳ <strong>ממתין לאישור התורן</strong> — נשלחה, מחכה לתגובת התורן השני</div>
+              <div>⏳ <strong>ממתין לאישור מנהל</strong> — התורן אישר, מחכה למנהל</div>
+              <div>✅ <strong>אושר</strong> — הלוח עודכן</div>
+              <div>❌ <strong>נדחה</strong> — הבקשה נדחתה</div>
             </div>
           </div>
 
         </div>
       </div>
+
 
       <!-- ADMIN: SWAPS TAB -->
       <div id="tab-admin-swaps" class="tab-content hidden">
