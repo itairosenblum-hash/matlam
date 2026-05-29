@@ -821,7 +821,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
       <!-- GUIDE TAB (all users) -->
       <div id="tab-guide" class="tab-content hidden">
         <div class="section-title" style="margin-bottom:24px">📖 מדריך מערכת התורנויות</div>
-        <div style="max-width:800px;display:grid;gap:16px">
+        <div style="max-width:800px;display:grid;gap:24px">
 
           <!-- שיטת הניקוד -->
           <div class="card">
@@ -3538,6 +3538,37 @@ async function saveProfileDetails() {
   }
 }
 
+async function changePassword() {
+  const oldPass = document.getElementById('old-pass').value;
+  const newPass = document.getElementById('new-pass').value;
+  const confirmPass = document.getElementById('confirm-pass').value;
+  const alertEl = document.getElementById('change-pass-alert');
+
+  if (!oldPass || !newPass) {
+    showAlert('change-pass-alert','יש למלא סיסמה נוכחית וחדשה','error');
+    return;
+  }
+  if (newPass !== confirmPass) {
+    showAlert('change-pass-alert','הסיסמאות החדשות לא תואמות','error');
+    return;
+  }
+  if (newPass.length < 6) {
+    showAlert('change-pass-alert','הסיסמה חייבת להכיל לפחות 6 תווים','error');
+    return;
+  }
+  showLoading(true);
+  const res = await api({action:'changePassword', oldPassword: oldPass, newPassword: newPass});
+  showLoading(false);
+  if (res.success) {
+    document.getElementById('old-pass').value = '';
+    document.getElementById('new-pass').value = '';
+    document.getElementById('confirm-pass').value = '';
+    showAlert('change-pass-alert','✅ הסיסמה שונתה בהצלחה','success');
+  } else {
+    showAlert('change-pass-alert', res.error || 'שגיאה בשינוי הסיסמה','error');
+  }
+}
+
 async function saveDutySettings() {
   const weekendType = document.getElementById('profile-weekend').value;
   showLoading(true);
@@ -3552,7 +3583,22 @@ async function saveDutySettings() {
   }
 }
 </script>
-  <!-- Modal: שלח לוח -->
+  <!-- PWA Install Banner -->
+<div id="pwa-install-banner" style="display:none;position:fixed;bottom:0;right:0;left:0;background:var(--surface);border-top:2px solid var(--accent);padding:14px 16px;z-index:9999;box-shadow:0 -4px 20px rgba(0,0,0,0.2)">
+  <div style="max-width:600px;margin:0 auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/SemelMatzad_Color.svg/48px-SemelMatzad_Color.svg.png" style="width:40px;height:40px;flex-shrink:0">
+    <div style="flex:1;min-width:200px">
+      <div style="font-weight:700;font-size:14px">התקן את מפקד תורן מטל"מ</div>
+      <div id="pwa-install-hint" style="font-size:12px;color:var(--text2);margin-top:2px"></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button id="pwa-install-btn" onclick="installPWA()" class="btn btn-primary btn-sm" style="display:none">📲 התקן</button>
+      <button onclick="dismissPWA()" class="btn btn-secondary btn-sm">✕ לא עכשיו</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: שלח לוח -->
 <div id="modal-send-schedule" class="modal-overlay">
   <div class="modal" style="max-width:500px">
     <div class="modal-header">
