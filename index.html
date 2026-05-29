@@ -757,50 +757,60 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
 
           <div class="card">
             <div class="card-title" style="font-size:16px;margin-bottom:16px">⚡ שיטת השיבוץ האוטומטי</div>
-            <p style="color:var(--text2);font-size:14px;line-height:1.8;margin-bottom:12px">
-              האלגוריתם מבצע שיבוץ לפי עדיפות ובשלבים:
+            <p style="color:var(--text2);font-size:14px;line-height:1.8;margin-bottom:16px">
+              עקרון השיבוץ: <strong>ניקוד נמוך = עדיפות ראשונה</strong> — ללא תלות בסוג סוף השבוע (מלא / בנפרד).
             </p>
-            <!-- עיקרון הניקוד -->
-            <div style="background:rgba(46,160,67,0.08);border:1px solid rgba(46,160,67,0.3);border-radius:8px;padding:16px;margin-bottom:16px">
-              <div style="font-weight:700;font-size:15px;color:var(--accent);margin-bottom:10px">🔑 עיקרון יחיד: ניקוד מצטבר</div>
-              <div style="font-size:14px;line-height:2;color:var(--text)">
-                <strong>מי שניקוד המצטבר שלו נמוך יותר — משובץ קודם, לכל סוג תורנות.</strong>
-              </div>
-              <div style="color:var(--text2);font-size:13px;line-height:1.8;margin-top:8px">
-                אין עדיפות לסוג תורנות מסוים. אם לתורן א׳ ניקוד 650 והוא מוגדר "סוף שבוע מלא", 
-                ולתורן ב׳ ניקוד 640 המוגדר "ימים בנפרד" — תורן ב׳ ישובץ קודם לשבת שלו (ניקוד 20), 
-                ורק אחר כך תורן א׳ לשבת המלאה שלו (ניקוד 40).<br>
-                <strong style="color:var(--text)">הניקוד הנמוך מנצח — תמיד.</strong>
+
+            <div style="margin-bottom:16px">
+              <div style="font-weight:600;font-size:14px;margin-bottom:10px">סדר עדיפות השיבוץ:</div>
+              <div style="display:grid;gap:8px">
+
+                <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:rgba(218,54,51,0.08);border-right:3px solid var(--danger);border-radius:8px">
+                  <span style="font-size:20px;flex-shrink:0">1</span>
+                  <div>
+                    <div style="font-weight:700;font-size:13px">חג / ערב חג</div>
+                    <div style="font-size:12px;color:var(--text2)">מי שעושה חג מלא — מכסה את כל ימי החג ברצף. הניקוד הנמוך ביותר מקבל את התורנות.</div>
+                  </div>
+                </div>
+
+                <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:rgba(139,92,246,0.08);border-right:3px solid var(--info);border-radius:8px">
+                  <span style="font-size:20px;flex-shrink:0">2</span>
+                  <div>
+                    <div style="font-weight:700;font-size:13px">סוף שבוע</div>
+                    <div style="font-size:12px;color:var(--text2)">מלא = שישי+שבת יחד (40 נקודות, כל 6 חודשים). בנפרד = יום אחד (20 נקודות, כל 3 חודשים). הניקוד הנמוך מקבל.</div>
+                  </div>
+                </div>
+
+                <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:rgba(234,179,8,0.08);border-right:3px solid var(--warn);border-radius:8px">
+                  <span style="font-size:20px;flex-shrink:0">3</span>
+                  <div>
+                    <div style="font-weight:700;font-size:13px">תורנות 24 שעות</div>
+                    <div style="font-size:12px;color:var(--text2)">חול 24 שעות / חמישי 24 שעות / הדממה — לפי ניקוד נמוך.</div>
+                  </div>
+                </div>
+
+                <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:rgba(46,160,67,0.08);border-right:3px solid var(--accent);border-radius:8px">
+                  <span style="font-size:20px;flex-shrink:0">4</span>
+                  <div>
+                    <div style="font-weight:700;font-size:13px">חמישי</div>
+                    <div style="font-size:12px;color:var(--text2)">תורנות חמישי רגילה — לפי ניקוד נמוך. משרת אב מקבל חמישי בעדיפות ראשונה.</div>
+                  </div>
+                </div>
+
+                <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--surface2);border-right:3px solid var(--border);border-radius:8px">
+                  <span style="font-size:20px;flex-shrink:0">5</span>
+                  <div>
+                    <div style="font-weight:700;font-size:13px">חול</div>
+                    <div style="font-size:12px;color:var(--text2)">ימי חול רגילים — לפי ניקוד נמוך.</div>
+                  </div>
+                </div>
+
               </div>
             </div>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-              <div style="background:var(--surface3);border-radius:8px;padding:14px">
-                <div style="font-weight:600;font-size:13px;margin-bottom:6px">✅ מה שקובע את הסדר</div>
-                <div style="font-size:13px;color:var(--text2);line-height:1.7">
-                  ניקוד מצטבר נמוך = משובץ ראשון<br>
-                  אילוץ ✕ = לא משובץ כלל<br>
-                  סוג הגדרה (מלא/בנפרד) = קובע <em>איזה</em> תורנות, לא <em>מתי</em>
-                </div>
-              </div>
-              <div style="background:var(--surface3);border-radius:8px;padding:14px">
-                <div style="font-weight:600;font-size:13px;margin-bottom:6px">📅 בכל יום נבחרים</div>
-                <div style="font-size:13px;color:var(--text2);line-height:1.7">
-                  <span style="color:var(--accent);font-weight:700">V</span> מבצע — ניקוד נמוך ביותר<br>
-                  <span style="color:var(--info);font-weight:700">א׳</span> עתודה ראשונה — שני בניקוד<br>
-                  <span style="color:var(--warn);font-weight:700">ב׳</span> עתודה שנייה — שלישי בניקוד
-                </div>
-              </div>
+            <div style="background:var(--surface2);border-radius:8px;padding:12px 14px;font-size:13px;color:var(--text2)">
+              💡 מי שלא שובץ החודש ("דולג") מקבל +10 נקודות אוטומטית. תורן חדש מקבל ניקוד התחלתי שווה לממוצע כל התורנים הפעילים.
             </div>
-
-            <div style="background:var(--surface3);border-radius:8px;padding:14px;font-size:13px;color:var(--text2);line-height:1.8">
-              💡 <strong style="color:var(--text)">דוגמה:</strong> ביום שישי, 5 תורנים זמינים עם ניקוד: 640, 645, 650, 655, 660.<br>
-              → יקבלו שיבוץ: <strong style="color:var(--accent)">640</strong> (מבצע V) · 
-              <strong style="color:var(--info)">645</strong> (עתודה א׳) · 
-              <strong style="color:var(--warn)">650</strong> (עתודה ב׳)<br>
-              → <strong>655 ו-660</strong> לא משובצים לאותו יום — ייאספו לשיבוצים עתידיים.
-            </div>
-          </div>
 
           <!-- אילוצים -->
           <div class="card">
