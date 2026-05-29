@@ -399,8 +399,8 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
   .nav-brand span{display:none}
   .nav-badge{display:none}
   
-  /* Scores - show even fewer columns */
-  .schedule-table td:nth-child(n+5),.schedule-table th:nth-child(n+5){display:none}
+  /* Scores - show: #, שם, מצטבר כולל only */
+  .scores-table td:nth-child(n+4),.scores-table th:nth-child(n+4){display:none}
 
   /* Users table - minimal */
   .users-table td:nth-child(3),.users-table th:nth-child(3){display:none}
@@ -2279,7 +2279,7 @@ async function loadScores() {
 
   const thStyle = 'background:var(--surface3);border-bottom:2px solid var(--border);white-space:nowrap';
   container.innerHTML = `<div class="card" style="padding:0;overflow:hidden">
-    <table class="schedule-table" style="min-width:800px;border-collapse:separate;border-spacing:0">
+    <table class="schedule-table scores-table" style="min-width:600px;border-collapse:separate;border-spacing:0">
       <thead style="position:sticky;top:0;z-index:10">
         <tr>
           <th style="${thStyle}">#</th>
