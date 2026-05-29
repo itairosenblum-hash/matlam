@@ -245,7 +245,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
 .constraint-preferred .cal-day-num{color:var(--accent)}
 /* ---- RESPONSIVE ---- */
 @media(max-width:768px){
-  /* Navbar */
+  /* ── Navbar ── */
   .navbar{padding:0 12px;flex-wrap:wrap;height:auto;min-height:56px;gap:6px}
   .nav-brand{font-size:14px}
   .nav-tabs{overflow-x:auto;width:100%;padding-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
@@ -253,40 +253,106 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
   .nav-tab{padding:5px 10px;font-size:12px;white-space:nowrap}
   .nav-user{gap:6px}
   .nav-user .text-sm{display:none}
-  /* Main */
-  .main{padding:12px 8px}
-  /* Login */
-  .login-card{padding:28px 20px;margin:16px}
-  /* Section header */
-  .section-header{flex-direction:column;align-items:flex-start}
-  /* Stats */
-  .stats-grid{grid-template-columns:repeat(2,1fr)}
-  /* Profile grid */
-  #tab-profile > div[style*='grid-template-columns']{grid-template-columns:1fr!important}
-  /* Calendar - scrollable on mobile */
-  .cal-grid{gap:2px}
-  .cal-day{min-height:60px;padding:4px}
-  .cal-day-num{font-size:11px}
-  .cal-person{font-size:9px;padding:1px 3px}
-  /* Tables - scrollable */
-  .card{padding:12px}
-  /* Modals */
-  .modal{margin:12px;max-height:85vh}
-  /* Generate modal days */
-  #generate-days-list > div{flex-direction:row;align-items:center}
-  /* Month picker */
-  .month-picker select{font-size:13px}
-  /* Buttons */
+
+  /* ── Layout ── */
+  .main{padding:10px 8px}
+  .card{padding:12px;border-radius:10px}
+  .section-title{font-size:18px}
+  .section-header{flex-direction:column;align-items:flex-start;gap:8px}
+
+  /* ── Login ── */
+  .login-card{padding:24px 18px;margin:16px}
+
+  /* ── Modals ── */
+  .modal{margin:8px;max-height:92vh;width:calc(100% - 16px)!important;max-width:none!important}
+  .modal-body{padding:14px}
+  .modal-footer{flex-wrap:wrap;gap:8px}
+  .modal-footer .btn{flex:1;min-width:120px;justify-content:center}
+
+  /* ── Buttons ── */
   .btn{padding:8px 12px;font-size:13px}
   .btn-sm{padding:5px 8px;font-size:11px}
-  /* Day type grid */
+
+  /* ── Admin schedule header ── */
+  .section-header > div:first-child{flex-wrap:wrap;gap:6px}
+  #admin-schedule-content > div:first-child{overflow-x:hidden}
+
+  /* ── Scores table ── */
+  .schedule-table{font-size:12px}
+  .schedule-table td,.schedule-table th{padding:6px 8px}
+  .schedule-table td:nth-child(n+6),.schedule-table th:nth-child(n+6){display:none}
+  .score-bar{width:50px!important}
+
+  /* ── Users/Tornim table ── */
+  .users-table{font-size:12px}
+  .users-table td,.users-table th{padding:6px 8px}
+  .users-table td:nth-child(4),.users-table th:nth-child(4){display:none}
+  .users-table td:nth-child(6),.users-table th:nth-child(6){display:none}
+  .users-table .btn-sm{padding:4px 6px;font-size:10px}
+  .users-table .btn-sm span{display:none}
+
+  /* ── Profile ── */
+  #tab-profile .form-row{grid-template-columns:1fr!important}
+  #tab-profile .form-group{margin-bottom:12px}
+
+  /* ── Swap tab ── */
+  #tab-swap .card{margin-bottom:12px}
+  #tab-swap select, #tab-swap input, #tab-swap textarea{font-size:16px!important}
+  .swap-item{flex-direction:column;gap:8px}
+  .swap-actions{flex-wrap:wrap;gap:6px;justify-content:flex-end}
+
+  /* ── Constraints calendar ── */
+  .constraint-cal{font-size:11px}
+  .constraint-month-grid{grid-template-columns:repeat(5,1fr)!important}
+  .constraint-cal-day{padding:6px 4px;min-height:36px;font-size:11px}
+
+  /* ── Notification panel ── */
+  #notif-panel{width:calc(100vw - 20px)!important;right:10px!important;left:10px!important}
+
+  /* ── Guide cards ── */
+  #tab-guide .card{padding:14px}
+  #tab-guide table{font-size:12px}
+  #tab-guide table td, #tab-guide table th{padding:6px 8px}
+
+  /* ── Admin swaps ── */
+  #tab-admin-swaps .card{padding:12px}
+  .swap-item-admin{flex-direction:column}
+
+  /* ── Stats ── */
+  .stats-grid{grid-template-columns:repeat(2,1fr);gap:8px}
+  .stat-card{padding:12px}
+
+  /* ── Generate modal ── */
+  #generate-days-list > div{flex-direction:row;align-items:center;padding:6px}
   .day-type-grid{grid-template-columns:repeat(2,1fr)}
-  /* Users table - hide less important columns */
-  .users-table td:nth-child(3),.users-table th:nth-child(3){display:none}
-  /* Scores table - hide months */
+
+  /* ── Month select ── */
+  select{font-size:14px}
+}
+
+@media(max-width:480px){
+  .nav-brand span{display:none}
+  .nav-badge{display:none}
+  
+  /* Scores - show even fewer columns */
   .schedule-table td:nth-child(n+5),.schedule-table th:nth-child(n+5){display:none}
-  /* Duty banner */
-  .duty-banner{flex-direction:column;gap:8px;text-align:center}
+
+  /* Users table - minimal */
+  .users-table td:nth-child(3),.users-table th:nth-child(3){display:none}
+  .users-table td:nth-child(5),.users-table th:nth-child(5){display:none}
+
+  /* Buttons wrap */
+  .section-header .btn{font-size:11px;padding:5px 8px}
+  
+  /* Modal full screen */
+  .modal{margin:0;border-radius:0;max-height:100vh;height:100vh}
+  .modal-overlay{padding:0}
+  
+  /* Constraint calendar - smaller */
+  .constraint-month-grid{grid-template-columns:repeat(4,1fr)!important}
+
+  /* Swap form */
+  #tab-swap .card > div[style*='grid']{grid-template-columns:1fr!important}
 }
 @media(max-width:480px){
   .nav-brand span{display:none}
