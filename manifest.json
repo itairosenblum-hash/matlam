@@ -1,0 +1,22 @@
+{
+  "name": "מפקד תורן מטל\"מ",
+  "short_name": "מטל\"מ",
+  "description": "מערכת ניהול תורנויות מטל\"מ",
+  "start_url": "/matlam/",
+  "display": "standalone",
+  "background_color": "#1a1f2e",
+  "theme_color": "#2d4a3e",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/SemelMatzad_Color.svg/192px-SemelMatzad_Color.svg.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/SemelMatzad_Color.svg/512px-SemelMatzad_Color.svg.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
