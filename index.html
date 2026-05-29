@@ -2188,7 +2188,7 @@ async function loadScores() {
   const peopleMap = {};
   if (pRes.success) pRes.people.forEach(p => { peopleMap[p.name] = p; });
 
-  const sorted = res.scores.sort((a,b)=>b.acc2026-a.acc2026);
+  const sorted = res.scores.filter(s => s.dutyCategory !== 'מנהל מערכת').sort((a,b)=>b.acc2026-a.acc2026);
   const maxScore = Math.max(...sorted.map(s=>s.acc2026), 1);
   const SCORE_MONTHS = [
     {key:'jan',label:'ינואר'},{key:'feb',label:'פברואר'},{key:'mar',label:'מרץ'},
@@ -2203,10 +2203,12 @@ async function loadScores() {
   const CAT_COLOR = {'אב':'var(--warn)', 'פטור':'var(--text3)', '':'var(--text2)'};
 
   // Total = acc2025 + all 2026 months
+  sorted = sorted.filter(s => s.dutyCategory !== 'מנהל מערכת');
   sorted.forEach(s => {
     const months2026 = SCORE_MONTHS.reduce((sum,m) => sum + (s[m.key]?.score||0), 0);
     s.total = (s.acc2025||0) + months2026;
   });
+  sorted = sorted.filter(s => s.dutyCategory !== 'מנהל מערכת');
   sorted.sort((a,b) => b.total - a.total);
   const maxScore2 = Math.max(...sorted.map(s=>s.total), 1);
 
