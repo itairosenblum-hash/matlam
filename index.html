@@ -2090,23 +2090,56 @@ async function saveEntry() {
   }
 }
 
-function openGenerateModal() {
+async function openGenerateModal() {
   const {year, mon, days, s: month} = parseMonth(document.getElementById('admin-schedule-month').value);
+
+  // Fetch existing schedule to read holiday types
+  showLoading(true);
+  const sched = await api({action:'getSchedule', month});
+  showLoading(false);
+
+  // Build a map of day → dayType from existing schedule
+  const existingTypes = {};
+  if (sched.success && sched.schedule) {
+    sched.schedule.forEach(e => {
+      const d = new Date(e.date.split('/').reverse().join('-')).getDate();
+      if (e.dayType) existingTypes[d] = e.dayType;
+    });
+  }
+
+  // Israeli holiday names for tooltip
+  const HAG_TYPES = new Set(['חג','ערב חג','חג + סוף שבוע']);
+
   let html = '';
   for (let d = 1; d <= days; d++) {
     const date = new Date(year, mon-1, d);
     const dow = date.getDay();
     const dayName = HEB_DAYS[dow];
-    let defType = dow===4?'חמישי': (dow===5||dow===6)?'סוף שבוע':'חול';
-    html += `<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)">
-      <span style="font-weight:700;min-width:32px">${d}</span>
-      <span class="text-muted text-sm" style="min-width:48px">${dayName}'</span>
-      <select id="gen-day-${d}" style="flex:1;background:var(--surface3);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-family:inherit;font-size:13px;outline:none">
+
+    // Default: from existing schedule, or auto-detect by weekday
+    let defType = existingTypes[d] || (dow===4?'חמישי': (dow===5||dow===6)?'סוף שבוע':'חול');
+    const isHoliday = HAG_TYPES.has(defType);
+    const rowBg = isHoliday ? 'background:rgba(234,179,8,0.08);border-radius:6px;' : '';
+    const hagIcon = isHoliday ? '🕍 ' : '';
+
+    html += `<div style="display:flex;align-items:center;gap:12px;padding:8px 6px;border-bottom:1px solid var(--border);${rowBg}">
+      <span style="font-weight:700;min-width:28px;font-size:14px">${d}</span>
+      <span class="text-muted text-sm" style="min-width:46px;font-size:12px">${dayName}'</span>
+      <span style="min-width:18px">${hagIcon}</span>
+      <select id="gen-day-${d}" style="flex:1;background:var(--surface3);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-family:inherit;font-size:13px;outline:none;${isHoliday?'border-color:var(--warn);':''}">
         ${DAY_TYPES.map(t=>`<option value="${t}" ${t===defType?'selected':''}>${t}</option>`).join('')}
       </select>
     </div>`;
   }
-  document.getElementById('generate-days-list').innerHTML = html;
+
+  // Warning if no holidays detected
+  const hasHolidays = Object.values(existingTypes).some(t => HAG_TYPES.has(t));
+  const warningHtml = !hasHolidays && Object.keys(existingTypes).length === 0
+    ? `<div style="background:rgba(234,179,8,0.12);border-right:3px solid var(--warn);padding:10px 12px;border-radius:6px;margin-bottom:12px;font-size:13px;color:var(--warn)">
+        ⚠️ לא נמצא לוח לחודש זה — הימים מסווגים לפי יום השבוע בלבד. ודא שהחגים מוגדרים נכון.
+       </div>` : '';
+
+  document.getElementById('generate-days-list').innerHTML = warningHtml + html;
   document.getElementById('generate-alert').innerHTML = '';
   openModal('modal-generate');
 }
