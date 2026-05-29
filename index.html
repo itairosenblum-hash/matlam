@@ -2048,8 +2048,15 @@ async function runGenerate() {
   document.getElementById('generate-btn').disabled = false;
   if (res.success) {
     closeModal('modal-generate');
-    renderAdminSchedule(res.schedule, month);
-    showAlert('admin-schedule-alert','✓ השיבוץ הופק בהצלחה! ניתן לערוך ידנית','success');
+    // Reload schedule from server (generateScheduleV2 writes directly to sheet)
+    clearApiCache();
+    showLoading(true);
+    const sched = await api({action:'getSchedule', month});
+    showLoading(false);
+    if (sched.success) {
+      renderAdminSchedule(sched.schedule, month);
+    }
+    showAlert('admin-schedule-alert', '✓ ' + (res.message||'השיבוץ הופק בהצלחה! ניתן לערוך ידנית'), 'success');
   } else {
     showAlert('generate-alert', res.error||'שגיאה בהפקת שיבוץ','error');
   }
