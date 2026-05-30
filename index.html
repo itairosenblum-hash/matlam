@@ -1669,8 +1669,10 @@ function renderConstraintGrid(year, mon, days) {
   const firstDay = new Date(year, mon-1, 1).getDay(); // 0=Sun
   const dayHeaders = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 
-  let html = `
-  <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;cursor:grab">
+  const isMob = window.innerWidth <= 640;
+  let html = isMob
+    ? `<div><div class="cal-grid">`
+    : `<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;cursor:grab">
   <div style="min-width:560px">
   <div class="cal-header">${dayHeaders.map(d=>`<div class="cal-header-cell">${d}</div>`).join('')}</div>
   <div class="cal-grid">`;
@@ -1844,7 +1846,7 @@ async function loadMySchedule() {
   const totalCells = firstDay + daysInMonth;
   const rem = totalCells % 7;
   if (rem > 0) for (let i = 0; i < 7-rem; i++) html += `<div class="cal-day empty"></div>`;
-  html += `</div></div></div>`;
+  html += isMob ? `</div></div>` : `</div></div></div>`;
 
   if (!myEntries.length) {
     html += `<div class="alert alert-info" style="margin-top:12px">🎉 אין לך תורנויות מוגדרות לחודש זה</div>`;
