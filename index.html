@@ -2014,21 +2014,16 @@ function renderAdminSchedule(schedule, month) {
   // Day headers - Sun to Sat
   const dayHeaders = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 
-  const isMobAdmin = window.innerWidth <= 640;
-  let html = isMobAdmin
-    ? `<div><div class="cal-grid">`
-    : `<div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
-  <div style="min-width:580px">
+  let html = `<div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+  <div style="min-width:560px">
   <div class="cal-header">
     ${dayHeaders.map(d => `<div class="cal-header-cell">${d}</div>`).join('')}
   </div>
   <div class="cal-grid">`;
 
-  // Empty cells before first day (desktop only)
-  if (!isMobAdmin) {
-    for (let i = 0; i < firstDay; i++) {
-      html += `<div class="cal-day empty"></div>`;
-    }
+  // Empty cells before first day
+  for (let i = 0; i < firstDay; i++) {
+    html += `<div class="cal-day cal-empty"></div>`;
   }
 
   // Days
