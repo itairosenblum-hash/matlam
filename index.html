@@ -2259,7 +2259,7 @@ async function loadScores() {
   const peopleMap = {};
   if (pRes.success) pRes.people.forEach(p => { peopleMap[p.name] = p; });
 
-  let sorted = res.scores.filter(s => s.dutyCategory !== 'מנהל מערכת').sort((a,b)=>b.acc2026-a.acc2026);
+  let sorted = res.scores.filter(s => s.dutyCategory !== 'מנהל מערכת' && s.dutyCategory !== 'אב').sort((a,b)=>b.acc2026-a.acc2026);
   const maxScore = Math.max(...sorted.map(s=>s.acc2026), 1);
   const SCORE_MONTHS = [
     {key:'jan',label:'ינואר'},{key:'feb',label:'פברואר'},{key:'mar',label:'מרץ'},
