@@ -334,7 +334,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
 /* ---- RESPONSIVE ---- */
 @media(max-width:768px){
   /* ── Navbar ── */
-  .navbar{padding:0 12px;flex-wrap:nowrap;height:56px;gap:8px;overflow:hidden}
+  .navbar{padding:0 12px;flex-wrap:nowrap;height:56px;gap:8px;overflow:visible}
   .nav-brand{font-size:13px;flex-shrink:0}
   .nav-brand span{font-size:14px}
   .nav-tabs{overflow-x:auto;width:100%;padding-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
@@ -2452,7 +2452,7 @@ async function loadAdminConstraints() {
   html += '</tbody></table></div></div>';
       return html;
     }
-  })()
+  })();
 }
 
 
