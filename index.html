@@ -2301,8 +2301,8 @@ async function loadScores() {
         const cat = p.dutyCategory || '';
         const wkd = p.weekendType || '';
         const catColor = CAT_COLOR[cat] || 'var(--text2)';
-        // Bar width = relative to max (for visual)
-        const pct = maxScoreMob > 0 ? (s.total/maxScoreMob*100).toFixed(0) : 0;
+        // Bar width = relative to range (min=0%, max=100%)
+        const pct = range > 0 ? ((s.total - minScore) / range * 100).toFixed(0) : 50;
         // Color = based on thirds
         const barColor = i < topThird ? '#22c55e' : i < middleThird ? '#f97316' : '#ef4444';
         const monthHtml = activeMonths.map(m => {
