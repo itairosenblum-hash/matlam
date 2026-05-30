@@ -515,11 +515,12 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
 <body>
 <div id="app">
   <!-- LOGIN PAGE -->
-  <div id="login-page" class="page active">
-    <div style="position:absolute;top:16px;left:16px">
+  <div id="login-page" class="page active" style="background:url('https://itairosenblum-hash.github.io/matlam/%D7%A2%D7%95%D7%AA%D7%A7%20%D7%A9%D7%9C%20Artboard%207%20%283%29.png') center/cover no-repeat;position:relative">
+    <div style="position:absolute;inset:0;background:rgba(0,0,0,0.45);z-index:0;pointer-events:none"></div>
+    <div style="position:absolute;top:16px;left:16px;z-index:1">
       <button class="theme-toggle" id="theme-btn-login" onclick="toggleTheme()">🌙 כהה</button>
     </div>
-    <div class="login-card">
+    <div class="login-card" style="position:relative;z-index:1">
       <div class="login-logo">
         <div class="icon"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/SemelMatzad_Color.svg/250px-SemelMatzad_Color.svg.png" alt="מטל״מ" style="width:64px;height:64px;object-fit:contain"></div>
         <h1>מפקד תורן מטל"מ</h1>
