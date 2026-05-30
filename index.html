@@ -1242,7 +1242,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
 // =====================================================
 // CONFIG & STATE
 // =====================================================
-const API_URL = 'https://script.google.com/macros/s/AKfycbzEX5_CbNX5AYMELBMb2R5LMM8z463cJAdpEwXBsD3ELR0XnAunPuCxjRZp63q06eULiQ/exec'; localStorage.removeItem('duty_api_url');
+const API_URL = 'https://script.google.com/macros/s/AKfycbzEX5_CbNX5AYMELBMb2R5LMM8z463cJAdpEwXBsD3ELR0XnAunPuCxjRZp63q06eULiQ/exec';
 let token = sessionStorage.getItem('duty_token') || '';
 let currentUser = JSON.parse(sessionStorage.getItem('duty_user') || 'null');
 let allPeople = [];
@@ -1451,7 +1451,8 @@ async function doLogin() {
       showAlert('login-alert', res.error || 'שם משתמש או סיסמה שגויים','error');
     }
   } catch(e) {
-    showAlert('login-alert','שגיאת חיבור. בדוק את כתובת ה-API','error');
+    console.error('Login error:', e);
+    showAlert('login-alert','שגיאת חיבור. ודא שיש גישה לאינטרנט ונסה שוב.','error');
   }
   showLoading(false);
 }
