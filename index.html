@@ -1583,6 +1583,7 @@ function buildNavTabs() {
     `<button class="nav-tab" id="navtab-${id}" onclick="switchTabAndClose('${id}')">${label}<span class="notif-badge" id="badge-${id}" style="display:none"></span></button>`
   ).join('') + `
     <div style="border-top:1px solid var(--border);margin:6px 0"></div>
+    <button class="nav-tab" id="theme-btn-menu" onclick="toggleTheme()" style="color:var(--text2)">🌙 כהה / בהיר</button>
     <button class="nav-tab" onclick="doLogout();closeMobileMenu()" style="color:var(--danger)">🚪 יציאה</button>
   `;
 }
