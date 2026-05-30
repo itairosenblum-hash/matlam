@@ -223,6 +223,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
   .cal-grid{display:flex!important;flex-direction:column;gap:6px!important;padding:8px!important}
   .cal-header-row{display:none!important}
   .cal-empty{display:none!important}
+  .cal-day-num:empty{display:none}
 
   .cal-day{
     display:grid!important;
@@ -437,7 +438,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
   .nav-brand span{display:none}
   .nav-badge{display:none}
   .cal-day{min-height:50px}
-  .cal-header-cell{font-size:9px}
+  .cal-header-cell{font-size:9px;display:none!important}
   .stats-grid{grid-template-columns:1fr 1fr}
   .modal-footer{flex-direction:column}
   .modal-footer .btn{width:100%}
