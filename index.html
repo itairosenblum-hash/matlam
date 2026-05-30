@@ -2300,13 +2300,9 @@ async function loadScores() {
     <table class="schedule-table scores-table" style="min-width:600px;border-collapse:separate;border-spacing:0">
       <thead style="position:sticky;top:0;z-index:10">
         <tr>
-          <th style="${thStyle}">#</th>
-          <th style="${thStyle}">שם</th>
-          <th style="${thStyle}">קטגוריה</th>
-          <th style="${thStyle}">סוף שבוע</th>
-          <th style="${thStyle}">מצטבר 2025</th>
-          <th style="${thStyle}">2026</th>
-          <th style="${thStyle}">סה"כ</th>
+          <th style="${thStyle}">שם + קטגוריה</th>
+          <th style="${thStyle}" class="scores-hide-mobile">מצטבר 2025</th>
+          <th style="${thStyle}">מצטבר כולל</th>
           ${activeMonths.map(m=>`<th style="${thStyle};font-size:11px">${m.label}</th>`).join('')}
         </tr>
       </thead>
@@ -2320,14 +2316,14 @@ async function loadScores() {
         const wkdLabel = wkd === 'מלא' ? '🗓️ מלא' : wkd === 'בנפרד' ? '📅 בנפרד' : wkd || '—';
         const pctTotal = maxScore2 > 0 ? (s.total/maxScore2*100).toFixed(0) : 0;
         return `<tr>
-          <td class="text-muted" style="font-size:12px">${i+1}</td>
-          <td class="fw-bold">${s.name}</td>
-          <td style="font-size:12px;color:${catColor}">${cat||'רגיל'}</td>
-          <td style="font-size:12px;color:var(--text2)">${wkdLabel}</td>
-          <td class="text-muted">${s.acc2025||0}</td>
           <td>
-            <span style="color:var(--accent);font-weight:700">${s.total}</span>
-            <div class="score-bar" style="width:80px"><div class="score-fill" style="width:${pctTotal}%"></div></div>
+            <div class="fw-bold">${s.name}</div>
+            <div style="font-size:11px;color:${catColor};margin-top:2px">${cat||'רגיל'} · ${wkdLabel}</div>
+          </td>
+          <td class="text-muted scores-hide-mobile">${s.acc2025||0}</td>
+          <td>
+            <span style="color:var(--accent);font-weight:700;font-size:16px">${s.total}</span>
+            <div class="score-bar" style="width:70px;margin-top:4px"><div class="score-fill" style="width:${pctTotal}%"></div></div>
           </td>
           ${activeMonths.map(m=>{
             const md = s[m.key]||{score:0,type:''};
