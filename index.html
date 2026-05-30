@@ -88,7 +88,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
 .btn-full{width:100%;justify-content:center}
 .btn-sm{padding:6px 12px;font-size:12px}
 /* ---- NAVBAR ---- */
-.navbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;min-height:60px;position:sticky;top:0;z-index:100;flex-wrap:wrap;gap:4px}
+.navbar{background:linear-gradient(135deg,var(--surface) 0%,rgba(45,74,62,0.15) 100%);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;min-height:60px;position:sticky;top:0;z-index:100;flex-wrap:wrap;gap:4px}
 .nav-brand{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px}
 .nav-brand span{font-size:20px}
 .nav-user{display:flex;align-items:center;gap:12px}
@@ -334,13 +334,15 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
 /* ---- RESPONSIVE ---- */
 @media(max-width:768px){
   /* ── Navbar ── */
-  .navbar{padding:0 12px;flex-wrap:wrap;height:auto;min-height:56px;gap:6px}
-  .nav-brand{font-size:14px}
+  .navbar{padding:0 12px;flex-wrap:nowrap;height:56px;gap:8px;overflow:hidden}
+  .nav-brand{font-size:13px;flex-shrink:0}
+  .nav-brand span{font-size:14px}
   .nav-tabs{overflow-x:auto;width:100%;padding-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
   .nav-tabs::-webkit-scrollbar{display:none}
   .nav-tab{padding:5px 10px;font-size:12px;white-space:nowrap}
-  .nav-user{gap:6px}
+  .nav-user{gap:4px;flex-shrink:0}
   .nav-user .text-sm{display:none}
+  .nav-user > *{font-size:12px}
 
   /* ── Layout ── */
   .main{padding:10px 8px}
@@ -543,7 +545,10 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
   <!-- MAIN APP PAGE -->
   <div id="main-page" class="page">
     <nav class="navbar">
-      <div class="nav-brand"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/SemelMatzad_Color.svg/250px-SemelMatzad_Color.svg.png" alt="מטל״מ" style="height:28px;width:28px;object-fit:contain;vertical-align:middle;margin-left:6px"> מפקד תורן מטל"מ</div>
+      <div class="nav-brand">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/SemelMatzad_Color.svg/250px-SemelMatzad_Color.svg.png" alt="מטל״מ" style="height:32px;width:32px;object-fit:contain;flex-shrink:0">
+        <span style="font-size:15px;font-weight:800;letter-spacing:-0.3px">מפקד תורן מטל"מ</span>
+      </div>
       <button id="hamburger-btn" class="hamburger-btn" onclick="toggleMobileMenu()" aria-label="תפריט">
         <span></span><span></span><span></span>
       </button>
