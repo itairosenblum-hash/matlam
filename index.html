@@ -1586,14 +1586,14 @@ function buildNavTabs() {
     <button class="nav-tab" onclick="doLogout();closeMobileMenu()" style="color:var(--danger)">🚪 יציאה</button>
   `;
   // Show install button if on mobile and not installed
-  setTimeout(() => {
+  requestAnimationFrame(() => {
     const isInstalled = window.matchMedia('(display-mode: standalone)').matches
       || (('standalone' in navigator) && navigator.standalone)
       || localStorage.getItem('pwa_installed');
     const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
     const btn = document.getElementById('pwa-menu-btn');
     if (btn && isMobile && !isInstalled) btn.style.display = '';
-  }, 100);
+  });
 }
 
 // Debounce rapid UI changes
