@@ -220,6 +220,14 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
 
 @media(max-width:640px){
   /* ── Calendar: clean card rows ── */
+  /* Override the min-width wrapper so mobile layout works */
+  #admin-schedule-content > div > div,
+  #user-schedule-content > div > div,
+  #full-schedule-content > div > div {
+    min-width:0!important;
+    overflow:visible!important;
+  }
+  .cal-header{display:none!important}
   .cal-grid{display:flex!important;flex-direction:column;gap:6px!important;padding:8px!important}
   .cal-header-row{display:none!important}
   .cal-empty{display:none!important}
