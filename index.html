@@ -2312,7 +2312,10 @@ async function loadScores() {
               <div style="font-size:10px;color:var(--text3)">נקודות</div>
             </div>
           </div>
-          <div class="score-bar" style="width:100%;margin-bottom:8px"><div class="score-fill" style="width:${pct}%"></div></div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <div class="score-bar" style="flex:1;height:8px"><div class="score-fill" style="width:${pct}%;height:8px;border-radius:4px"></div></div>
+            <span style="font-size:10px;color:var(--text3);min-width:28px">${pct}%</span>
+          </div>
           ${monthHtml ? `<div style="display:flex;flex-wrap:wrap;gap:4px">${monthHtml}</div>` : ''}
         </div>`;
       });
