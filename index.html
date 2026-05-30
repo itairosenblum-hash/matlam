@@ -1581,7 +1581,10 @@ function buildNavTabs() {
     : [['full-schedule','📅 לוח מלא'],['constraints','🚫 אילוצים'],['scores','📊 ניקוד'],['swap','🔄 החלפה'],['profile','👤 פרופיל'],['guide','📖 מדריך']];
   container.innerHTML = tabs.map(([id,label])=>
     `<button class="nav-tab" id="navtab-${id}" onclick="switchTabAndClose('${id}')">${label}<span class="notif-badge" id="badge-${id}" style="display:none"></span></button>`
-  ).join('');
+  ).join('') + `
+    <div style="border-top:1px solid var(--border);margin:6px 0"></div>
+    <button class="nav-tab" onclick="doLogout();closeMobileMenu()" style="color:var(--danger)">🚪 יציאה</button>
+  `;
 }
 
 // Debounce rapid UI changes
