@@ -2289,14 +2289,12 @@ async function loadScores() {
     if (isMobileScores) {
       // Mobile: card list view
       let html = '<div style="display:grid;gap:8px;padding:8px">';
-      // Calculate avg and thresholds for color coding
-      const avg = sorted.reduce((sum,s)=>sum+s.total,0) / (sorted.length||1);
-      const minScore = Math.min(...sorted.map(s=>s.total));
+      // Divide people into 3 equal groups by rank (not by score range)
       const maxScoreMob = Math.max(...sorted.map(s=>s.total));
-      const range = maxScoreMob - minScore || 1;
-      const third = range / 3;
-      const greenThresh = minScore + third * 2; // top 1/3
-      const orangeThresh = minScore + third;     // middle 1/3
+      const n = sorted.length;
+      const topThird    = Math.ceil(n / 3);       // top 33%
+      const middleThird = Math.ceil(n * 2 / 3);   // top 66%
+      // sorted is descending so index 0 = highest
 
       sorted.forEach((s, i) => {
         const p = peopleMap[s.name] || {};
@@ -2306,7 +2304,7 @@ async function loadScores() {
         // Bar width = relative to max (for visual)
         const pct = maxScoreMob > 0 ? (s.total/maxScoreMob*100).toFixed(0) : 0;
         // Color = based on thirds
-        const barColor = s.total >= greenThresh ? '#22c55e' : s.total >= orangeThresh ? '#f97316' : '#ef4444';
+        const barColor = i < topThird ? '#22c55e' : i < middleThird ? '#f97316' : '#ef4444';
         const monthHtml = activeMonths.map(m => {
           const ms = s[m.key] || {};
           if (!ms.score) return '';
