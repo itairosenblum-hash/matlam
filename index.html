@@ -2284,7 +2284,43 @@ async function loadScores() {
   const maxScore2 = Math.max(...sorted.map(s=>s.total), 1);
 
   const thStyle = 'background:var(--surface3);border-bottom:2px solid var(--border);white-space:nowrap';
-  container.innerHTML = `<div class="card" style="padding:0;overflow-x:auto;-webkit-overflow-scrolling:touch">
+  container.innerHTML = (() => {
+    const isMobileScores = window.innerWidth <= 640;
+    if (isMobileScores) {
+      // Mobile: card list view
+      let html = '<div style="display:grid;gap:8px;padding:8px">';
+      sorted.forEach((s, i) => {
+        const p = peopleMap[s.name] || {};
+        const cat = p.dutyCategory || '';
+        const wkd = p.weekendType || '';
+        const catColor = CAT_COLOR[cat] || 'var(--text2)';
+        const pct = maxScore2 > 0 ? (s.total/maxScore2*100).toFixed(0) : 0;
+        const monthHtml = activeMonths.map(m => {
+          const ms = s[m.key] || {};
+          if (!ms.score) return '';
+          return `<span style="font-size:11px;background:var(--surface2);border-radius:6px;padding:2px 6px;white-space:nowrap">${m.label}: <b>${ms.score}</b></span>`;
+        }).filter(Boolean).join('');
+        
+        html += `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div>
+              <div style="font-weight:700;font-size:15px">${s.name}</div>
+              <div style="font-size:11px;color:${catColor};margin-top:2px">${cat||'רגיל'} · ${wkd||'—'}</div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-size:22px;font-weight:800;color:var(--accent)">${s.total}</div>
+              <div style="font-size:10px;color:var(--text3)">נקודות</div>
+            </div>
+          </div>
+          <div class="score-bar" style="width:100%;margin-bottom:8px"><div class="score-fill" style="width:${pct}%"></div></div>
+          ${monthHtml ? `<div style="display:flex;flex-wrap:wrap;gap:4px">${monthHtml}</div>` : ''}
+        </div>`;
+      });
+      html += '</div>';
+      return html;
+    } else {
+      // Desktop: full table (existing)
+      return `<div class="card" style="padding:0;overflow-x:auto;-webkit-overflow-scrolling:touch">
     <table class="schedule-table scores-table" style="min-width:750px;border-collapse:collapse;border-spacing:0">
       <thead style="position:sticky;top:0;z-index:10">
         <tr>
@@ -2392,7 +2428,9 @@ async function loadAdminConstraints() {
   });
 
   html += '</tbody></table></div></div>';
-  container.innerHTML = html;
+      return html;
+    }
+  })()
 }
 
 
