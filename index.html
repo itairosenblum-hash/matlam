@@ -1711,36 +1711,17 @@ function renderConstraintGrid(year, mon, days) {
     </div>`;
   }
 
-  // Fill remaining cells
-  const totalCells = firstDay + days;
-  const remainder = totalCells % 7;
-  if (remainder > 0) {
-    for (let i = 0; i < 7 - remainder; i++) {
-      html += `<div class="cal-day empty"></div>`;
+  // Fill remaining cells (desktop only)
+  if (!isMobAdmin) {
+    const totalCells = firstDay + days;
+    const remainder = totalCells % 7;
+    if (remainder > 0) {
+      for (let i = 0; i < 7 - remainder; i++) {
+        html += `<div class="cal-day empty"></div>`;
+      }
     }
   }
-
-  html += `</div></div></div>
-  <div style="display:flex;align-items:center;gap:16px;margin-top:12px;flex-wrap:wrap">
-    <span style="font-size:13px;color:var(--text2)">לחץ על יום לסימון (לחיצה חוזרת מחזורית):</span>
-    <span style="display:flex;align-items:center;gap:5px;font-size:12px">
-      <span style="color:var(--accent);font-weight:700;font-size:15px">✓</span>
-      <span>מעדיף</span>
-    </span>
-    <span style="display:flex;align-items:center;gap:5px;font-size:12px">
-      <span style="color:var(--danger);font-weight:700;font-size:15px">✕</span>
-      <span>לא יכול</span>
-    </span>
-    <span style="display:flex;align-items:center;gap:5px;font-size:12px">
-      <span style="color:var(--text3);font-size:15px">—</span>
-      <span>ללא העדפה</span>
-    </span>
-    <span style="font-size:12px;color:var(--text2);margin-right:8px">
-      ✓ <strong id="pref-count">${constraintData.filter(c=>c==='V').length}</strong>
-      &nbsp;✕ <strong id="blocked-count">${constraintData.filter(c=>c==='X').length}</strong>
-    </span>
-  </div>`;
-
+  html += isMobAdmin ? `</div></div>` : `</div></div></div>`;
   container.innerHTML = html;
 }
 
@@ -2033,17 +2014,21 @@ function renderAdminSchedule(schedule, month) {
   // Day headers - Sun to Sat
   const dayHeaders = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 
-  let html = `
-  <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+  const isMobAdmin = window.innerWidth <= 640;
+  let html = isMobAdmin
+    ? `<div><div class="cal-grid">`
+    : `<div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
   <div style="min-width:580px">
   <div class="cal-header">
     ${dayHeaders.map(d => `<div class="cal-header-cell">${d}</div>`).join('')}
   </div>
   <div class="cal-grid">`;
 
-  // Empty cells before first day
-  for (let i = 0; i < firstDay; i++) {
-    html += `<div class="cal-day empty"></div>`;
+  // Empty cells before first day (desktop only)
+  if (!isMobAdmin) {
+    for (let i = 0; i < firstDay; i++) {
+      html += `<div class="cal-day empty"></div>`;
+    }
   }
 
   // Days
@@ -2106,7 +2091,7 @@ function renderAdminSchedule(schedule, month) {
     }
   }
 
-  html += `</div></div></div>`;
+  html += isMobAdmin ? `</div></div>` : `</div></div></div>`;
   container.innerHTML = html;
 }
 
