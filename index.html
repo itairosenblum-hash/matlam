@@ -2264,6 +2264,30 @@ async function runGenerate() {
 // ADMIN: SCORES
 // =====================================================
 async function loadScores() {
+  const container = document.getElementById('scores-content');
+  if (!container) { console.error('NO CONTAINER'); return; }
+  container.innerHTML = '<div style="padding:20px">טוען ניקוד...</div>';
+  let res;
+  try {
+    res = await api({action:'getScores'});
+  } catch(e) {
+    container.innerHTML = '<div style="padding:20px;color:red">שגיאה: ' + e.message + '</div>';
+    return;
+  }
+  if (!res || !res.success) {
+    container.innerHTML = '<div style="padding:20px;color:red">getScores נכשל: ' + JSON.stringify(res) + '</div>';
+    return;
+  }
+  if (!res.scores || !res.scores.length) {
+    container.innerHTML = '<div style="padding:20px;color:orange">אין ניקוד</div>';
+    return;
+  }
+  const n = res.scores.length;
+  container.innerHTML = '<div style="padding:20px;color:green">✓ ' + n + ' תורנים נטענו</div>';
+}
+
+
+async function _loadScoresReal(res, container) {
   showLoading(true);
   let res, pRes;
   try {
