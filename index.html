@@ -1096,7 +1096,8 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
           <button class="btn btn-danger btn-sm" onclick="deleteApprovedSwaps()" style="margin-right:auto" title="מחק את כל הבקשות שאושרו ונדחו">🗑️ נקה היסטוריה</button>
         </div>
 
-        <div id="admin-swaps-content"></div>
+        <div id="admin-swaps-debug-bar" style="font-size:11px;color:var(--text3);margin-bottom:4px"></div>
+        <div id="admin-swaps-content"><div class="text-muted text-sm" style="padding:16px">טוען...</div></div>
       </div>
 
 
@@ -3113,20 +3114,27 @@ async function respondToSwap(id, status) {
 }
 
 async function loadAdminSwaps() {
+  const debugBar = document.getElementById('admin-swaps-debug-bar');
+  const content = document.getElementById('admin-swaps-content');
+  if (debugBar) debugBar.textContent = '⏳ טוען בקשות...';
+  if (content) content.innerHTML = '<div class="text-muted text-sm" style="padding:16px">טוען...</div>';
   showLoading(true);
   let res;
   try {
     res = await api({action:'getSwaps'});
   } catch(e) {
     showLoading(false);
+    if (debugBar) debugBar.textContent = '❌ שגיאת חיבור: ' + (e.message||'');
     showAlert('admin-swaps-alert','שגיאת חיבור: ' + (e.message||'נסה שוב'),'error');
     return;
   }
   showLoading(false);
   if (!res || !res.success) {
+    if (debugBar) debugBar.textContent = '❌ ' + ((res && res.error) || 'תגובה לא תקינה');
     showAlert('admin-swaps-alert', (res && res.error) || 'שגיאה בטעינה','error'); return;
   }
   _allAdminSwaps = res.swaps || [];
+  if (debugBar) debugBar.textContent = `✅ נטענו ${_allAdminSwaps.length} בקשות | פילטר: ${_swapFilter}`;
   renderAdminSwapsFiltered();
 }
 // =============================================
