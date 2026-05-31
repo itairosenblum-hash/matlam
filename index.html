@@ -2305,53 +2305,38 @@ async function loadScores() {
   container.innerHTML = (() => {
     const isMobileScores = window.innerWidth <= 640;
     if (isMobileScores) {
-      // Mobile: card list view
-      let html = '<div style="display:grid;gap:8px;padding:8px">';
-      // Divide people into 3 equal groups by rank (not by score range)
-      const maxScoreMob = Math.max(...sorted.map(s=>s.total));
       const n = sorted.length;
-      const topThird    = Math.ceil(n / 3);       // top 33%
-      const middleThird = Math.ceil(n * 2 / 3);   // top 66%
-      // sorted is descending so index 0 = highest
-
-      sorted.forEach((s, i) => {
-        const p = peopleMap[s.name] || {};
-        const cat = p.dutyCategory || '';
-        const wkd = p.weekendType || '';
-        const catColor = CAT_COLOR[cat] || 'var(--text2)';
-        // Bar width = rank position (1st = 100%, last = small)
-        const rankPct = Math.round(((n - i) / n) * 100);
-        // Color = top 33% green, mid 33% orange, bottom 33% red
-        const barColor = i < topThird ? '#22c55e' : i < middleThird ? '#f97316' : '#ef4444';
-        const monthHtml = activeMonths.map(m => {
-          const ms = s[m.key] || {};
+      const topThird    = Math.ceil(n / 3);
+      const middleThird = Math.ceil(n * 2 / 3);
+      let cards = '<div style="display:grid;gap:8px;padding:8px">';
+      sorted.forEach(function(s, i) {
+        var p = peopleMap[s.name] || {};
+        var cat = p.dutyCategory || '';
+        var wkd = p.weekendType || '';
+        var catColor = CAT_COLOR[cat] || 'var(--text2)';
+        var rankPct = Math.round(((n - i) / n) * 100);
+        var barColor = i < topThird ? '#22c55e' : i < middleThird ? '#f97316' : '#ef4444';
+        var monthBadges = activeMonths.map(function(m) {
+          var ms = s[m.key] || {};
           if (!ms.score) return '';
-          return `<span style="font-size:11px;background:var(--surface2);border-radius:6px;padding:2px 6px;white-space:nowrap">${m.label}: <b>${ms.score}</b></span>`;
+          return '<span style="font-size:11px;background:var(--surface2);border-radius:6px;padding:2px 6px;white-space:nowrap">' + m.label + ': <b>' + ms.score + '</b></span>';
         }).filter(Boolean).join('');
-        
-        html += `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-            <div>
-              <div style="font-weight:700;font-size:15px">${s.name}</div>
-              <div style="font-size:11px;color:${catColor};margin-top:2px">${cat||'רגיל'} · ${wkd||'—'}</div>
-            </div>
-            <div style="text-align:center">
-              <div style="font-size:22px;font-weight:800;color:var(--accent)">${s.total}</div>
-              <div style="font-size:10px;color:var(--text3)">נקודות</div>
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-            <div style="flex:1;height:10px;background:var(--surface2);border-radius:5px;overflow:hidden">
-              <div style="width:${rankPct}%;height:100%;background:${barColor};border-radius:5px;transition:width 0.3s"></div>
-            </div>
-            <span style="font-size:10px;color:var(--text3);min-width:28px">${i+1}/${n}</span>
-          </div>
-          ${monthHtml ? `<div style="display:flex;flex-wrap:wrap;gap:4px">${monthHtml}</div>` : ''}
-        </div>`;
+        cards += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">'
+          + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+          + '<div><div style="font-weight:700;font-size:15px">' + s.name + '</div>'
+          + '<div style="font-size:11px;color:' + catColor + ';margin-top:2px">' + (cat||'רגיל') + ' · ' + (wkd||'—') + '</div></div>'
+          + '<div style="text-align:center"><div style="font-size:22px;font-weight:800;color:var(--accent)">' + s.total + '</div>'
+          + '<div style="font-size:10px;color:var(--text3)">נקודות</div></div></div>'
+          + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:' + (monthBadges?'8':'0') + 'px">'
+          + '<div style="flex:1;height:10px;background:var(--surface2);border-radius:5px;overflow:hidden">'
+          + '<div style="width:' + rankPct + '%;height:100%;background:' + barColor + ';border-radius:5px"></div></div>'
+          + '<span style="font-size:10px;color:var(--text3);min-width:32px">#' + (i+1) + '/' + n + '</span></div>'
+          + (monthBadges ? '<div style="display:flex;flex-wrap:wrap;gap:4px">' + monthBadges + '</div>' : '')
+          + '</div>';
       });
-      html += '</div>';
-      return html;
-    } else {
+      cards += '</div>';
+      return cards;
+        } else {
       // Desktop: full table (existing)
       return `<div class="card" style="padding:0;overflow-x:auto;-webkit-overflow-scrolling:touch">
     <table class="schedule-table scores-table" style="min-width:750px;border-collapse:collapse;border-spacing:0">
