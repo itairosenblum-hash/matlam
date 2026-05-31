@@ -2265,16 +2265,18 @@ async function runGenerate() {
 // =====================================================
 async function loadScores() {
   const container = document.getElementById('scores-content');
-  container.innerHTML = '<div style="padding:20px;color:var(--text2)">טוען...</div>';
+  showLoading(true);
   // Clear cache to force fresh data
   clearApiCache();
   let res, pRes2;
   try {
     [res, pRes2] = await Promise.all([api({action:'getScores'}), api({action:'getPeople'})]);
   } catch(e) {
+    showLoading(false);
     container.innerHTML = '<div style="padding:20px;color:red">שגיאה: ' + e.message + '<br><small>ודא שה-Apps Script פרוס כ-Anyone ושה-URL נכון</small></div>';
     return;
   }
+  showLoading(false);
   if (!res || !res.success) {
     container.innerHTML = '<div style="padding:20px;color:red">שגיאה: ' + JSON.stringify(res) + '</div>';
     return;
