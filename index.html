@@ -3582,8 +3582,8 @@ function closeMobileMenu(e) {
 function switchTabAndClose(id) {
   const tabs = document.getElementById('nav-tabs-container');
   const btn = document.getElementById('hamburger-btn');
-  tabs.classList.remove('open');
-  btn.classList.remove('open');
+  if (tabs) tabs.classList.remove('open');
+  if (btn) btn.classList.remove('open');
   switchTab(id);
 }
 
