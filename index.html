@@ -3153,7 +3153,8 @@ function setSwapFilter(filter) {
 
 function renderAdminSwapsFiltered() {
   const container = document.getElementById('admin-swaps-content');
-  let swaps = _allAdminSwaps;
+  const debugBar = document.getElementById('admin-swaps-debug-bar');
+  let swaps = _allAdminSwaps.map(s => ({...s, status: s.status || 'pending_target'}));
 
   if (_swapFilter === 'pending') {
     swaps = swaps.filter(s => s.status.startsWith('pending'));
@@ -3162,6 +3163,7 @@ function renderAdminSwapsFiltered() {
   } else if (_swapFilter === 'rejected') {
     swaps = swaps.filter(s => s.status === 'rejected');
   }
+  if (debugBar) debugBar.textContent = `סה"כ: ${_allAdminSwaps.length} | מוצגות: ${swaps.length} | פילטר: ${_swapFilter}`;
 
   if (!swaps.length) {
     container.innerHTML = '<div class="empty-state"><div class="icon">🔄</div><p>אין בקשות להציג</p></div>';
