@@ -3194,32 +3194,32 @@ function renderAdminSwapsFiltered() {
     return;
   }
 
-  container.innerHTML = `<div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto"><table class="users-table">
-    <thead><tr><th>תאריך</th><th>מבקש</th><th>עם</th><th>הסבר</th><th>סטטוס</th><th>פעולה</th></tr></thead>
-    <tbody>${swaps.map(s=>`<tr>
-      <td class="fw-bold">
-        <div>${formatDate(s.date)}</div>
-        ${s.theirDate&&s.theirDate!==s.date?`<div style="font-size:11px;color:var(--text2)">↔ ${formatDate(s.theirDate)}</div>`:''}
-      </td>
-      <td>${s.fromName}</td>
-      <td>${s.withWho}</td>
-      <td class="text-muted text-sm" style="max-width:120px">${s.note||'—'}</td>
-      <td><span class="status-badge ${s.status==='approved'?'status-active':s.status==='rejected'?'status-inactive':''}"
-        style="${s.status.startsWith('pending')?'background:rgba(210,153,34,0.1);color:var(--warn)':''}">${
-          s.status==='approved'?'✅ אושר':s.status==='rejected'?'❌ נדחה':
-          s.status==='pending_target'?'⏳ ממתין לתורן':
-          s.status==='pending_admin'?'⏳ ממתין לאישורך':'⏳'
-        }</span></td>
-      <td><div class="flex gap-8">
-        ${s.status==='pending_admin'?`
-          <button class="btn btn-primary btn-sm" onclick="approveSwap('${s.id}')">✓</button>
-          <button class="btn btn-danger btn-sm" onclick="rejectSwap('${s.id}')">✕</button>
-        `:s.status==='pending_target'?'<span class="text-muted text-sm" style="font-size:11px">ממתין לתורן</span>':''}
-        ${s.status==='approved'?`<button class="btn btn-secondary btn-sm" onclick="reApplySwap('${s.id}')" title="בצע מחדש">🔄</button>`:''}
-        <button class="btn btn-secondary btn-sm" onclick="deleteSwap('${s.id}')" title="מחק">🗑️</button>
-      </div></td>
-    </tr>`).join('')}
-    </tbody></table></div></div>`;
+  container.innerHTML = swaps.map(s => {
+    const statusLabel = s.status==='approved'?'✅ אושר':s.status==='rejected'?'❌ נדחה':
+      s.status==='pending_target'?'⏳ ממתין לתורן':
+      s.status==='pending_admin'?'⏳ ממתין לאישורך':'⏳';
+    const statusStyle = s.status==='approved'?'color:var(--accent)':s.status==='rejected'?'color:var(--danger)':'color:var(--warn)';
+    const actionBtns = s.status==='pending_admin' ? `
+      <button class="btn btn-primary btn-sm" onclick="approveSwap('${s.id}')">✓ אשר</button>
+      <button class="btn btn-danger btn-sm" onclick="rejectSwap('${s.id}')">✕ דחה</button>
+    ` : s.status==='approved' ? `
+      <button class="btn btn-secondary btn-sm" onclick="reApplySwap('${s.id}')" title="בצע מחדש">🔄</button>
+    ` : '';
+    return `<div class="card" style="margin-bottom:10px;padding:14px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+        <div>
+          <div style="font-weight:700;font-size:15px">${formatDate(s.date)}${s.theirDate&&s.theirDate!==s.date?` ↔ ${formatDate(s.theirDate)}`:''}</div>
+          <div style="font-size:13px;color:var(--text2);margin-top:2px">${s.fromName} ↔ ${s.withWho}</div>
+          ${s.note?`<div style="font-size:12px;color:var(--text3);margin-top:2px">${s.note}</div>`:''}
+        </div>
+        <span style="font-size:12px;font-weight:600;${statusStyle}">${statusLabel}</span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${actionBtns}
+        <button class="btn btn-secondary btn-sm" onclick="deleteSwap('${s.id}')" title="מחק">🗑️ מחק</button>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 async function deleteApprovedSwaps() {
