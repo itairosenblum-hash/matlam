@@ -2265,14 +2265,26 @@ async function runGenerate() {
 // =====================================================
 async function loadScores() {
   showLoading(true);
-  const [res, pRes] = await Promise.all([
-    api({action:'getScores'}),
-    api({action:'getPeople'})
-  ]);
+  let res, pRes;
+  try {
+    [res, pRes] = await Promise.all([
+      api({action:'getScores'}),
+      api({action:'getPeople'})
+    ]);
+  } catch(e) {
+    showLoading(false);
+    const container = document.getElementById('scores-content');
+    container.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>שגיאת חיבור: ' + e.message + '</p></div>';
+    return;
+  }
   showLoading(false);
   const container = document.getElementById('scores-content');
-  if (!res.success) {
-    container.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>' + (res.error||'שגיאה בטעינת ניקוד') + '</p></div>';
+  if (!res || !res.success) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>' + (res&&res.error||'שגיאה בטעינת ניקוד - בדוק שה-Apps Script עודכן ופורס') + '</p></div>';
+    return;
+  }
+  if (!res.scores || !res.scores.length) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">📊</div><p>אין נתוני ניקוד בגיליון Scores</p></div>';
     return;
   }
 
