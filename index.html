@@ -2319,9 +2319,9 @@ async function loadScores() {
         const cat = p.dutyCategory || '';
         const wkd = p.weekendType || '';
         const catColor = CAT_COLOR[cat] || 'var(--text2)';
-        // Bar width = relative to range (min=0%, max=100%)
-        const pct = range > 0 ? ((s.total - minScore) / range * 100).toFixed(0) : 50;
-        // Color = based on thirds
+        // Bar width = rank position (1st = 100%, last = small)
+        const rankPct = Math.round(((n - i) / n) * 100);
+        // Color = top 33% green, mid 33% orange, bottom 33% red
         const barColor = i < topThird ? '#22c55e' : i < middleThird ? '#f97316' : '#ef4444';
         const monthHtml = activeMonths.map(m => {
           const ms = s[m.key] || {};
