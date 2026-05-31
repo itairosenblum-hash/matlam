@@ -2998,12 +2998,16 @@ async function submitSwapRequest() {
 }
 
 async function loadSwapRequests() {
-  const res = await api({action:'getSwaps'});
   const container = document.getElementById('swap-requests-list');
   const debug = document.getElementById('swap-debug');
   if (!container) return;
-
-  if (!res.success) {
+  let res;
+  try {
+    res = await api({action:'getSwaps'});
+  } catch(e) {
+    container.innerHTML = '<div class="text-muted text-sm">שגיאת חיבור: ' + (e.message||'נסה שוב') + '</div>'; return;
+  }
+  if (!res || !res.success) {
     container.innerHTML = '<div class="text-muted text-sm">שגיאה בטעינה</div>'; return;
   }
 
@@ -3110,10 +3114,17 @@ async function respondToSwap(id, status) {
 
 async function loadAdminSwaps() {
   showLoading(true);
-  const res = await api({action:'getSwaps'});
+  let res;
+  try {
+    res = await api({action:'getSwaps'});
+  } catch(e) {
+    showLoading(false);
+    showAlert('admin-swaps-alert','שגיאת חיבור: ' + (e.message||'נסה שוב'),'error');
+    return;
+  }
   showLoading(false);
-  if (!res.success) {
-    showAlert('admin-swaps-alert','שגיאה בטעינה','error'); return;
+  if (!res || !res.success) {
+    showAlert('admin-swaps-alert', (res && res.error) || 'שגיאה בטעינה','error'); return;
   }
   _allAdminSwaps = res.swaps || [];
   renderAdminSwapsFiltered();
@@ -3432,8 +3443,18 @@ function showPage(id) {
   document.getElementById(id).classList.add('active');
 }
 
+let _loadingTimer = null;
 function showLoading(show) {
   document.getElementById('loading').classList.toggle('open', show);
+  if (show) {
+    // Safety: auto-close after 35s to prevent stuck overlay
+    clearTimeout(_loadingTimer);
+    _loadingTimer = setTimeout(() => {
+      document.getElementById('loading').classList.remove('open');
+    }, 35000);
+  } else {
+    clearTimeout(_loadingTimer);
+  }
 }
 
 function showAlert(containerId, msg, type) {
