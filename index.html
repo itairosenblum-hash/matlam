@@ -3140,25 +3140,24 @@ async function respondToSwap(id, status) {
 async function loadAdminSwaps() {
   const debugBar = document.getElementById('admin-swaps-debug-bar');
   const content = document.getElementById('admin-swaps-content');
-  if (debugBar) debugBar.textContent = '⏳ טוען בקשות...';
-  if (content) content.innerHTML = '<div class="text-muted text-sm" style="padding:16px">טוען...</div>';
-  showLoading(true);
+  if (debugBar) debugBar.textContent = '⏳ טוען...';
+  if (content) content.innerHTML = '<div class="text-muted text-sm" style="padding:16px">טוען בקשות...</div>';
+  // Don't use showLoading to avoid overlay issues
   let res;
   try {
     res = await api({action:'getSwaps'});
   } catch(e) {
-    showLoading(false);
-    if (debugBar) debugBar.textContent = '❌ שגיאת חיבור: ' + (e.message||'');
-    showAlert('admin-swaps-alert','שגיאת חיבור: ' + (e.message||'נסה שוב'),'error');
+    if (debugBar) debugBar.textContent = '❌ שגיאה: ' + (e.message||'');
+    if (content) content.innerHTML = '<div class="alert alert-error">שגיאת חיבור: ' + (e.message||'נסה שוב') + '</div>';
     return;
   }
-  showLoading(false);
   if (!res || !res.success) {
-    if (debugBar) debugBar.textContent = '❌ ' + ((res && res.error) || 'תגובה לא תקינה');
-    showAlert('admin-swaps-alert', (res && res.error) || 'שגיאה בטעינה','error'); return;
+    if (debugBar) debugBar.textContent = '❌ ' + ((res&&res.error)||'שגיאה');
+    if (content) content.innerHTML = '<div class="alert alert-error">' + ((res&&res.error)||'שגיאה בטעינה') + '</div>';
+    return;
   }
   _allAdminSwaps = res.swaps || [];
-  if (debugBar) debugBar.textContent = `✅ נטענו ${_allAdminSwaps.length} בקשות | פילטר: ${_swapFilter}`;
+  if (debugBar) debugBar.textContent = `✅ ${_allAdminSwaps.length} בקשות`;
   renderAdminSwapsFiltered();
 }
 // =============================================
@@ -3743,6 +3742,12 @@ async function saveDutySettings() {
     showAlert('duty-settings-alert', res.error||'שגיאה','error');
   }
 }
+// Global handler for unhandled promise rejections - prevents silent failures
+window.addEventListener('unhandledrejection', function(e) {
+  console.warn('Unhandled promise rejection caught:', e.reason);
+  e.preventDefault(); // Suppress the error from console
+  showLoading(false); // Always close loading overlay
+});
 </script>
   <!-- PWA Install: no banner, button is in menu -->
 <div id="pwa-install-hint" style="display:none"></div>
