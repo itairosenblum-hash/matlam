@@ -2265,27 +2265,103 @@ async function runGenerate() {
 // =====================================================
 async function loadScores() {
   const container = document.getElementById('scores-content');
-  if (!container) { console.error('NO CONTAINER'); return; }
-  container.innerHTML = '<div style="padding:20px">טוען ניקוד...</div>';
-  let res;
+  container.innerHTML = '<div style="padding:20px;color:var(--text2)">טוען...</div>';
+  let res, pRes2;
   try {
-    res = await api({action:'getScores'});
+    [res, pRes2] = await Promise.all([api({action:'getScores'}), api({action:'getPeople'})]);
   } catch(e) {
     container.innerHTML = '<div style="padding:20px;color:red">שגיאה: ' + e.message + '</div>';
     return;
   }
   if (!res || !res.success) {
-    container.innerHTML = '<div style="padding:20px;color:red">getScores נכשל: ' + JSON.stringify(res) + '</div>';
+    container.innerHTML = '<div style="padding:20px;color:red">שגיאה: ' + JSON.stringify(res) + '</div>';
     return;
   }
-  if (!res.scores || !res.scores.length) {
-    container.innerHTML = '<div style="padding:20px;color:orange">אין ניקוד</div>';
-    return;
-  }
-  const n = res.scores.length;
-  container.innerHTML = '<div style="padding:20px;color:green">✓ ' + n + ' תורנים נטענו</div>';
-}
 
+  var pMap = {};
+  if (pRes2 && pRes2.success) pRes2.people.forEach(function(p){pMap[p.name]=p;});
+
+  var MONTHS2 = [
+    {k:'jan',l:'ינואר'},{k:'feb',l:'פברואר'},{k:'mar',l:'מרץ'},
+    {k:'apr',l:'אפריל'},{k:'may',l:'מאי'},{k:'jun',l:'יוני'},
+    {k:'jul',l:'יולי'},{k:'aug',l:'אוגוסט'},{k:'sep',l:'ספטמבר'},
+    {k:'oct',l:'אוקטובר'},{k:'nov',l:'נובמבר'},{k:'dec',l:'דצמבר'}
+  ];
+
+  var all = res.scores.filter(function(s){
+    return s.name !== 'מנהל מערכת' && s.role !== 'admin' &&
+           s.dutyCategory !== 'מנהל מערכת' && s.dutyCategory !== 'אב';
+  });
+
+  all.forEach(function(s){
+    var tot = s.acc2025 || 0;
+    MONTHS2.forEach(function(m){ tot += ((s[m.k]||{}).score||0); });
+    s._total = tot;
+  });
+  all.sort(function(a,b){ return b._total - a._total; });
+
+  if (!all.length) {
+    container.innerHTML = '<div style="padding:20px">אין נתונים</div>';
+    return;
+  }
+
+  var n = all.length;
+  var topT = Math.ceil(n/3);
+  var midT = Math.ceil(n*2/3);
+  var activeMon = MONTHS2.filter(function(m){ return all.some(function(s){ return (s[m.k]||{}).score>0; }); });
+
+  if (window.innerWidth <= 640) {
+    var html = '<div style="display:grid;gap:8px;padding:8px">';
+    all.forEach(function(s, i) {
+      var p = pMap[s.name] || {};
+      var cat = p.dutyCategory || '';
+      var wkd = p.weekendType || '';
+      var rp = Math.round(((n-i)/n)*100);
+      var bc = i < topT ? '#22c55e' : i < midT ? '#f97316' : '#ef4444';
+      var mb = '';
+      activeMon.forEach(function(m){
+        var sc = (s[m.k]||{}).score;
+        if (sc) mb += '<span style="font-size:11px;background:var(--surface2);border-radius:6px;padding:2px 6px;white-space:nowrap">'+m.l+': <b>'+sc+'</b></span> ';
+      });
+      html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px">'
+        + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+        + '<div><div style="font-weight:700;font-size:15px">'+s.name+'</div>'
+        + '<div style="font-size:11px;color:var(--text2);margin-top:2px">'+(cat||'רגיל')+' · '+(wkd||'—')+'</div></div>'
+        + '<div style="text-align:center"><div style="font-size:22px;font-weight:800;color:var(--accent)">'+s._total+'</div>'
+        + '<div style="font-size:10px;color:var(--text3)">נקודות</div></div></div>'
+        + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:'+(mb?'8':'0')+'px">'
+        + '<div style="flex:1;height:10px;background:var(--surface2);border-radius:5px;overflow:hidden">'
+        + '<div style="width:'+rp+'%;height:100%;background:'+bc+';border-radius:5px"></div></div>'
+        + '<span style="font-size:11px;color:var(--text3);min-width:30px">#'+(i+1)+'</span></div>'
+        + (mb ? '<div style="display:flex;flex-wrap:wrap;gap:4px">'+mb+'</div>' : '')
+        + '</div>';
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  } else {
+    var maxT = all[0]._total || 1;
+    var thS = 'background:var(--surface3);border-bottom:2px solid var(--border);white-space:nowrap;padding:8px 12px';
+    var mHeaders = activeMon.map(function(m){ return '<th style="'+thS+';font-size:11px">'+m.l+'</th>'; }).join('');
+    var rows = all.map(function(s,i){
+      var p = pMap[s.name]||{};
+      var pct = maxT>0?(s._total/maxT*100).toFixed(0):0;
+      var wl = p.weekendType==='מלא'?'🗓️ מלא':p.weekendType==='בנפרד'?'📅 בנפרד':p.weekendType||'—';
+      var mCells = activeMon.map(function(m){ var sc=(s[m.k]||{}).score; return '<td style="text-align:center;color:var(--text2);font-size:12px">'+(sc||'—')+'</td>'; }).join('');
+      return '<tr><td style="font-weight:700;padding:8px 12px;white-space:nowrap">'+s.name+'</td>'
+        +'<td style="font-size:12px;padding:8px 12px">'+( p.dutyCategory||'רגיל')+'</td>'
+        +'<td style="font-size:12px;padding:8px 12px">'+wl+'</td>'
+        +'<td style="padding:8px 12px;color:var(--text2)">'+( s.acc2025||0)+'</td>'
+        +'<td style="padding:8px 12px"><span style="color:var(--accent);font-weight:700">'+s._total+'</span>'
+        +'<div class="score-bar" style="width:60px;margin-top:4px"><div class="score-fill" style="width:'+pct+'%"></div></div></td>'
+        +mCells+'</tr>';
+    }).join('');
+    container.innerHTML = '<div class="card" style="padding:0;overflow-x:auto">'
+      +'<table class="schedule-table" style="min-width:600px;border-collapse:collapse;width:100%">'
+      +'<thead><tr><th style="'+thS+'">שם</th><th style="'+thS+'">קטגוריה</th>'
+      +'<th style="'+thS+'">ס"ש</th><th style="'+thS+'">2025</th><th style="'+thS+'">סה"כ</th>'
+      +mHeaders+'</tr></thead><tbody>'+rows+'</tbody></table></div>';
+  }
+}
 
 
 async function loadAdminConstraints() {
