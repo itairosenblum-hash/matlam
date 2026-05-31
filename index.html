@@ -2781,51 +2781,111 @@ function renderUserSchedule(schedule, month) {
 // =====================================================
 async function loadUserScores() {
   showLoading(true);
-  const res = await api({action:'getScores'});
+  clearApiCache();
+  let res, pRes2;
+  try {
+    [res, pRes2] = await Promise.all([api({action:'getScores'}), api({action:'getPeople'})]);
+  } catch(e) {
+    showLoading(false);
+    document.getElementById('user-scores-content').innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>שגיאה: ' + e.message + '</p></div>';
+    return;
+  }
   showLoading(false);
   const container = document.getElementById('user-scores-content');
-  if (!res.success) { container.innerHTML = '<div class="empty-state"><div class="icon">📊</div><p>לא ניתן לטעון ניקוד</p></div>'; return; }
-
-  const sorted = res.scores.sort((a,b)=>b.acc2026-a.acc2026);
-  const maxScore = Math.max(...sorted.map(s=>s.acc2026), 1);
-  const myScore = sorted.find(s=>s.name===currentUser.name);
-  const myRank = sorted.findIndex(s=>s.name===currentUser.name)+1;
-
-  let html = '';
-  if (myScore) {
-    html += `<div class="card" style="background:var(--accent-glow);border:1px solid rgba(46,160,67,0.3);margin-bottom:16px">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-        <div>
-          <div style="font-size:13px;color:var(--text2)">הניקוד שלי</div>
-          <div style="font-size:28px;font-weight:800;color:var(--accent)">${myScore.acc2026}</div>
-        </div>
-        <div style="text-align:center">
-          <div style="font-size:13px;color:var(--text2)">מיקום</div>
-          <div style="font-size:28px;font-weight:800">${myRank}/${sorted.length}</div>
-        </div>
-      </div>
-    </div>`;
+  if (!res || !res.success) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">📊</div><p>לא ניתן לטעון ניקוד</p></div>';
+    return;
   }
 
-  html += `<div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto">
-    <table class="schedule-table" style="min-width:360px">
-      <thead><tr><th>#</th><th>שם</th><th>מצטבר 2026</th></tr></thead>
-      <tbody>${sorted.map((s,i)=>`<tr ${s.name===currentUser.name?'style="background:rgba(46,160,67,0.06);font-weight:700"':''}>
-        <td class="text-muted">${i+1}</td>
-        <td>${s.name}${s.name===currentUser.name?' ←':''}</td>
-        <td>
-          <div>${s.acc2026||0}</div>
-          <div class="score-bar"><div class="score-fill" style="width:${(s.acc2026/maxScore*100).toFixed(0)}%"></div></div>
-        </td>
-      </tr>`).join('')}</tbody>
-    </table></div></div>`;
+  var pMap = {};
+  if (pRes2 && pRes2.success) pRes2.people.forEach(function(p){pMap[p.name]=p;});
 
-  container.innerHTML = html;
+  var MONTHS2 = [
+    {k:'jan',l:'ינואר'},{k:'feb',l:'פברואר'},{k:'mar',l:'מרץ'},
+    {k:'apr',l:'אפריל'},{k:'may',l:'מאי'},{k:'jun',l:'יוני'},
+    {k:'jul',l:'יולי'},{k:'aug',l:'אוגוסט'},{k:'sep',l:'ספטמבר'},
+    {k:'oct',l:'אוקטובר'},{k:'nov',l:'נובמבר'},{k:'dec',l:'דצמבר'}
+  ];
+
+  var all = (res.scores||[]).filter(function(s){
+    return s && s.name && s.name !== 'מנהל מערכת' && s.role !== 'admin' &&
+           s.dutyCategory !== 'מנהל מערכת' && s.dutyCategory !== 'אב';
+  });
+
+  all.forEach(function(s){
+    var tot = s.acc2025 || 0;
+    MONTHS2.forEach(function(m){ tot += ((s[m.k]||{}).score||0); });
+    s._total = tot;
+  });
+  all.sort(function(a,b){ return b._total - a._total; });
+
+  if (!all.length) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">📊</div><p>אין נתוני ניקוד</p></div>';
+    return;
+  }
+
+  var n = all.length;
+  var topT = Math.ceil(n/3);
+  var midT = Math.ceil(n*2/3);
+  var activeMon = MONTHS2.filter(function(m){ return all.some(function(s){ return (s[m.k]||{}).score>0; }); });
+  var myIdx = all.findIndex(function(s){ return s.name === currentUser.name; });
+  var myEntry = myIdx >= 0 ? all[myIdx] : null;
+
+  // My personal summary at top
+  var mySummary = '';
+  if (myEntry) {
+    var myRank = myIdx + 1;
+    var myRp = Math.round(((n-myIdx)/n)*100);
+    var myBc = myIdx < topT ? '#22c55e' : myIdx < midT ? '#f97316' : '#ef4444';
+    var myMonBadges = '';
+    activeMon.forEach(function(m){
+      var sc = (myEntry[m.k]||{}).score;
+      if (sc) myMonBadges += '<span style="font-size:12px;background:var(--surface2);border-radius:6px;padding:3px 8px;white-space:nowrap">'+m.l+': <b>'+sc+'</b></span> ';
+    });
+    mySummary = '<div style="background:linear-gradient(135deg,rgba(46,160,67,0.1),rgba(46,160,67,0.05));border:2px solid var(--accent);border-radius:14px;padding:16px;margin-bottom:16px">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
+      + '<div><div style="font-weight:700;font-size:16px">הניקוד שלי</div>'
+      + '<div style="font-size:12px;color:var(--text2);margin-top:2px">מקום #'+myRank+' מתוך '+n+'</div></div>'
+      + '<div style="text-align:center"><div style="font-size:28px;font-weight:800;color:var(--accent)">'+myEntry._total+'</div>'
+      + '<div style="font-size:10px;color:var(--text3)">נקודות</div></div></div>'
+      + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:'+(myMonBadges?'10':'0')+'px">'
+      + '<div style="flex:1;height:12px;background:var(--surface2);border-radius:6px;overflow:hidden">'
+      + '<div style="width:'+myRp+'%;height:100%;background:'+myBc+';border-radius:6px"></div></div>'
+      + '</div>'
+      + (myMonBadges ? '<div style="display:flex;flex-wrap:wrap;gap:4px">'+myMonBadges+'</div>' : '')
+      + '</div>';
+  }
+
+  // Full leaderboard
+  var html = '<div style="display:grid;gap:6px;padding:8px">';
+  all.forEach(function(s, i) {
+    var p = pMap[s.name] || {};
+    var rp = Math.round(((n-i)/n)*100);
+    var bc = i < topT ? '#22c55e' : i < midT ? '#f97316' : '#ef4444';
+    var isMe = s.name === currentUser.name;
+    var mb = '';
+    activeMon.forEach(function(m){
+      var sc = (s[m.k]||{}).score;
+      if (sc) mb += '<span style="font-size:11px;background:var(--surface2);border-radius:6px;padding:2px 6px;white-space:nowrap">'+m.l+': <b>'+sc+'</b></span> ';
+    });
+    html += '<div style="background:var(--surface);border:'+(isMe?'2px solid var(--accent)':'1px solid var(--border)')+';border-radius:12px;padding:10px 14px'+(isMe?';background:rgba(46,160,67,0.04)':'')+'">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'
+      + '<div style="display:flex;align-items:center;gap:8px">'
+      + '<span style="font-size:12px;color:var(--text3);min-width:24px">#'+(i+1)+'</span>'
+      + '<div><div style="font-weight:'+(isMe?'800':'600')+';font-size:14px">'+s.name+(isMe?' ⭐':'')+' </div></div></div>'
+      + '<div style="font-size:18px;font-weight:800;color:var(--accent)">'+s._total+'</div></div>'
+      + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:'+(mb?'6':'0')+'px">'
+      + '<div style="flex:1;height:8px;background:var(--surface2);border-radius:4px;overflow:hidden">'
+      + '<div style="width:'+rp+'%;height:100%;background:'+bc+';border-radius:4px"></div></div></div>'
+      + (mb ? '<div style="display:flex;flex-wrap:wrap;gap:3px">'+mb+'</div>' : '')
+      + '</div>';
+  });
+  html += '</div>';
+
+  container.innerHTML = mySummary + html;
 }
 
-// =====================================================
-// SWAP REQUESTS
-// =====================================================
+
 async function initSwapTab() {
   // Clear badge when user opens swap tab
   updateBadge('swap', 0);
