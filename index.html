@@ -2270,155 +2270,114 @@ async function loadScores() {
     api({action:'getPeople'})
   ]);
   showLoading(false);
-  if (!res.success) return;
   const container = document.getElementById('scores-content');
+  if (!res.success) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>' + (res.error||'שגיאה בטעינת ניקוד') + '</p></div>';
+    return;
+  }
 
-  // Build people lookup for category + weekendType
   const peopleMap = {};
   if (pRes.success) pRes.people.forEach(p => { peopleMap[p.name] = p; });
 
-  let sorted = res.scores.filter(s => s.dutyCategory !== 'מנהל מערכת' && s.dutyCategory !== 'אב' && s.name !== 'מנהל מערכת' && s.role !== 'admin').sort((a,b)=>b.acc2026-a.acc2026);
-  const maxScore = Math.max(...sorted.map(s=>s.acc2026), 1);
   const SCORE_MONTHS = [
     {key:'jan',label:'ינואר'},{key:'feb',label:'פברואר'},{key:'mar',label:'מרץ'},
     {key:'apr',label:'אפריל'},{key:'may',label:'מאי'},{key:'jun',label:'יוני'},
     {key:'jul',label:'יולי'},{key:'aug',label:'אוגוסט'},{key:'sep',label:'ספטמבר'},
     {key:'oct',label:'אוקטובר'},{key:'nov',label:'נובמבר'},{key:'dec',label:'דצמבר'}
   ];
-  const activeMonths = SCORE_MONTHS.filter(m => sorted.some(s => s[m.key]?.score > 0));
-
-  // Weekend type display
-  const WKD = {'מלא':'🗓️ מלא', 'בנפרד':'📅 בנפרד', '':'—'};
   const CAT_COLOR = {'אב':'var(--warn)', 'פטור':'var(--text3)', '':'var(--text2)'};
 
-  // Total = acc2025 + all 2026 months
-  sorted = sorted.filter(s => s.dutyCategory !== 'מנהל מערכת');
-  sorted.forEach(s => {
-    const months2026 = SCORE_MONTHS.reduce((sum,m) => sum + (s[m.key]?.score||0), 0);
-    s.total = (s.acc2025||0) + months2026;
-  });
-  sorted = sorted.filter(s => s.dutyCategory !== 'מנהל מערכת');
-  sorted.sort((a,b) => b.total - a.total);
-  const maxScore2 = Math.max(...sorted.map(s=>s.total), 1);
+  let sorted = res.scores.filter(s =>
+    s.dutyCategory !== 'מנהל מערכת' && s.dutyCategory !== 'אב' &&
+    s.name !== 'מנהל מערכת' && s.role !== 'admin'
+  );
 
-  const thStyle = 'background:var(--surface3);border-bottom:2px solid var(--border);white-space:nowrap';
-  // Simple render - no IIFE
+  sorted.forEach(s => {
+    s.total = (s.acc2025||0) + SCORE_MONTHS.reduce((sum,m) => sum + ((s[m.key]||{}).score||0), 0);
+  });
+  sorted.sort((a,b) => b.total - a.total);
+
+  if (!sorted.length) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">📊</div><p>אין נתוני ניקוד</p></div>';
+    return;
+  }
+
+  const activeMonths = SCORE_MONTHS.filter(m => sorted.some(s => (s[m.key]||{}).score > 0));
+  const maxScore2 = Math.max(...sorted.map(s=>s.total), 1);
+  const n = sorted.length;
+  const topT = Math.ceil(n/3);
+  const midT = Math.ceil(n*2/3);
+
   if (window.innerWidth <= 640) {
-    // Mobile cards
-    var n2 = sorted.length;
-    var topT = Math.ceil(n2/3);
-    var midT = Math.ceil(n2*2/3);
-    var html2 = '<div style="display:grid;gap:8px;padding:8px">';
-    for (var si=0; si<sorted.length; si++) {
-      var s2 = sorted[si];
-      var p2 = peopleMap[s2.name] || {};
-      var cat2 = p2.dutyCategory || '';
-      var wkd2 = p2.weekendType || '';
-      var cc2 = CAT_COLOR[cat2] || 'var(--text2)';
-      var rp = Math.round(((n2-si)/n2)*100);
-      var bc = si<topT ? '#22c55e' : si<midT ? '#f97316' : '#ef4444';
+    // Mobile: cards
+    var cards = '<div style="display:grid;gap:8px;padding:8px">';
+    for (var i=0; i<n; i++) {
+      var s = sorted[i];
+      var p = peopleMap[s.name] || {};
+      var cat = p.dutyCategory || '';
+      var wkd = p.weekendType || '';
+      var cc = CAT_COLOR[cat] || 'var(--text2)';
+      var rp = Math.round(((n-i)/n)*100);
+      var bc = i<topT ? '#22c55e' : i<midT ? '#f97316' : '#ef4444';
       var mb = '';
       for (var mi=0; mi<activeMonths.length; mi++) {
-        var ms2 = s2[activeMonths[mi].key] || {};
-        if (ms2.score) mb += '<span style="font-size:11px;background:var(--surface2);border-radius:6px;padding:2px 6px;white-space:nowrap">'+activeMonths[mi].label+': <b>'+ms2.score+'</b></span> ';
+        var ms = (s[activeMonths[mi].key]||{});
+        if (ms.score) mb += '<span style="font-size:11px;background:var(--surface2);border-radius:6px;padding:2px 6px;white-space:nowrap">'+activeMonths[mi].label+': <b>'+ms.score+'</b></span> ';
       }
-      html2 += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px">'
+      cards += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px">'
         +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
-        +'<div><div style="font-weight:700;font-size:15px">'+s2.name+'</div>'
-        +'<div style="font-size:11px;color:'+cc2+';margin-top:2px">'+(cat2||'רגיל')+' · '+(wkd2||'—')+'</div></div>'
-        +'<div style="text-align:center"><div style="font-size:22px;font-weight:800;color:var(--accent)">'+s2.total+'</div>'
+        +'<div><div style="font-weight:700;font-size:15px">'+s.name+'</div>'
+        +'<div style="font-size:11px;color:'+cc+';margin-top:2px">'+(cat||'רגיל')+' · '+(wkd||'—')+'</div></div>'
+        +'<div style="text-align:center"><div style="font-size:22px;font-weight:800;color:var(--accent)">'+s.total+'</div>'
         +'<div style="font-size:10px;color:var(--text3)">נקודות</div></div></div>'
         +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:'+(mb?'8':'0')+'px">'
         +'<div style="flex:1;height:10px;background:var(--surface2);border-radius:5px;overflow:hidden">'
         +'<div style="width:'+rp+'%;height:100%;background:'+bc+';border-radius:5px"></div></div>'
-        +'<span style="font-size:11px;color:var(--text3);min-width:32px">#'+(si+1)+'</span></div>'
+        +'<span style="font-size:11px;color:var(--text3);min-width:30px">#'+(i+1)+'</span></div>'
         +(mb ? '<div style="display:flex;flex-wrap:wrap;gap:4px">'+mb+'</div>' : '')
         +'</div>';
     }
-    html2 += '</div>';
-    container.innerHTML = html2;
+    cards += '</div>';
+    container.innerHTML = cards;
   } else {
-    container.innerHTML = (() => {
-    const isMobileScores = window.innerWidth <= 640;
-    if (isMobileScores) {
-      const n = sorted.length;
-      const topThird    = Math.ceil(n / 3);
-      const middleThird = Math.ceil(n * 2 / 3);
-      let cards = '<div style="display:grid;gap:8px;padding:8px">';
-      sorted.forEach(function(s, i) {
-        var p = peopleMap[s.name] || {};
-        var cat = p.dutyCategory || '';
-        var wkd = p.weekendType || '';
-        var catColor = CAT_COLOR[cat] || 'var(--text2)';
-        var rankPct = Math.round(((n - i) / n) * 100);
-        var barColor = i < topThird ? '#22c55e' : i < middleThird ? '#f97316' : '#ef4444';
-        var monthBadges = activeMonths.map(function(m) {
-          var ms = s[m.key] || {};
-          if (!ms.score) return '';
-          return '<span style="font-size:11px;background:var(--surface2);border-radius:6px;padding:2px 6px;white-space:nowrap">' + m.label + ': <b>' + ms.score + '</b></span>';
-        }).filter(Boolean).join('');
-        cards += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">'
-          + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
-          + '<div><div style="font-weight:700;font-size:15px">' + s.name + '</div>'
-          + '<div style="font-size:11px;color:' + catColor + ';margin-top:2px">' + (cat||'רגיל') + ' · ' + (wkd||'—') + '</div></div>'
-          + '<div style="text-align:center"><div style="font-size:22px;font-weight:800;color:var(--accent)">' + s.total + '</div>'
-          + '<div style="font-size:10px;color:var(--text3)">נקודות</div></div></div>'
-          + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:' + (monthBadges?'8':'0') + 'px">'
-          + '<div style="flex:1;height:10px;background:var(--surface2);border-radius:5px;overflow:hidden">'
-          + '<div style="width:' + rankPct + '%;height:100%;background:' + barColor + ';border-radius:5px"></div></div>'
-          + '<span style="font-size:10px;color:var(--text3);min-width:32px">#' + (i+1) + '/' + n + '</span></div>'
-          + (monthBadges ? '<div style="display:flex;flex-wrap:wrap;gap:4px">' + monthBadges + '</div>' : '')
-          + '</div>';
-      });
-      cards += '</div>';
-      return cards;
-        } else {
-      // Desktop: full table (existing)
-      return `<div class="card" style="padding:0;overflow-x:auto;-webkit-overflow-scrolling:touch">
-    <table class="schedule-table scores-table" style="min-width:750px;border-collapse:collapse;border-spacing:0">
-      <thead style="position:sticky;top:0;z-index:10">
-        <tr>
-          <th style="${thStyle}">שם</th>
-          <th style="${thStyle}">קטגוריה</th>
-          <th style="${thStyle}">ס"ש</th>
-          <th style="${thStyle}">מצטבר 2025</th>
-          <th style="${thStyle}">מצטבר כולל</th>
-          ${activeMonths.map(m=>`<th style="${thStyle};font-size:11px">${m.label}</th>`).join('')}
-        </tr>
-      </thead>
-      <tbody>${sorted.map((s,i)=>{
-        const nameKey = s.name.trim();
-        const person = peopleMap[nameKey] ||
-                       Object.values(peopleMap).find(p => p.name.trim() === nameKey) || {};
-        const cat = person.dutyCategory || '';
-        const wkd = person.weekendType || '';
-        const catColor = CAT_COLOR[cat] || 'var(--text2)';
-        const wkdLabel = wkd === 'מלא' ? '🗓️ מלא' : wkd === 'בנפרד' ? '📅 בנפרד' : wkd || '—';
-        const pctTotal = maxScore2 > 0 ? (s.total/maxScore2*100).toFixed(0) : 0;
-        return `<tr>
-          <td style="position:sticky;right:0;background:var(--surface);z-index:5;white-space:nowrap">
-            <div class="fw-bold">${s.name}</div>
-          </td>
-          <td style="font-size:12px;color:${catColor};white-space:nowrap">${cat||'רגיל'}</td>
-          <td style="font-size:12px;color:var(--text2);white-space:nowrap">${wkdLabel}</td>
-          <td class="text-muted">${s.acc2025||0}</td>
-          <td>
-            <span style="color:var(--accent);font-weight:700">${s.total}</span>
-            <div class="score-bar" style="width:60px;margin-top:4px"><div class="score-fill" style="width:${pctTotal}%"></div></div>
-          </td>
-          ${activeMonths.map(m=>{
-            const md = s[m.key]||{score:0,type:''};
-            return `<td class="text-sm" style="color:var(--text2)">${md.score>0?`<span title="${md.type||''}">${md.score}</span>`:'—'}</td>`;
-          }).join('')}
-        </tr>`;
-      }).join('')}
-      </tbody>
-    </table></div>`;
+    // Desktop: table
+    const thStyle = 'background:var(--surface3);border-bottom:2px solid var(--border);white-space:nowrap';
+    var rows = sorted.map(function(s,i) {
+      var p = peopleMap[s.name] || {};
+      var cat = p.dutyCategory || '';
+      var wkd = p.weekendType || '';
+      var cc = CAT_COLOR[cat] || 'var(--text2)';
+      var wl = wkd==='מלא' ? '🗓️ מלא' : wkd==='בנפרד' ? '📅 בנפרד' : wkd||'—';
+      var pct = maxScore2>0 ? (s.total/maxScore2*100).toFixed(0) : 0;
+      var monthCells = activeMonths.map(function(m){
+        var md = s[m.key]||{score:0};
+        return '<td class="text-sm" style="color:var(--text2)">'+(md.score>0?md.score:'—')+'</td>';
+      }).join('');
+      return '<tr><td style="white-space:nowrap;font-weight:700">'+s.name+'</td>'
+        +'<td style="font-size:12px;color:'+cc+'">'+( cat||'רגיל')+'</td>'
+        +'<td style="font-size:12px;color:var(--text2)">'+wl+'</td>'
+        +'<td class="text-muted">'+(s.acc2025||0)+'</td>'
+        +'<td><span style="color:var(--accent);font-weight:700">'+s.total+'</span>'
+        +'<div class="score-bar" style="width:60px;margin-top:4px"><div class="score-fill" style="width:'+pct+'%"></div></div></td>'
+        +monthCells+'</tr>';
+    }).join('');
+    var monthHeaders = activeMonths.map(function(m){
+      return '<th style="'+thStyle+';font-size:11px">'+m.label+'</th>';
+    }).join('');
+    container.innerHTML = '<div class="card" style="padding:0;overflow-x:auto">'
+      +'<table class="schedule-table scores-table" style="min-width:700px;border-collapse:collapse">'
+      +'<thead><tr>'
+      +'<th style="'+thStyle+'">שם</th>'
+      +'<th style="'+thStyle+'">קטגוריה</th>'
+      +'<th style="'+thStyle+'">ס"ש</th>'
+      +'<th style="'+thStyle+'">מצטבר 2025</th>'
+      +'<th style="'+thStyle+'">מצטבר כולל</th>'
+      +monthHeaders
+      +'</tr></thead><tbody>'+rows+'</tbody></table></div>';
+  }
 }
 
-// =====================================================
-// ADMIN: CONSTRAINTS VIEW
-// =====================================================
+
 async function loadAdminConstraints() {
   const {year, mon, days, s: month} = parseMonth(document.getElementById('admin-constraint-month').value);
   showLoading(true);
