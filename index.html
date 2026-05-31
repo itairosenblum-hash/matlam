@@ -2344,7 +2344,7 @@ async function loadScores() {
             <div style="flex:1;height:10px;background:var(--surface2);border-radius:5px;overflow:hidden">
               <div style="width:${pct}%;height:100%;background:${barColor};border-radius:5px;transition:width 0.3s"></div>
             </div>
-            <span style="font-size:10px;color:var(--text3);min-width:28px">${pct}%</span>
+            <span style="font-size:10px;color:var(--text3);min-width:28px">${i+1}/${n}</span>
           </div>
           ${monthHtml ? `<div style="display:flex;flex-wrap:wrap;gap:4px">${monthHtml}</div>` : ''}
         </div>`;
