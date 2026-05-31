@@ -1643,6 +1643,7 @@ function switchTab(id) {
   if (el) el.classList.remove('hidden');
   const nav = document.getElementById('navtab-'+id);
   if (nav) nav.classList.add('active');
+  window.scrollTo(0, 0);
 
   // Load data for tab
   if (id === 'constraints') { loadConstraints(); checkConstraintLock(); }
