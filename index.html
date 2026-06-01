@@ -716,6 +716,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
           </div>
         </div>
         <div id="tornim-alert"></div>
+        <div id="profile-change-requests" style="margin-bottom:16px"></div>
         <div id="tornim-content"></div>
       </div>
       <!-- ADMIN: SCHEDULE TAB -->
@@ -1640,7 +1641,7 @@ function switchTab(id) {
   if (id === 'constraints') { loadConstraints(); checkConstraintLock(); }
   if (id === 'my-schedule') loadMySchedule();
   if (id === 'profile') loadProfile();
-  if (id === 'admin-users') loadUsers();
+  if (id === 'admin-users') { loadUsers(); loadProfileChangeRequests(); }
   if (id === 'admin-schedule') loadAdminSchedule();
   if (id === 'admin-scores') loadScores();
   if (id === 'admin-constraints') { loadAdminConstraints(); loadLockStatus(); }
@@ -1893,6 +1894,43 @@ async function loadMySchedule() {
 // ADMIN: UNIFIED TORNIM MANAGEMENT
 // =====================================================
 let editingTorani = null;
+
+async function loadProfileChangeRequests() {
+  const res = await api({action:'getProfileChangeRequests'});
+  const container = document.getElementById('profile-change-requests');
+  if (!res.success || !res.requests.length) { container.innerHTML = ''; return; }
+  const fieldHeb = f => f === 'weekendType' ? 'סוג סוף שבוע' : 'קטגוריה';
+  container.innerHTML = `<div class="card" style="border:2px solid var(--warn);margin-bottom:16px">
+    <div class="card-title" style="color:var(--warn)">⏳ בקשות שינוי פרופיל ממתינות לאישור (${res.requests.length})</div>
+    <div style="display:grid;gap:10px;margin-top:12px">
+      ${res.requests.map(r => `
+      <div style="background:var(--surface2);border-radius:8px;padding:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:space-between">
+        <div>
+          <div style="font-weight:600">${r.name}</div>
+          <div style="font-size:13px;color:var(--text2)">${fieldHeb(r.field)}: <span style="text-decoration:line-through">${r.oldValue||'—'}</span> → <strong style="color:var(--accent)">${r.newValue}</strong></div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary btn-sm" onclick="handleProfileChange('${r.id}','approve')">✅ אשר</button>
+          <button class="btn btn-secondary btn-sm" onclick="handleProfileChange('${r.id}','reject')">❌ דחה</button>
+        </div>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+async function handleProfileChange(id, action) {
+  const apiAction = action === 'approve' ? 'approveProfileChange' : 'rejectProfileChange';
+  showLoading(true);
+  const res = await api({action: apiAction, id});
+  showLoading(false);
+  if (res.success) {
+    showAlert('tornim-alert', action === 'approve' ? '✅ השינוי אושר ויושם' : '❌ הבקשה נדחתה', action === 'approve' ? 'success' : 'info');
+    loadProfileChangeRequests();
+    loadUsers();
+  } else {
+    showAlert('tornim-alert', res.error||'שגיאה', 'error');
+  }
+}
 
 async function loadUsers() { // keep name for tab switching
   showLoading(true);
@@ -3830,15 +3868,21 @@ async function changePassword() {
 
 async function saveDutySettings() {
   const weekendType = document.getElementById('profile-weekend').value;
+  const currentWeekend = _profilePerson ? _profilePerson.weekendType : '';
+  if (weekendType === currentWeekend) {
+    showAlert('duty-settings-alert', 'לא בוצע שינוי', 'info');
+    return;
+  }
+  if (!confirm(`לשלוח בקשה לשינוי סוג סוף שבוע מ-"${currentWeekend}" ל-"${weekendType}"?\nהבקשה תועבר למנהל לאישור.`)) return;
   showLoading(true);
-  const res = await api({action:'updateTorani', username: currentUser.username, weekendType});
+  const res = await api({action:'requestProfileChange', username: currentUser.username, field: 'weekendType', oldValue: currentWeekend, newValue: weekendType});
   showLoading(false);
   if (res.success) {
-    showAlert('duty-settings-alert','✅ הגדרות התורנות נשמרו','success');
-    if (_profilePerson) _profilePerson.weekendType = weekendType;
-    loadProfile(); // refresh banner
+    showAlert('duty-settings-alert', '✅ הבקשה נשלחה למנהל לאישור. תקבל עדכון במייל.', 'success');
+    // Revert select to current value
+    document.getElementById('profile-weekend').value = currentWeekend;
   } else {
-    showAlert('duty-settings-alert', res.error||'שגיאה','error');
+    showAlert('duty-settings-alert', res.error||'שגיאה', 'error');
   }
 }
 </script>
