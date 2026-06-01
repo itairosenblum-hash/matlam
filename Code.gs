@@ -1504,29 +1504,73 @@ function _handleProfileChange(req, status) {
     var fieldHeb = field === 'weekendType' ? 'סוג סוף שבוע' : 'קטגוריה';
 
     if (status === 'אושר') {
-      // Apply the change
+      // Apply change to People sheet (search by name)
       var peopleSheet = ss.getSheetByName('People');
       var pRows = peopleSheet.getDataRange().getValues();
+      var found = false;
       for (var pi = 1; pi < pRows.length; pi++) {
         if (String(pRows[pi][0]).trim() === String(name).trim()) {
           if (field === 'weekendType') peopleSheet.getRange(pi+1, 5).setValue(newValue);
           if (field === 'dutyCategory') peopleSheet.getRange(pi+1, 3).setValue(newValue);
+          found = true;
           break;
         }
       }
+      // Also check Users sheet for the username-based name
+      if (!found) {
+        var usersSheet = ss.getSheetByName('Users');
+        var uRows = usersSheet.getDataRange().getValues();
+        for (var ui = 1; ui < uRows.length; ui++) {
+          if (String(uRows[ui][2]).trim() === String(username).trim()) {
+            var realName = String(uRows[ui][1]).trim();
+            for (var pi2 = 1; pi2 < pRows.length; pi2++) {
+              if (String(pRows[pi2][0]).trim() === realName) {
+                if (field === 'weekendType') peopleSheet.getRange(pi2+1, 5).setValue(newValue);
+                if (field === 'dutyCategory') peopleSheet.getRange(pi2+1, 3).setValue(newValue);
+                break;
+              }
+            }
+            break;
+          }
+        }
+      }
+
+      // Add notification for the user
+      var notifSheet = ss.getSheetByName('Notifications');
+      if (notifSheet) {
+        var notifId = Utilities.getUuid().substring(0,8);
+        var notifMsg = 'בקשתך לשינוי ' + fieldHeb + ' ל-"' + newValue + '" אושרה ✅';
+        notifSheet.appendRow([notifId, name, notifMsg, new Date().toISOString()]);
+      }
+    } else {
+      // Rejected — add notification
+      var notifSheet2 = ss.getSheetByName('Notifications');
+      if (notifSheet2) {
+        var notifId2 = Utilities.getUuid().substring(0,8);
+        var notifMsg2 = 'בקשתך לשינוי ' + fieldHeb + ' ל-"' + newValue + '" נדחתה ❌';
+        notifSheet2.appendRow([notifId2, name, notifMsg2, new Date().toISOString()]);
+      }
     }
 
-    // Mail user
-    var tornim = actionGetAllTornim().tornim || [];
-    var t = tornim.find(function(x){ return x.username === username; });
-    if (t && t.email) {
+    // Find user email from Users sheet
+    var userEmail = '';
+    var usersSheet2 = ss.getSheetByName('Users');
+    if (usersSheet2) {
+      var uRows2 = usersSheet2.getDataRange().getValues();
+      // Check Users sheet col 8 (email if exists) or from People
+      var tornim = actionGetAllTornim().tornim || [];
+      var t = tornim.find(function(x){ return x.username === username; });
+      if (t && t.email) userEmail = t.email;
+    }
+
+    if (userEmail) {
       var icon = status === 'אושר' ? '✅' : '❌';
       var msg = status === 'אושר'
         ? 'בקשתך אושרה! הפרופיל עודכן ל-<strong>' + newValue + '</strong>.'
         : 'בקשתך נדחתה על ידי המנהל. הפרופיל נשאר: <strong>' + (oldValue||'—') + '</strong>.';
       try {
         MailApp.sendEmail({
-          to: t.email,
+          to: userEmail,
           subject: icon + ' בקשת שינוי פרופיל — ' + (status === 'אושר' ? 'אושרה' : 'נדחתה'),
           htmlBody: '<div dir="rtl" style="font-family:Arial"><h2>' + icon + ' עדכון בקשתך</h2>' +
             '<p>שלום <strong>' + name + '</strong>,</p>' +
@@ -1534,6 +1578,8 @@ function _handleProfileChange(req, status) {
             '<p>שדה: <strong>' + fieldHeb + '</strong></p></div>'
         });
       } catch(e) { Logger.log('Mail error: ' + e); }
+    } else {
+      Logger.log('No email found for user: ' + username);
     }
     return {success: true};
   }
