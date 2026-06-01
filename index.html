@@ -916,7 +916,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
                 <tr><td class="fw-bold">רגיל</td><td class="text-muted text-sm">משובץ לכל סוגי התורנויות לפי ניקוד</td></tr>
                 <tr><td class="fw-bold" style="color:var(--warn)">משרת אב</td><td class="text-muted text-sm">חמישי בלבד — מקסימום תורנות אחת לחודשיים</td></tr>
                 <tr><td class="fw-bold" style="color:var(--text2)">פטור</td><td class="text-muted text-sm">לא משובץ אוטומטית</td></tr>
-                <tr><td class="fw-bold" style="color:var(--danger)">לא מוסמך</td><td class="text-muted text-sm">בתהליך הכשרה — לא משובץ עד לאישור</td></tr>
+                <tr><td class="fw-bold" style="color:var(--danger)">בהליך הסמכה</td><td class="text-muted text-sm">בתהליך הכשרה — לא משובץ עד לאישור</td></tr>
               </tbody>
             </table>
           </div>
@@ -1157,8 +1157,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
           <option value="">רגיל</option>
           <option value="אב">אב</option>
           <option value="פטור">פטור</option>
-          <option value="טרם הוסמך">טרם הוסמך</option>
-          <option value="לא מוסמך">לא מוסמך</option>
+          <option value="בהליך הסמכה">בהליך הסמכה</option>
         </select>
       </div>
       <div class="form-group">
@@ -2590,7 +2589,7 @@ async function loadPeople() {
   if (!res.success) return;
 
   const WEEKEND_TYPES = ['מלא','בנפרד'];
-  const DUTY_CATEGORIES = ['','אב','פטור','טרם הוסמך'];
+  const DUTY_CATEGORIES = ['','אב','פטור','בהליך הסמכה'];
 
   const container = document.getElementById('people-content');
   container.innerHTML = `<div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto">
