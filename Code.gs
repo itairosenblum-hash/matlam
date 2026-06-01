@@ -3703,21 +3703,31 @@ function rebuildScoresDirectly() {
   Logger.log('Scores rows: ' + scoreRows.length);
   if (scoreRows.length < 2) { Logger.log('ERROR: Scores sheet has no data rows'); return; }
 
+  // name → {rowNum, acc2025}
   var nameToRow = {};
+  var acc2025 = {};
   for (var i = 1; i < scoreRows.length; i++) {
     var nm = String(scoreRows[i][0]||'').trim();
-    if (nm) nameToRow[nm] = i + 1;
+    if (!nm) continue;
+    nameToRow[nm] = i + 1; // 1-based
+    acc2025[nm] = Number(scoreRows[i][2]||0); // col C = מצטבר 2025
   }
   Logger.log('Names: ' + Object.keys(nameToRow).length);
 
+  // Find Schedule sheets
   var sheets = ss.getSheets();
   var schedSheets = sheets.filter(function(s){ return /^Schedule_\d{6}$/.test(s.getName()); });
   schedSheets.sort(function(a,b){ return a.getName().localeCompare(b.getName()); });
   Logger.log('Schedule sheets: ' + schedSheets.map(function(s){return s.getName();}).join(', '));
 
+  // Clear monthly cols (E onwards = col 5+, 12 months × 2 = 24 cols) but NOT col C (2025)
   var lastRow = scoreSheet.getLastRow();
-  if (lastRow > 1) scoreSheet.getRange(2, 4, lastRow-1, 25).clearContent();
+  if (lastRow > 1) {
+    scoreSheet.getRange(2, 5, lastRow-1, 24).clearContent(); // monthly cols only
+    scoreSheet.getRange(2, 4, lastRow-1, 1).clearContent();  // col D (acc2026)
+  }
 
+  // Load exempt people
   var peopleSheet = ss.getSheetByName('People');
   var exempt = {};
   if (peopleSheet) {
@@ -3727,21 +3737,22 @@ function rebuildScoresDirectly() {
     }
   }
 
-  var acc = {};
-  Object.keys(nameToRow).forEach(function(n){ acc[n] = 0; });
+  // Accumulate 2026 scores per person
+  var acc2026 = {};
+  Object.keys(nameToRow).forEach(function(n){ acc2026[n] = 0; });
 
   schedSheets.forEach(function(sh) {
     var shName = sh.getName();
     var mon = parseInt(shName.substring(13, 15));
-    var monColType = 5 + (mon-1)*2;
+    var monColType  = 5 + (mon-1)*2;  // 1-based col in Scores sheet
     var monColScore = monColType + 1;
     var rows = sh.getDataRange().getValues();
     var monthScores = {};
 
     for (var ri = 1; ri < rows.length; ri++) {
-      var v = String(rows[ri][3]||'').trim();
+      var v     = String(rows[ri][3]||'').trim();
       var dtype = String(rows[ri][7]||rows[ri][2]||'').trim();
-      var sc = Number(rows[ri][8]||0);
+      var sc    = Number(rows[ri][8]||0);
       if (v && sc > 0 && (!monthScores[v] || sc > monthScores[v].score))
         monthScores[v] = {type: dtype, score: sc};
     }
@@ -3751,18 +3762,21 @@ function rebuildScoresDirectly() {
       if (monthScores[n]) {
         scoreSheet.getRange(row, monColType).setValue(monthScores[n].type);
         scoreSheet.getRange(row, monColScore).setValue(monthScores[n].score);
-        acc[n] += monthScores[n].score;
+        acc2026[n] += monthScores[n].score;
       } else if (exempt[n]) {
         scoreSheet.getRange(row, monColType).setValue('פטור');
         scoreSheet.getRange(row, monColScore).setValue(10);
-        acc[n] += 10;
+        acc2026[n] += 10;
       }
     });
     Logger.log(shName + ': ' + JSON.stringify(monthScores).substring(0,150));
   });
 
-  Object.keys(nameToRow).forEach(function(n){
-    scoreSheet.getRange(nameToRow[n], 4).setValue(acc[n]||0);
+  // Write col D = מצטבר 2025 + מצטבר 2026
+  Object.keys(nameToRow).forEach(function(n) {
+    var total = (acc2025[n]||0) + (acc2026[n]||0);
+    scoreSheet.getRange(nameToRow[n], 4).setValue(total);
   });
-  Logger.log('Done: ' + JSON.stringify(acc).substring(0,300));
+
+  Logger.log('Done! acc2026: ' + JSON.stringify(acc2026).substring(0,300));
 }
