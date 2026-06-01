@@ -4045,3 +4045,18 @@ function testPeopleUpdate() {
     }
   }
 }
+
+function fixPeopleWeekend() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName('People');
+  var rows = sh.getDataRange().getValues();
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]).trim() === 'מנהל מערכת') {
+      Logger.log('Found at row ' + (i+1) + ', current E: ' + rows[i][4]);
+      sh.getRange(i+1, 5).setValue('בנפרד');
+      Logger.log('Set to בנפרד. New value: ' + sh.getRange(i+1, 5).getValue());
+      return;
+    }
+  }
+  Logger.log('Not found!');
+}
