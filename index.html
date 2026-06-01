@@ -2376,7 +2376,7 @@ async function loadScores() {
         +'<td style="font-size:12px;padding:8px 12px">'+wl+'</td>'
         +'<td style="padding:8px 12px;color:var(--text2)">'+( s.acc2025||0)+'</td>'
         +'<td style="padding:8px 12px"><span style="color:var(--accent);font-weight:700">'+s._total+'</span>'
-        +'<div class="score-bar" style="width:60px;margin-top:4px"><div class="score-fill" style="width:'+pct+'%"></div></div></td>'
+        +'<div class="score-bar" style="width:100%;max-width:120px;margin-top:4px"><div class="score-fill" style="width:'+pct+'%"></div></div></td>'
         +mCells+'</tr>';
     }).join('');
     container.innerHTML = '<div class="card" style="padding:0;overflow-x:auto">'
