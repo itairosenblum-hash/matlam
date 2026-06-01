@@ -945,8 +945,6 @@ function actionGenerateSchedule(req) {
       const newCat = (dayNum && assignment[dayNum]) ? (assignment[dayNum].cat || assignment[dayNum].type || '') : (existingData[i][2] || '');
       dayTypeUpdates.push([newCat]);
     }
-      scoreUpdates.push([ag.score||0]);
-    }
 
     // Single batch write for V/A/B (cols 4-6)
     sched.getRange(2, 4, numRows, 3).setValues(vabUpdates);
