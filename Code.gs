@@ -3692,3 +3692,77 @@ function actionGenerateScheduleV2(req) {
   Logger.log('generateScheduleV2: ' + month + ' done, ' + Object.keys(result).length + ' days scheduled');
   return {success:true, message:'השיבוץ הופק בהצלחה (' + Object.keys(result).length + ' ימים)'};
 }
+
+// ===== הרצה ישירה לבנייה מחדש של הניקוד =====
+function rebuildScoresDirectly() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var scoreSheet = ss.getSheetByName('Scores');
+  if (!scoreSheet) { Logger.log('ERROR: Scores sheet not found'); return; }
+
+  var scoreRows = scoreSheet.getDataRange().getValues();
+  Logger.log('Scores rows: ' + scoreRows.length);
+  if (scoreRows.length < 2) { Logger.log('ERROR: Scores sheet has no data rows'); return; }
+
+  var nameToRow = {};
+  for (var i = 1; i < scoreRows.length; i++) {
+    var nm = String(scoreRows[i][0]||'').trim();
+    if (nm) nameToRow[nm] = i + 1;
+  }
+  Logger.log('Names: ' + Object.keys(nameToRow).length);
+
+  var sheets = ss.getSheets();
+  var schedSheets = sheets.filter(function(s){ return /^Schedule_\d{6}$/.test(s.getName()); });
+  schedSheets.sort(function(a,b){ return a.getName().localeCompare(b.getName()); });
+  Logger.log('Schedule sheets: ' + schedSheets.map(function(s){return s.getName();}).join(', '));
+
+  var lastRow = scoreSheet.getLastRow();
+  if (lastRow > 1) scoreSheet.getRange(2, 4, lastRow-1, 25).clearContent();
+
+  var peopleSheet = ss.getSheetByName('People');
+  var exempt = {};
+  if (peopleSheet) {
+    var pRows = peopleSheet.getDataRange().getValues();
+    for (var pi = 1; pi < pRows.length; pi++) {
+      if (String(pRows[pi][1]||'').trim() === '0') exempt[String(pRows[pi][0]||'').trim()] = true;
+    }
+  }
+
+  var acc = {};
+  Object.keys(nameToRow).forEach(function(n){ acc[n] = 0; });
+
+  schedSheets.forEach(function(sh) {
+    var shName = sh.getName();
+    var mon = parseInt(shName.substring(13, 15));
+    var monColType = 5 + (mon-1)*2;
+    var monColScore = monColType + 1;
+    var rows = sh.getDataRange().getValues();
+    var monthScores = {};
+
+    for (var ri = 1; ri < rows.length; ri++) {
+      var v = String(rows[ri][3]||'').trim();
+      var dtype = String(rows[ri][7]||rows[ri][2]||'').trim();
+      var sc = Number(rows[ri][8]||0);
+      if (v && sc > 0 && (!monthScores[v] || sc > monthScores[v].score))
+        monthScores[v] = {type: dtype, score: sc};
+    }
+
+    Object.keys(nameToRow).forEach(function(n) {
+      var row = nameToRow[n];
+      if (monthScores[n]) {
+        scoreSheet.getRange(row, monColType).setValue(monthScores[n].type);
+        scoreSheet.getRange(row, monColScore).setValue(monthScores[n].score);
+        acc[n] += monthScores[n].score;
+      } else if (exempt[n]) {
+        scoreSheet.getRange(row, monColType).setValue('פטור');
+        scoreSheet.getRange(row, monColScore).setValue(10);
+        acc[n] += 10;
+      }
+    });
+    Logger.log(shName + ': ' + JSON.stringify(monthScores).substring(0,150));
+  });
+
+  Object.keys(nameToRow).forEach(function(n){
+    scoreSheet.getRange(nameToRow[n], 4).setValue(acc[n]||0);
+  });
+  Logger.log('Done: ' + JSON.stringify(acc).substring(0,300));
+}
