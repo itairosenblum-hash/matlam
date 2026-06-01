@@ -3202,6 +3202,9 @@ function actionGenerateScheduleV2(req) {
       }
       var ok = days.every(function(day){return canDoDay(n, day, isFW);});
       if (!ok) continue;
+      // Skip if conflict-priority reserved for a different day
+      var reservedDay2 = conflictPriorities ? Object.keys(conflictPriorities).find(function(dk){ return conflictPriorities[dk] === n; }) : null;
+      if (reservedDay2 && days.indexOf(parseInt(reservedDay2)) === -1) continue;
       var noSkipFlag = p.no_skip ? 0 : 1;
       var prefFlag   = prefMatches(p, slotType) ? 0 : 1;
       candidates.push([noSkipFlag, prefFlag, scores[n], n]);
@@ -3261,6 +3264,13 @@ function actionGenerateScheduleV2(req) {
       }
       var ok = days.every(function(day){return canDoDay(n, day, days.length>1);});
       if (!ok) continue;
+      // Skip if this person is conflict-priority reserved for a different day
+      var reservedDay = conflictPriorities ? Object.keys(conflictPriorities).find(function(dk){ return conflictPriorities[dk] === n; }) : null;
+      if (reservedDay && days.indexOf(parseInt(reservedDay)) === -1) continue;
+      // Skip if person has forced_v on a day NOT in current slot (save them for that day)
+      var fv = (calInfo[n]||{}).forced_v || {};
+      var fvDays = Object.keys(fv).map(Number).filter(function(fd){ return fv[fd] && canDoDay(n, fd, false); });
+      if (fvDays.length > 0 && !fvDays.some(function(fd){ return days.indexOf(fd) !== -1; })) continue;
       var noSkipFlag = p.no_skip ? 0 : 1;
       var prefFlag   = prefMatches(p, slotType) ? 0 : 1;
       // forced_v: person marked V on ANY day in this slot → gets priority
