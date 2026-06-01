@@ -105,6 +105,7 @@ function route(req) {
   if (action === 'writeSchedule') return writeScheduleFromAgent(req);
   if (action === 'updateSwap') return actionUpdateSwap(req);  // users approve/reject their own swaps
   if (action === 'deleteSwap' && user.role === 'admin') return actionDeleteSwap(req);
+  if (action === 'requestProfileChange') return actionRequestProfileChange(req, user);
 
   // Admin only
   if (user.role !== 'admin') return {success: false, error: 'אין הרשאת מנהל', code: 403};
@@ -133,7 +134,6 @@ function route(req) {
   if (action === 'updateTorani') return actionUpdateTorani(req);
   if (action === 'toggleTorani') return actionToggleTorani(req);
   if (action === 'deleteTorani') return actionDeleteTorani(req);
-  if (action === 'requestProfileChange') return actionRequestProfileChange(req, user);
   if (action === 'getProfileChangeRequests') return actionGetProfileChangeRequests(req, user);
   if (action === 'approveProfileChange') return actionApproveProfileChange(req, user);
   if (action === 'rejectProfileChange') return actionRejectProfileChange(req, user);
