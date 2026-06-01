@@ -703,8 +703,14 @@ function getDutyTypesMap() {
 
 function actionGenerateSchedule(req) {
   const month = String(req.month || '');
-  const dayCategories = req.dayCategories;
+  let dayCategories = req.dayCategories;
   if (!dayCategories) return {success: false, error: 'dayCategories חסר'};
+  // Handle case where dayCategories arrives as a JSON string
+  if (typeof dayCategories === 'string') {
+    try { dayCategories = JSON.parse(dayCategories); } catch(e) {
+      return {success: false, error: 'dayCategories פגום: ' + e.toString()};
+    }
+  }
 
   const year = parseInt(month.substring(0, 4));
   const mon  = parseInt(month.substring(4, 6));
@@ -810,26 +816,36 @@ function actionGenerateSchedule(req) {
   // Returns list sorted by score (lowest first), respecting hard constraints
   // V preference always beats mesharet av (unless av also marked V)
   function getEligible(day, cat) {
+    // Check who was assigned yesterday (to avoid consecutive days)
+    const prevAssignment = assignment[day - 1];
+    const prevV = prevAssignment ? prevAssignment.V : '';
+    const prevA = prevAssignment ? prevAssignment.A : '';
+    const prevB = prevAssignment ? prevAssignment.B : '';
+
     return activePeople
-      .filter(p => !isHardBlocked(p.name, day) && canDoType(p, cat))
+      .filter(p => {
+        if (!canDoType(p, cat)) return false;
+        if (isHardBlocked(p.name, day)) return false;
+        // No consecutive days (unless they marked V for this day)
+        if (!prefersDay(p.name, day) && (p.name === prevV || p.name === prevA || p.name === prevB)) return false;
+        return true;
+      })
       .sort((a, b) => {
         const aV = prefersDay(a.name, day);
         const bV = prefersDay(b.name, day);
         const aIsAv = a.dutyCategory === 'אב';
         const bIsAv = b.dutyCategory === 'אב';
 
-        // V always wins — unless both have V, then score decides
+        // V always wins
         if (aV && !bV) return -1;
         if (!aV && bV) return 1;
 
-        // Neither has V: av gets priority on Thursday only if no non-av with lower/equal score
+        // Neither has V: av gets priority on Thursday
         if (!aV && !bV) {
-          // av vs non-av: av goes first (he's dedicated to Thursday)
           if (aIsAv && !bIsAv) return -1;
           if (!aIsAv && bIsAv) return 1;
         }
 
-        // Same V status and same av status: sort by score
         return (workingScores[a.name] || 0) - (workingScores[b.name] || 0);
       });
   }
