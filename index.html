@@ -1320,7 +1320,7 @@ function apiJsonp(params) {
       delete window[cbName];
       if (script.parentNode) script.parentNode.removeChild(script);
       reject(new Error('timeout — בדוק שה-Apps Script פרוס כ-Anyone'));
-    }, 30000);
+    }, 60000);
     window[cbName] = (data) => {
       clearTimeout(timeoutId);
       delete window[cbName];
