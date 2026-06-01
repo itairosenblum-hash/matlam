@@ -925,14 +925,14 @@ function actionGenerateSchedule(req) {
     });
     sched.getRange(2,1,schedRows.length,headers.length).setValues(schedRows);
   } else {
-    // Existing sheet - batch update V/A/B/score only (preserve dayType + notes/holidays)
+    // Existing sheet - update V/A/B/score AND dayType (user override wins)
     const existingData = sched.getDataRange().getValues();
     const numRows = existingData.length - 1;
     if (numRows <= 0) return {success:false, error:'הלוח ריק'};
 
-    // Build batch arrays for cols 4,5,6 (V,A,B) and col 9 (score)
-    const vabUpdates = [];  // [V, A, B] per row
-    const scoreUpdates = []; // [score] per row
+    const vabUpdates = [];
+    const scoreUpdates = [];
+    const dayTypeUpdates = [];
 
     for (let i = 1; i <= numRows; i++) {
       const rowDate = existingData[i][0];
@@ -941,12 +941,19 @@ function actionGenerateSchedule(req) {
       const ag = (dayNum && assignment[dayNum]) || {V:'',A:'',B:'',score:0};
       vabUpdates.push([ag.V||'', ag.A||'', ag.B||'']);
       scoreUpdates.push([ag.score||0]);
+      // Use the cat from assignment (which came from user's dayCategories) — overrides old value
+      const newCat = (dayNum && assignment[dayNum]) ? (assignment[dayNum].cat || assignment[dayNum].type || '') : (existingData[i][2] || '');
+      dayTypeUpdates.push([newCat]);
+    }
+      scoreUpdates.push([ag.score||0]);
     }
 
     // Single batch write for V/A/B (cols 4-6)
     sched.getRange(2, 4, numRows, 3).setValues(vabUpdates);
     // Single batch write for score (col 9)
     sched.getRange(2, 9, numRows, 1).setValues(scoreUpdates);
+    // Update dayType (col 3) — user override wins
+    sched.getRange(2, 3, numRows, 1).setValues(dayTypeUpdates);
   }
 
   // ── Build response ────────────────────────────────
