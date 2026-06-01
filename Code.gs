@@ -1311,9 +1311,15 @@ function actionRebuildScores(req, user) {
     if (nm) nameToRow[nm] = i + 1; // 1-based row
   }
 
-  // Find all Schedule_2026XX sheets only
+  // Find Schedule sheets with actual assignments only
   var sheets = ss.getSheets();
-  var schedSheets = sheets.filter(function(s){ return /^Schedule_2026\d{2}$/.test(s.getName()); });
+  var schedSheets = sheets.filter(function(s){
+    if (!/^Schedule_\d{6}$/.test(s.getName())) return false;
+    var lastRow = s.getLastRow();
+    if (lastRow < 2) return false;
+    var data = s.getRange(2, 4, Math.min(lastRow-1, 5), 1).getValues();
+    return data.some(function(r){ return String(r[0]||'').trim() !== ''; });
+  });
   schedSheets.sort(function(a,b){ return a.getName().localeCompare(b.getName()); });
 
   // Clear all monthly columns (col E onwards = col 5+)
@@ -3714,9 +3720,16 @@ function rebuildScoresDirectly() {
   }
   Logger.log('Names: ' + Object.keys(nameToRow).length);
 
-  // Find Schedule sheets — only 2026
+  // Find Schedule sheets — only ones with actual assignments (not empty)
   var sheets = ss.getSheets();
-  var schedSheets = sheets.filter(function(s){ return /^Schedule_2026\d{2}$/.test(s.getName()); });
+  var schedSheets = sheets.filter(function(s){
+    if (!/^Schedule_\d{6}$/.test(s.getName())) return false;
+    var lastRow = s.getLastRow();
+    if (lastRow < 2) return false; // empty sheet
+    // Check that at least one row has a V assignment (col D)
+    var data = s.getRange(2, 4, Math.min(lastRow-1, 5), 1).getValues();
+    return data.some(function(r){ return String(r[0]||'').trim() !== ''; });
+  });
   schedSheets.sort(function(a,b){ return a.getName().localeCompare(b.getName()); });
   Logger.log('Schedule sheets: ' + schedSheets.map(function(s){return s.getName();}).join(', '));
 
