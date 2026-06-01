@@ -3245,8 +3245,8 @@ function actionGenerateScheduleV2(req) {
       if (!ok) continue;
       var noSkipFlag = p.no_skip ? 0 : 1;
       var prefFlag   = prefMatches(p, slotType) ? 0 : 1;
-      // forced_v: person marked V on ALL days in this slot → highest priority (flag=0)
-      var forcedVFlag = days.every(function(day){ return (calInfo[n]||{}).forced_v && calInfo[n].forced_v[day]; }) ? 0 : 1;
+      // forced_v: person marked V on ANY day in this slot → gets priority
+      var forcedVFlag = days.some(function(day){ return (calInfo[n]||{}).forced_v && calInfo[n].forced_v[day]; }) ? 0 : 1;
       candidates.push([forcedVFlag, noSkipFlag, prefFlag, scores[n], n]);
     }
     if (!candidates.length) return null;
