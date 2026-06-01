@@ -1696,6 +1696,18 @@ async function loadConstraints() {
   renderConstraintGrid(year, mon, days);
 }
 
+// Israeli holidays 2025-2026 for constraint calendar display
+const IL_HOLIDAYS = {
+  '2025-09-22':{n:'ערב ר"ה'},'2025-09-23':{n:'ראש השנה'},'2025-09-24':{n:'ראש השנה ב'},'2025-10-01':{n:'ערב יוה"כ'},'2025-10-02':{n:'יום כיפור'},'2025-10-06':{n:'ערב סוכות'},'2025-10-07':{n:'סוכות'},'2025-10-13':{n:'הושענא רבה'},'2025-10-14':{n:'שמחת תורה'},
+  '2026-03-13':{n:'תענית אסתר'},'2026-03-14':{n:'פורים'},'2026-03-15':{n:'שושן פורים'},
+  '2026-03-31':{n:'ערב פסח'},'2026-04-01':{n:'פסח א'},'2026-04-02':{n:'פסח ב'},'2026-04-07':{n:'פסח ז'},'2026-04-08':{n:'פסח ח'},
+  '2026-04-21':{n:'יום הזיכרון'},'2026-04-22':{n:'יום העצמאות'},
+  '2026-05-20':{n:'ערב שבועות'},'2026-05-21':{n:'שבועות'},
+  '2026-07-22':{n:'ערב תשב"א'},'2026-07-23':{n:'תשעה באב'},
+  '2026-09-19':{n:'ערב ר"ה'},'2026-09-20':{n:'ראש השנה'},'2026-09-21':{n:'ראש השנה ב'},'2026-09-28':{n:'ערב יוה"כ'},'2026-09-29':{n:'יום כיפור'},
+  '2026-10-03':{n:'ערב סוכות'},'2026-10-04':{n:'סוכות'},'2026-10-10':{n:'הושענא רבה'},'2026-10-11':{n:'שמחת תורה'}
+};
+
 function renderConstraintGrid(year, mon, days) {
   const container = document.getElementById('constraints-grid');
   const today = new Date();
@@ -1721,25 +1733,28 @@ function renderConstraintGrid(year, mon, days) {
     const date = new Date(year, mon-1, d);
     const dow = date.getDay();
     const dateStr = `${year}-${String(mon).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const cellState = constraintData[d-1] || '';
     const isToday = dateStr === todayStr;
     const isWeekend = dow === 5 || dow === 6;
     const isThursday = dow === 4;
+    const holiday = IL_HOLIDAYS[dateStr];
 
     let dayCls = 'cal-day constraint-cal-day';
     if (isToday) dayCls += ' today';
     if (isWeekend) dayCls += ' cal-weekend';
     if (isThursday) dayCls += ' cal-thursday';
+    if (holiday) dayCls += ' cal-holiday';
     if (constraintData[d-1] === 'X') dayCls += ' constraint-blocked';
     if (constraintData[d-1] === 'V') dayCls += ' constraint-preferred';
 
-    let typeLabel = isWeekend ? 'סוף שבוע' : isThursday ? 'חמישי' : 'חול';
-    let typeCls = isWeekend ? 'badge-weekend' : isThursday ? 'badge-thursday' : 'badge-weekday';
+    let typeLabel = holiday ? holiday.n : isWeekend ? 'סוף שבוע' : isThursday ? 'חמישי' : 'חול';
+    let typeCls = holiday ? 'badge-holiday' : isWeekend ? 'badge-weekend' : isThursday ? 'badge-thursday' : 'badge-weekday';
 
     html += `
     <div class="${dayCls}" onclick="toggleConstraint(${d-1})" id="ccal-${d}" style="cursor:pointer;user-select:none">
       <div class="cal-day-num">${d}</div>
-      <div class="cal-day-type ${typeCls}" style="font-size:9px;padding:1px 5px;border-radius:10px;margin-top:2px;width:fit-content">${typeLabel}</div>
+      <div class="cal-day-type ${typeCls}" style="font-size:9px;padding:1px 5px;border-radius:10px;margin-top:2px;width:fit-content;${holiday?'background:rgba(234,179,8,0.2);color:var(--warn)':''}">
+        ${holiday ? '🕍 ' : ''}${typeLabel}
+      </div>
       <div class="constraint-indicator" id="ci-${d}" style="margin-top:4px;font-size:16px;font-weight:700;text-align:center">
         ${constraintData[d-1] === 'V' ? '<span style="color:var(--accent)">✓</span>' : constraintData[d-1] === 'X' ? '<span style="color:var(--danger)">✕</span>' : ''}
       </div>
@@ -2274,7 +2289,19 @@ async function runGenerate() {
   }
   document.getElementById('generate-btn').disabled = true;
   showLoading(true);
-  const res = await api({action:'generateSchedule', month, dayCategories});
+  // Use POST for generateSchedule to avoid URL length limits with dayCategories
+  let res;
+  try {
+    const resp = await fetch(API_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action:'generateSchedule', month, dayCategories, token})
+    });
+    res = await resp.json();
+  } catch(e) {
+    // Fallback to JSONP if POST fails (CORS)
+    res = await api({action:'generateSchedule', month, dayCategories});
+  }
   showLoading(false);
   document.getElementById('generate-btn').disabled = false;
   if (res.success) {
@@ -2448,10 +2475,14 @@ async function loadAdminConstraints() {
     const c = res.constraints[name];
     const xCount = c.constraints.filter(v => v === 'X').length;
     const vCount = c.constraints.filter(v => v === 'V').length;
-    html += `<tr><td style="white-space:nowrap;font-weight:600;position:sticky;right:0;background:var(--surface);z-index:1;padding:8px 12px">${name}`;
-    if (vCount) html += ` <span style="color:var(--accent);font-size:11px">✓${vCount}</span>`;
-    if (xCount) html += ` <span style="color:var(--danger);font-size:11px">✕${xCount}</span>`;
-    html += `</td>`;
+    html += `<td style="white-space:nowrap;font-weight:600;position:sticky;right:0;background:var(--surface);z-index:1;padding:8px 12px">
+      <div style="display:flex;align-items:center;gap:6px">
+        <button onclick="adminEditConstraint('${name.replace(/'/g,"\\'")}','${month}')" style="background:var(--surface3);border:1px solid var(--border);border-radius:6px;padding:2px 7px;cursor:pointer;font-size:11px;color:var(--text2)" title="ערוך אילוצים">✏️</button>
+        <span>${name}</span>
+        ${vCount ? `<span style="color:var(--accent);font-size:11px">✓${vCount}</span>` : ''}
+        ${xCount ? `<span style="color:var(--danger);font-size:11px">✕${xCount}</span>` : ''}
+      </div>
+    </td>`;
     for (let d = 0; d < days; d++) {
       const v = c.constraints[d];
       if (v === 'V') {
@@ -2470,9 +2501,32 @@ async function loadAdminConstraints() {
 }
 
 
-// =====================================================
-// ADMIN: PEOPLE MANAGEMENT
-// =====================================================
+async function adminEditConstraint(name, month) {
+  // Find username by name
+  const tornim = (await api({action:'getAllTornim'})).tornim || [];
+  const t = tornim.find(x => x.name === name);
+  if (!t) return alert('לא נמצא תורן: ' + name);
+
+  // Set impersonate to this user
+  const sel = document.getElementById('impersonate-select');
+  if (sel) {
+    sel.value = t.username;
+    await impersonateUser(t.username);
+  }
+
+  // Set constraint month to the current admin constraint month
+  const constraintSel = document.getElementById('constraint-month-select');
+  if (constraintSel && month) {
+    constraintSel.value = month;
+  }
+
+  // Navigate to constraints tab
+  switchTab('constraints');
+  await loadConstraints();
+  showAlert('constraint-alert', `✏️ עורך אילוצים של ${name}`, 'info');
+}
+
+
 async function loadPeople() {
   showLoading(true);
   const res = await api({action:'getPeople'});
