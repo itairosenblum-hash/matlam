@@ -1473,8 +1473,13 @@ function actionGetProfileChangeRequests(req, user) {
   var rows = sh.getDataRange().getValues();
   Logger.log('ProfileChangeRequests rows: ' + rows.length);
   var requests = [];
-  for (var i = 1; i < rows.length; i++) {
-    Logger.log('Row ' + i + ' status: "' + rows[i][7] + '" hex: ' + Array.from(String(rows[i][7]||'')).map(c=>c.charCodeAt(0)).join(','));
+  // Start from row 0 if no proper header (check if first row looks like data)
+  var startRow = 1;
+  if (rows.length > 0 && rows[0][0] !== 'ID' && String(rows[0][7]||'').trim().includes('ממתין')) {
+    startRow = 0; // No header row, data starts at row 0
+  }
+  for (var i = startRow; i < rows.length; i++) {
+    Logger.log('Row ' + i + ' status: "' + rows[i][7] + '"');
     if (String(rows[i][7]||'').trim().includes('ממתין')) {
       requests.push({id:rows[i][0], username:rows[i][1], name:rows[i][2], field:rows[i][3], oldValue:rows[i][4], newValue:rows[i][5], date:rows[i][6]});
     }
@@ -1498,7 +1503,9 @@ function _handleProfileChange(req, status) {
   var sh = ss.getSheetByName(PROFILE_CHANGES_SHEET);
   if (!sh) return {success: false, error: 'גיליון לא נמצא'};
   var rows = sh.getDataRange().getValues();
-  for (var i = 1; i < rows.length; i++) {
+  // Handle case where there's no header row
+  var startRow = (rows.length > 0 && rows[0][0] === 'ID') ? 1 : 0;
+  for (var i = startRow; i < rows.length; i++) {
     if (String(rows[i][0]) !== String(id)) continue;
     var username = rows[i][1], name = rows[i][2], field = rows[i][3], oldValue = rows[i][4], newValue = rows[i][5];
     // Update status
