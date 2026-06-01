@@ -1471,9 +1471,11 @@ function actionGetProfileChangeRequests(req, user) {
   var sh = ss.getSheetByName(PROFILE_CHANGES_SHEET);
   if (!sh || sh.getLastRow() < 2) return {success: true, requests: []};
   var rows = sh.getDataRange().getValues();
+  Logger.log('ProfileChangeRequests rows: ' + rows.length);
   var requests = [];
   for (var i = 1; i < rows.length; i++) {
-    if (String(rows[i][7]||'') === 'ממתין') {
+    Logger.log('Row ' + i + ' status: "' + rows[i][7] + '" hex: ' + Array.from(String(rows[i][7]||'')).map(c=>c.charCodeAt(0)).join(','));
+    if (String(rows[i][7]||'').trim().includes('ממתין')) {
       requests.push({id:rows[i][0], username:rows[i][1], name:rows[i][2], field:rows[i][3], oldValue:rows[i][4], newValue:rows[i][5], date:rows[i][6]});
     }
   }
