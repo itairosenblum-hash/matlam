@@ -3770,21 +3770,14 @@ function rebuildScoresDirectly() {
       var dtype = String(rows[ri][7]||rows[ri][2]||'').trim();
       var sc    = Number(rows[ri][8]||0);
       if (v && sc > 0) {
-        if (!monthScores[v]) monthScores[v] = {type: dtype, score: 0};
+        if (!monthScores[v]) monthScores[v] = {types: [], score: 0};
         monthScores[v].score += sc;
-        // Keep the highest-scoring duty type (e.g. סוף שבוע beats חול)
-        if (sc >= (monthScores[v].topSc||0)) {
-          monthScores[v].type = dtype;
-          monthScores[v].topSc = sc;
-        }
+        if (dtype && monthScores[v].types.indexOf(dtype) === -1) monthScores[v].types.push(dtype);
       }
       if (v2 && sc > 0) {
-        if (!monthScores[v2]) monthScores[v2] = {type: dtype, score: 0};
+        if (!monthScores[v2]) monthScores[v2] = {types: [], score: 0};
         monthScores[v2].score += sc;
-        if (sc >= (monthScores[v2].topSc||0)) {
-          monthScores[v2].type = dtype;
-          monthScores[v2].topSc = sc;
-        }
+        if (dtype && monthScores[v2].types.indexOf(dtype) === -1) monthScores[v2].types.push(dtype);
       }
     }
     Logger.log(shName + ' monthScores names: ' + Object.keys(monthScores).join(', '));
@@ -3792,17 +3785,14 @@ function rebuildScoresDirectly() {
     Object.keys(nameToRow).forEach(function(n) {
       var row = nameToRow[n];
       if (monthScores[n]) {
-        // שובץ — כתוב סוג + ניקוד
-        scoreSheet.getRange(row, monColType).setValue(monthScores[n].type);
+        scoreSheet.getRange(row, monColType).setValue(monthScores[n].types.join(' + '));
         scoreSheet.getRange(row, monColScore).setValue(monthScores[n].score);
         acc2026[n] += monthScores[n].score;
       } else if (exempt[n]) {
-        // פטור — 10 נקודות
         scoreSheet.getRange(row, monColType).setValue('פטור');
         scoreSheet.getRange(row, monColScore).setValue(10);
         acc2026[n] += 10;
       } else {
-        // לא שובץ — דולג
         scoreSheet.getRange(row, monColType).setValue('דולג');
         scoreSheet.getRange(row, monColScore).setValue(0);
       }
