@@ -1201,12 +1201,15 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
       <select id="edit-dutytype" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;color:var(--text);font-family:inherit;outline:none">
         <option value="">— ללא שינוי —</option>
         <option value="חול">חול (10)</option>
+        <option value="חול הקפצה">חול הקפצה (12)</option>
         <option value="חמישי">חמישי (12)</option>
+        <option value="חמישי הקפצה">חמישי הקפצה (15)</option>
         <option value="חול 24 שעות">חול 24 שעות (15)</option>
         <option value="חמישי 24 שעות">חמישי 24 שעות (16)</option>
         <option value="הדממה">הדממה (18)</option>
         <option value="חמישי הדממה">חמישי הדממה (19)</option>
         <option value="סוף שבוע">סוף שבוע (20)</option>
+        <option value="סוף שבוע הקפצה">סוף שבוע הקפצה (30)</option>
         <option value="סוף שבוע מלא">סוף שבוע מלא (40)</option>
         <option value="ערב חג">ערב חג (25)</option>
         <option value="חג">חג (25)</option>
@@ -1298,7 +1301,7 @@ function parseMonth(val) {
   const s = String(year) + String(mon).padStart(2,'0');
   return {year, mon, days, s};
 }
-const DAY_TYPES = ['חול','חמישי','חמישי 24 שעות','חול 24 שעות','סוף שבוע','ערב חג','חג','יומיים חג'];
+const DAY_TYPES = ['חול','חול הקפצה','חמישי','חמישי הקפצה','חמישי 24 שעות','חול 24 שעות','סוף שבוע','סוף שבוע הקפצה','ערב חג','חג','יומיים חג'];
 const HEB_DAYS = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 
 // =====================================================
