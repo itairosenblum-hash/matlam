@@ -1897,8 +1897,9 @@ let editingTorani = null;
 
 async function loadProfileChangeRequests() {
   const res = await api({action:'getProfileChangeRequests'});
+  console.log('profileChangeRequests:', JSON.stringify(res));
   const container = document.getElementById('profile-change-requests');
-  if (!res.success || !res.requests.length) { container.innerHTML = ''; return; }
+  if (!res.success || !res.requests || !res.requests.length) { container.innerHTML = ''; return; }
   const fieldHeb = f => f === 'weekendType' ? 'סוג סוף שבוע' : 'קטגוריה';
   container.innerHTML = `<div class="card" style="border:2px solid var(--warn);margin-bottom:16px">
     <div class="card-title" style="color:var(--warn)">⏳ בקשות שינוי פרופיל ממתינות לאישור (${res.requests.length})</div>
