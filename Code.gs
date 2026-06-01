@@ -1508,14 +1508,18 @@ function _handleProfileChange(req, status) {
       var peopleSheet = ss.getSheetByName('People');
       var pRows = peopleSheet.getDataRange().getValues();
       var found = false;
+      Logger.log('Looking for name: "' + name + '" field: ' + field + ' newValue: ' + newValue);
       for (var pi = 1; pi < pRows.length; pi++) {
+        Logger.log('Checking row ' + pi + ': "' + pRows[pi][0] + '"');
         if (String(pRows[pi][0]).trim() === String(name).trim()) {
           if (field === 'weekendType') peopleSheet.getRange(pi+1, 5).setValue(newValue);
           if (field === 'dutyCategory') peopleSheet.getRange(pi+1, 3).setValue(newValue);
+          Logger.log('Updated row ' + (pi+1) + ' col ' + (field === 'weekendType' ? 5 : 3) + ' to: ' + newValue);
           found = true;
           break;
         }
       }
+      Logger.log('Found: ' + found);
       // Also check Users sheet for the username-based name
       if (!found) {
         var usersSheet = ss.getSheetByName('Users');
