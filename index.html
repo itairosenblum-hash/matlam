@@ -1759,9 +1759,9 @@ function renderConstraintGrid(year, mon, days) {
 
 
 function toggleConstraint(idx) {
-  // Cycle: '' → 'V' → 'X' → ''
+  // Cycle: '' → 'X' → 'V' → ''
   const cur = constraintData[idx] || '';
-  const next = cur === '' ? 'V' : cur === 'V' ? 'X' : '';
+  const next = cur === '' ? 'X' : cur === 'X' ? 'V' : '';
   constraintData[idx] = next;
   const day = idx + 1;
   const cell = document.getElementById('ccal-' + day);
