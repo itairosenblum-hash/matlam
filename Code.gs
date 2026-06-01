@@ -3751,10 +3751,18 @@ function rebuildScoresDirectly() {
 
     for (var ri = 1; ri < rows.length; ri++) {
       var v     = String(rows[ri][3]||'').trim();
+      var v2    = String(rows[ri][9]||'').trim(); // מבצע שני
       var dtype = String(rows[ri][7]||rows[ri][2]||'').trim();
       var sc    = Number(rows[ri][8]||0);
-      if (v && sc > 0 && (!monthScores[v] || sc > monthScores[v].score))
-        monthScores[v] = {type: dtype, score: sc};
+      if (v && sc > 0) {
+        if (!monthScores[v]) monthScores[v] = {type: dtype, score: 0};
+        monthScores[v].score += sc;
+        monthScores[v].type = dtype;
+      }
+      if (v2 && sc > 0) {
+        if (!monthScores[v2]) monthScores[v2] = {type: dtype, score: 0};
+        monthScores[v2].score += sc;
+      }
     }
 
     Object.keys(nameToRow).forEach(function(n) {
@@ -3767,6 +3775,10 @@ function rebuildScoresDirectly() {
         scoreSheet.getRange(row, monColType).setValue('פטור');
         scoreSheet.getRange(row, monColScore).setValue(10);
         acc2026[n] += 10;
+      } else {
+        // לא שובץ — דולג (0 נקודות, אבל מסומן)
+        scoreSheet.getRange(row, monColType).setValue('דולג');
+        scoreSheet.getRange(row, monColScore).setValue(0);
       }
     });
     Logger.log(shName + ': ' + JSON.stringify(monthScores).substring(0,150));
