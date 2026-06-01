@@ -3876,7 +3876,15 @@ async function saveDutySettings() {
   }
   if (!confirm(`לשלוח בקשה לשינוי סוג סוף שבוע מ-"${currentWeekend}" ל-"${weekendType}"?\nהבקשה תועבר למנהל לאישור.`)) return;
   showLoading(true);
-  const res = await api({action:'requestProfileChange', username: currentUser.username, field: 'weekendType', oldValue: currentWeekend, newValue: weekendType});
+  const res = await api({
+    action:'requestProfileChange',
+    username: currentUser.username,
+    targetUsername: _profilePerson ? _profilePerson.username : currentUser.username,
+    targetName: _profilePerson ? _profilePerson.name : currentUser.name,
+    field: 'weekendType',
+    oldValue: currentWeekend,
+    newValue: weekendType
+  });
   showLoading(false);
   if (res.success) {
     showAlert('duty-settings-alert', '✅ הבקשה נשלחה למנהל לאישור. תקבל עדכון במייל.', 'success');
