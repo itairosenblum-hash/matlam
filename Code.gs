@@ -1311,9 +1311,9 @@ function actionRebuildScores(req, user) {
     if (nm) nameToRow[nm] = i + 1; // 1-based row
   }
 
-  // Find all Schedule_YYYYMM sheets
+  // Find all Schedule_2026XX sheets only
   var sheets = ss.getSheets();
-  var schedSheets = sheets.filter(function(s){ return /^Schedule_\d{6}$/.test(s.getName()); });
+  var schedSheets = sheets.filter(function(s){ return /^Schedule_2026\d{2}$/.test(s.getName()); });
   schedSheets.sort(function(a,b){ return a.getName().localeCompare(b.getName()); });
 
   // Clear all monthly columns (col E onwards = col 5+)
@@ -3714,9 +3714,9 @@ function rebuildScoresDirectly() {
   }
   Logger.log('Names: ' + Object.keys(nameToRow).length);
 
-  // Find Schedule sheets
+  // Find Schedule sheets — only 2026
   var sheets = ss.getSheets();
-  var schedSheets = sheets.filter(function(s){ return /^Schedule_\d{6}$/.test(s.getName()); });
+  var schedSheets = sheets.filter(function(s){ return /^Schedule_2026\d{2}$/.test(s.getName()); });
   schedSheets.sort(function(a,b){ return a.getName().localeCompare(b.getName()); });
   Logger.log('Schedule sheets: ' + schedSheets.map(function(s){return s.getName();}).join(', '));
 
