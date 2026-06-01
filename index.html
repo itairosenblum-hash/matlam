@@ -1916,11 +1916,9 @@ async function loadUsers() { // keep name for tab switching
         <th>פעולות</th>
       </tr></thead>
       <tbody>
-        ${res.tornim.slice().sort((a,b) => {
-          const aActive = a.active ? 0 : 1;
-          const bActive = b.active ? 0 : 1;
-          return aActive - bActive;
-        }).map(t => `<tr style="${!t.active ? 'opacity:0.5' : ''}">
+        ${res.tornim.slice().sort((a,b) => (a.active?0:1)-(b.active?0:1)).map(t => {
+          const rowStyle = t.active ? '' : 'opacity:0.5';
+          return `<tr style="${rowStyle}">
           <td class="fw-bold">${t.name}</td>
           <td class="text-muted">${t.username}</td>
           <td>${t.role==='admin'?'<span class="nav-badge">מנהל</span>':'תורן'}</td>
@@ -1937,7 +1935,7 @@ async function loadUsers() { // keep name for tab switching
               <button class="btn btn-secondary btn-sm" onclick="toggleTorani('${t.username}')">${t.active?'🔒':'🔓'}</button>
             </div>
           </td>
-        </tr>`).join('')}
+        </tr>`;}).join('')}
       </tbody>
     </table></div>`;
 }
