@@ -437,7 +437,7 @@ function actionGetConstraints(req, user) {
           if (c === 'X' || c === 'x' || c === true) return 'X';
           return '';
         }),
-        notes: rows[i].length > 32 ? String(rows[i][32] || '') : ''
+        notes: rows[i].length > 33 ? String(rows[i][33] || '') : ''
       };
     }
   }
@@ -467,13 +467,16 @@ function actionSaveConstraints(req, user) {
   let sheet = ss.getSheetByName('Constraints_' + month);
   if (!sheet) sheet = createConstraintSheet(month, ss);
 
-  // Always ensure column 33 is the notes column
-  const headerRow = sheet.getRange(1, 1, 1, 33).getValues()[0];
-  if (String(headerRow[32]).trim() !== 'הערות') {
-    sheet.getRange(1, 33).setValue('הערות');
+  // Always ensure column 33 header = יום 31, column 34 = הערות
+  const headerRow = sheet.getRange(1, 1, 1, 34).getValues()[0];
+  if (String(headerRow[32]).trim() !== '31') {
+    sheet.getRange(1, 33).setValue(31);
+  }
+  if (String(headerRow[33]).trim() !== 'הערות') {
+    sheet.getRange(1, 34).setValue('הערות');
   }
 
-  // Build row: col1=name, col2-32=days1-31, col33=notes
+  // Build row: col1=name, col2-32=days1-31 (always 31 slots), col33=day31 already covered
   const dayValues = new Array(31).fill('').map((_, i) => {
     const c = (constraints || [])[i];
     if (c === 'V' || c === 'v') return 'V';
@@ -485,10 +488,8 @@ function actionSaveConstraints(req, user) {
   let found = false;
   for (let i = 1; i < rows.length; i++) {
     if (String(rows[i][0]).trim() === String(saveName).trim()) {
-      // Write name + 31 days in cols 1-32
       sheet.getRange(i + 1, 1, 1, 32).setValues([[saveName, ...dayValues]]);
-      // Write notes in col 33 separately
-      sheet.getRange(i + 1, 33).setValue(notes || '');
+      sheet.getRange(i + 1, 34).setValue(notes || '');
       found = true;
       break;
     }
@@ -496,7 +497,7 @@ function actionSaveConstraints(req, user) {
   if (!found) {
     const newRow = sheet.getLastRow() + 1;
     sheet.getRange(newRow, 1, 1, 32).setValues([[saveName, ...dayValues]]);
-    sheet.getRange(newRow, 33).setValue(notes || '');
+    sheet.getRange(newRow, 34).setValue(notes || '');
   }
   return {success: true};
 }
@@ -516,7 +517,7 @@ function actionGetAllConstraints(req) {
         if (c === 'X' || c === 'x' || c === true) return 'X';
         return '';
       }),
-      notes: rows[i].length > 32 ? String(rows[i][32] || '') : ''
+      notes: rows[i].length > 33 ? String(rows[i][33] || '') : ''
     };
   }
   return {success: true, constraints: result, month};
@@ -528,7 +529,8 @@ function createConstraintSheet(month, ss) {
   sheet.setRightToLeft(true);
   const headers = ['שם'];
   for (let d = 1; d <= 31; d++) headers.push(d);
-  headers.push('הערות');
+  headers.push(''); // col 33 placeholder
+  headers.push('הערות'); // col 34
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   const people = actionGetPeople().people.filter(p => p.activity !== '0');
   people.forEach((p, idx) => sheet.getRange(idx + 2, 1).setValue(p.name));
