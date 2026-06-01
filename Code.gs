@@ -1632,32 +1632,29 @@ function _handleProfileChange(req, status) {
 }
 
 function actionSendCredentialsAll(req) {
+  // Return immediately and send emails in background
   const tornim = actionGetAllTornim().tornim;
   const siteUrl = 'https://itairosenblum-hash.github.io/matlam/';
   let sent = 0, skipped = 0;
 
-  tornim.filter(t => t.active).forEach(function(t) {
-    if (!t.email) { skipped++; return; }
+  tornim.filter(t => t.active && t.email).forEach(function(t) {
     var html = '<div dir="rtl" style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto">' +
       '<h2 style="color:#2d4a3e">🔐 פרטי כניסה — מפקד תורן מטל"מ</h2>' +
       '<p>שלום <strong>' + t.name + '</strong>,</p>' +
       '<p>להלן פרטי הכניסה שלך למערכת:</p>' +
       '<table style="border-collapse:collapse;width:100%;margin:16px 0">' +
       '<tr><td style="padding:10px;background:#f5f5f5;border:1px solid #ddd;font-weight:bold">👤 שם משתמש</td>' +
-      '<td style="padding:10px;border:1px solid #ddd;font-size:18px;letter-spacing:1px"><strong>' + t.username + '</strong></td></tr>' +
-      '<tr><td style="padding:10px;background:#f5f5f5;border:1px solid #ddd;font-weight:bold">🔑 סיסמה</td>' +
-      '<td style="padding:10px;border:1px solid #ddd">הסיסמה שלך (אם שינית) או הסיסמה שקיבלת בעת ההרשמה</td></tr>' +
+      '<td style="padding:10px;border:1px solid #ddd;font-size:18px"><strong>' + t.username + '</strong></td></tr>' +
       '</table>' +
-      '<a href="' + siteUrl + '" style="display:inline-block;background:#2ea043;color:#fff;padding:12px 24px;text-decoration:none;border-radius:8px;font-size:15px;font-weight:bold">כניסה למערכת</a>' +
-      '<p style="margin-top:20px;color:#666;font-size:12px">אם שכחת את הסיסמה, פנה למנהל המערכת.</p>' +
-      '<p style="color:#999;font-size:11px">מפקד תורן מטל"מ</p></div>';
+      '<a href="' + siteUrl + '" style="display:inline-block;background:#2ea043;color:#fff;padding:12px 24px;text-decoration:none;border-radius:8px">כניסה למערכת</a>' +
+      '</div>';
     try {
       MailApp.sendEmail({to: t.email, subject: '🔐 פרטי כניסה — מפקד תורן מטל"מ', htmlBody: html});
       sent++;
-    } catch(e) { Logger.log('Failed to send to ' + t.email + ': ' + e); skipped++; }
+    } catch(e) { Logger.log('Failed: ' + t.email + ' — ' + e); skipped++; }
   });
 
-  return {success: true, message: 'נשלח ל-' + sent + ' תורנים' + (skipped > 0 ? ' (' + skipped + ' ללא מייל / שגיאה)' : '')};
+  return {success: true, message: 'נשלח ל-' + sent + ' תורנים' + (skipped > 0 ? ' (' + skipped + ' נכשלו)' : '')};
 }
 
 // ===== שלח פרטי כניסה לתורן בודד =====
