@@ -1,11 +1,11 @@
-<!DOCTYPE html><!-- v1780251984 -->
+<!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#2d4a3e">
-<link rel="icon" type="image/png" href="https://itairosenblum-hash.github.io/matlam/SemelMatzad_Color.svg.png">
-<link rel="apple-touch-icon" href="https://itairosenblum-hash.github.io/matlam/SemelMatzad_Color.svg.png">
+<link rel="icon" type="image/png" href="https://itairosenblum-hash.github.io/matlam/Mazad.png">
+<link rel="apple-touch-icon" href="https://itairosenblum-hash.github.io/matlam/Mazad.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content='מפקד תורן מטל"מ'>
@@ -472,7 +472,6 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
 .duty-partial{background:rgba(34,197,94,0.1);border-color:rgba(34,197,94,0.35);color:#22c55e}
 /* ---- UTILS ---- */
 .hidden{display:none!important}
-#tab-admin-swaps:not(.hidden){display:block;min-height:200px;width:100%}
 .flex{display:flex}
 .items-center{align-items:center}
 .gap-8{gap:8px}
@@ -523,7 +522,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
     </div>
     <div class="login-card" style="position:relative;z-index:1">
       <div class="login-logo">
-        <div class="icon"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/SemelMatzad_Color.svg/250px-SemelMatzad_Color.svg.png" alt="מטל״מ" style="width:64px;height:64px;object-fit:contain"></div>
+        <div class="icon"><img src="https://itairosenblum-hash.github.io/matlam/Mazad.png" alt="מטל״מ" style="width:64px;height:64px;object-fit:contain"></div>
         <h1>מפקד תורן מטל"מ</h1>
         <div style="font-size:10px;color:var(--text3);margin-top:2px">מפקד תורן מטל"מ</div>
         <p>התחבר עם פרטי הכניסה שלך</p>
@@ -548,7 +547,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
   <div id="main-page" class="page">
     <nav class="navbar">
       <div class="nav-brand">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/SemelMatzad_Color.svg/250px-SemelMatzad_Color.svg.png" alt="מטל״מ" style="height:32px;width:32px;object-fit:contain;flex-shrink:0">
+        <img src="https://itairosenblum-hash.github.io/matlam/Mazad.png" alt="מטל״מ" style="height:32px;width:32px;object-fit:contain;flex-shrink:0">
         <span style="font-size:15px;font-weight:800;letter-spacing:-0.3px">מפקד תורן מטל"מ</span>
       </div>
       <button id="hamburger-btn" class="hamburger-btn" onclick="toggleMobileMenu()" aria-label="תפריט">
@@ -1075,12 +1074,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
       </div>
 
 
-
-
       <!-- ADMIN: SWAPS TAB -->
-
-    </div>
-
       <div id="tab-admin-swaps" class="tab-content hidden">
         <div class="section-header">
           <div>
@@ -1102,9 +1096,11 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
           <button class="btn btn-danger btn-sm" onclick="deleteApprovedSwaps()" style="margin-right:auto" title="מחק את כל הבקשות שאושרו ונדחו">🗑️ נקה היסטוריה</button>
         </div>
 
-        <div id="admin-swaps-debug-bar" style="font-size:11px;color:var(--text3);margin-bottom:4px"></div>
-        <div id="admin-swaps-content"><div class="text-muted text-sm" style="padding:16px">טוען...</div></div>
+        <div id="admin-swaps-content"></div>
       </div>
+
+
+    </div>
   </div>
 </div>
 
@@ -1273,7 +1269,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
 // =====================================================
 // CONFIG & STATE
 // =====================================================
-const API_URL = 'https://script.google.com/macros/s/AKfycbxvCYnnOtKrRfRqXeMIDKsAOOr1bN4eCfEJo7znZMqCxBGr7DJkIIF56gCgl8u2q3YL/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxLY1ua-fc-y8TinN1gZGNm-3z8TG--hzTgou18TGZJEI5-dVqc20Xam5O72gKqySbItA/exec';
 let token = sessionStorage.getItem('duty_token') || '';
 let currentUser = JSON.parse(sessionStorage.getItem('duty_user') || 'null');
 let allPeople = [];
@@ -1298,44 +1294,19 @@ const HEB_DAYS = ['ראשון','שני','שלישי','רביעי','חמישי','
 // =====================================================
 // API
 // =====================================================
-// fetch+POST - עוקף בעיות JSONP עם Edge/Chrome AI extensions
-async function apiJsonp(params) {
-  const body = {...params};
-  if (token) body.token = token;
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
-  try {
-    const resp = await fetch(API_URL, {
-      method: 'POST',
-      headers: {'Content-Type': 'text/plain'},
-      body: JSON.stringify(body),
-      signal: controller.signal
-    });
-    clearTimeout(timeoutId);
-    const text = await resp.text();
-    try { return JSON.parse(text); }
-    catch(e) { return {success:false, error:'תגובה לא תקינה: ' + text.substring(0,100)}; }
-  } catch(e) {
-    clearTimeout(timeoutId);
-    if (e.name === 'AbortError') throw new Error('timeout');
-    // Fallback to JSONP
-    return apiJsonpLegacy(params);
-  }
-}
-
-// JSONP fallback
-function apiJsonpLegacy(params) {
+// JSONP - עוקף CORS לגמרי
+function apiJsonp(params) {
   return new Promise((resolve, reject) => {
     const cbName = 'jcb_' + Date.now() + '_' + Math.floor(Math.random()*10000);
     const timeoutId = setTimeout(() => {
       delete window[cbName];
-      if (script && script.parentNode) script.parentNode.removeChild(script);
-      reject(new Error('timeout'));
+      if (script.parentNode) script.parentNode.removeChild(script);
+      reject(new Error('timeout — בדוק שה-Apps Script פרוס כ-Anyone'));
     }, 30000);
     window[cbName] = (data) => {
       clearTimeout(timeoutId);
       delete window[cbName];
-      if (script && script.parentNode) script.parentNode.removeChild(script);
+      if (script.parentNode) script.parentNode.removeChild(script);
       resolve(data);
     };
     const parts = {...params, callback: cbName};
@@ -1345,7 +1316,11 @@ function apiJsonpLegacy(params) {
       .join('&');
     const script = document.createElement('script');
     script.src = API_URL + '?' + qs;
-    script.onerror = () => { clearTimeout(timeoutId); delete window[cbName]; reject(new Error('שגיאת טעינה')); };
+    script.onerror = () => {
+      clearTimeout(timeoutId);
+      delete window[cbName];
+      reject(new Error('שגיאת טעינה — בדוק את ה-URL ואת הגדרות הפריסה'));
+    };
     document.head.appendChild(script);
   });
 }
@@ -1648,7 +1623,6 @@ function switchTab(id) {
   if (el) el.classList.remove('hidden');
   const nav = document.getElementById('navtab-'+id);
   if (nav) nav.classList.add('active');
-  window.scrollTo(0, 0);
 
   // Load data for tab
   if (id === 'constraints') { loadConstraints(); checkConstraintLock(); }
@@ -3024,16 +2998,12 @@ async function submitSwapRequest() {
 }
 
 async function loadSwapRequests() {
+  const res = await api({action:'getSwaps'});
   const container = document.getElementById('swap-requests-list');
   const debug = document.getElementById('swap-debug');
   if (!container) return;
-  let res;
-  try {
-    res = await api({action:'getSwaps'});
-  } catch(e) {
-    container.innerHTML = '<div class="text-muted text-sm">שגיאת חיבור: ' + (e.message||'נסה שוב') + '</div>'; return;
-  }
-  if (!res || !res.success) {
+
+  if (!res.success) {
     container.innerHTML = '<div class="text-muted text-sm">שגיאה בטעינה</div>'; return;
   }
 
@@ -3139,26 +3109,13 @@ async function respondToSwap(id, status) {
 }
 
 async function loadAdminSwaps() {
-  const debugBar = document.getElementById('admin-swaps-debug-bar');
-  const content = document.getElementById('admin-swaps-content');
-  if (debugBar) debugBar.textContent = '⏳ טוען...';
-  if (content) content.innerHTML = '<div class="text-muted text-sm" style="padding:16px">טוען בקשות...</div>';
-  // Don't use showLoading to avoid overlay issues
-  let res;
-  try {
-    res = await api({action:'getSwaps'});
-  } catch(e) {
-    if (debugBar) debugBar.textContent = '❌ שגיאה: ' + (e.message||'');
-    if (content) content.innerHTML = '<div class="alert alert-error">שגיאת חיבור: ' + (e.message||'נסה שוב') + '</div>';
-    return;
-  }
-  if (!res || !res.success) {
-    if (debugBar) debugBar.textContent = '❌ ' + ((res&&res.error)||'שגיאה');
-    if (content) content.innerHTML = '<div class="alert alert-error">' + ((res&&res.error)||'שגיאה בטעינה') + '</div>';
-    return;
+  showLoading(true);
+  const res = await api({action:'getSwaps'});
+  showLoading(false);
+  if (!res.success) {
+    showAlert('admin-swaps-alert','שגיאה בטעינה','error'); return;
   }
   _allAdminSwaps = res.swaps || [];
-  if (debugBar) debugBar.textContent = `✅ ${_allAdminSwaps.length} בקשות`;
   renderAdminSwapsFiltered();
 }
 // =============================================
@@ -3177,8 +3134,7 @@ function setSwapFilter(filter) {
 
 function renderAdminSwapsFiltered() {
   const container = document.getElementById('admin-swaps-content');
-  const debugBar = document.getElementById('admin-swaps-debug-bar');
-  let swaps = _allAdminSwaps.map(s => ({...s, status: s.status || 'pending_target'}));
+  let swaps = _allAdminSwaps;
 
   if (_swapFilter === 'pending') {
     swaps = swaps.filter(s => s.status.startsWith('pending'));
@@ -3187,39 +3143,38 @@ function renderAdminSwapsFiltered() {
   } else if (_swapFilter === 'rejected') {
     swaps = swaps.filter(s => s.status === 'rejected');
   }
-  if (debugBar) debugBar.textContent = `סה"כ: ${_allAdminSwaps.length} | מוצגות: ${swaps.length} | פילטר: ${_swapFilter}`;
 
   if (!swaps.length) {
     container.innerHTML = '<div class="empty-state"><div class="icon">🔄</div><p>אין בקשות להציג</p></div>';
     return;
   }
 
-  container.innerHTML = swaps.map(s => {
-    const statusLabel = s.status==='approved'?'✅ אושר':s.status==='rejected'?'❌ נדחה':
-      s.status==='pending_target'?'⏳ ממתין לתורן':
-      s.status==='pending_admin'?'⏳ ממתין לאישורך':'⏳';
-    const statusStyle = s.status==='approved'?'color:var(--accent)':s.status==='rejected'?'color:var(--danger)':'color:var(--warn)';
-    const actionBtns = s.status==='pending_admin' ? `
-      <button class="btn btn-primary btn-sm" onclick="approveSwap('${s.id}')">✓ אשר</button>
-      <button class="btn btn-danger btn-sm" onclick="rejectSwap('${s.id}')">✕ דחה</button>
-    ` : s.status==='approved' ? `
-      <button class="btn btn-secondary btn-sm" onclick="reApplySwap('${s.id}')" title="בצע מחדש">🔄</button>
-    ` : '';
-    return `<div class="card" style="margin-bottom:10px;padding:14px">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
-        <div>
-          <div style="font-weight:700;font-size:15px">${formatDate(s.date)}${s.theirDate&&s.theirDate!==s.date?` ↔ ${formatDate(s.theirDate)}`:''}</div>
-          <div style="font-size:13px;color:var(--text2);margin-top:2px">${s.fromName} ↔ ${s.withWho}</div>
-          ${s.note?`<div style="font-size:12px;color:var(--text3);margin-top:2px">${s.note}</div>`:''}
-        </div>
-        <span style="font-size:12px;font-weight:600;${statusStyle}">${statusLabel}</span>
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        ${actionBtns}
-        <button class="btn btn-secondary btn-sm" onclick="deleteSwap('${s.id}')" title="מחק">🗑️ מחק</button>
-      </div>
-    </div>`;
-  }).join('');
+  container.innerHTML = `<div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto"><table class="users-table">
+    <thead><tr><th>תאריך</th><th>מבקש</th><th>עם</th><th>הסבר</th><th>סטטוס</th><th>פעולה</th></tr></thead>
+    <tbody>${swaps.map(s=>`<tr>
+      <td class="fw-bold">
+        <div>${formatDate(s.date)}</div>
+        ${s.theirDate&&s.theirDate!==s.date?`<div style="font-size:11px;color:var(--text2)">↔ ${formatDate(s.theirDate)}</div>`:''}
+      </td>
+      <td>${s.fromName}</td>
+      <td>${s.withWho}</td>
+      <td class="text-muted text-sm" style="max-width:120px">${s.note||'—'}</td>
+      <td><span class="status-badge ${s.status==='approved'?'status-active':s.status==='rejected'?'status-inactive':''}"
+        style="${s.status.startsWith('pending')?'background:rgba(210,153,34,0.1);color:var(--warn)':''}">${
+          s.status==='approved'?'✅ אושר':s.status==='rejected'?'❌ נדחה':
+          s.status==='pending_target'?'⏳ ממתין לתורן':
+          s.status==='pending_admin'?'⏳ ממתין לאישורך':'⏳'
+        }</span></td>
+      <td><div class="flex gap-8">
+        ${s.status==='pending_admin'?`
+          <button class="btn btn-primary btn-sm" onclick="approveSwap('${s.id}')">✓</button>
+          <button class="btn btn-danger btn-sm" onclick="rejectSwap('${s.id}')">✕</button>
+        `:s.status==='pending_target'?'<span class="text-muted text-sm" style="font-size:11px">ממתין לתורן</span>':''}
+        ${s.status==='approved'?`<button class="btn btn-secondary btn-sm" onclick="reApplySwap('${s.id}')" title="בצע מחדש">🔄</button>`:''}
+        <button class="btn btn-secondary btn-sm" onclick="deleteSwap('${s.id}')" title="מחק">🗑️</button>
+      </div></td>
+    </tr>`).join('')}
+    </tbody></table></div></div>`;
 }
 
 async function deleteApprovedSwaps() {
@@ -3477,18 +3432,8 @@ function showPage(id) {
   document.getElementById(id).classList.add('active');
 }
 
-let _loadingTimer = null;
 function showLoading(show) {
   document.getElementById('loading').classList.toggle('open', show);
-  if (show) {
-    // Safety: auto-close after 35s to prevent stuck overlay
-    clearTimeout(_loadingTimer);
-    _loadingTimer = setTimeout(() => {
-      document.getElementById('loading').classList.remove('open');
-    }, 35000);
-  } else {
-    clearTimeout(_loadingTimer);
-  }
 }
 
 function showAlert(containerId, msg, type) {
@@ -3582,8 +3527,8 @@ function closeMobileMenu(e) {
 function switchTabAndClose(id) {
   const tabs = document.getElementById('nav-tabs-container');
   const btn = document.getElementById('hamburger-btn');
-  if (tabs) tabs.classList.remove('open');
-  if (btn) btn.classList.remove('open');
+  tabs.classList.remove('open');
+  btn.classList.remove('open');
   switchTab(id);
 }
 
@@ -3743,12 +3688,6 @@ async function saveDutySettings() {
     showAlert('duty-settings-alert', res.error||'שגיאה','error');
   }
 }
-// Global handler for unhandled promise rejections - prevents silent failures
-window.addEventListener('unhandledrejection', function(e) {
-  console.warn('Unhandled promise rejection caught:', e.reason);
-  e.preventDefault(); // Suppress the error from console
-  showLoading(false); // Always close loading overlay
-});
 </script>
   <!-- PWA Install: no banner, button is in menu -->
 <div id="pwa-install-hint" style="display:none"></div>
