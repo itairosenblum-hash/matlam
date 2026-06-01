@@ -3664,8 +3664,10 @@ function toggleMobileMenu() {
 }
 
 function closeMobileMenu(e) {
+  if (!e || !e.target) return;
   const tabs = document.getElementById('nav-tabs-container');
   const btn = document.getElementById('hamburger-btn');
+  if (!tabs || !btn) return;
   if (!tabs.contains(e.target) && !btn.contains(e.target)) {
     tabs.classList.remove('open');
     btn.classList.remove('open');
