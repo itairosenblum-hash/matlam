@@ -2223,61 +2223,103 @@ async function saveEntry() {
 async function openGenerateModal() {
   const {year, mon, days, s: month} = parseMonth(document.getElementById('admin-schedule-month').value);
 
-  // Fetch existing schedule to read holiday types
+  // Fetch existing schedule + constraints in parallel
   showLoading(true);
-  const sched = await api({action:'getSchedule', month});
+  const [sched, constraintsRes] = await Promise.all([
+    api({action:'getSchedule', month}),
+    api({action:'getAllConstraints', month})
+  ]);
   showLoading(false);
 
-  // Build a map of day → dayType from existing schedule
+  // Build day → dayType map
   const existingTypes = {};
   if (sched.success && sched.schedule) {
     sched.schedule.forEach(e => {
       let d;
-      if (e.date && e.date.includes('-')) {
-        // yyyy-MM-dd format
-        d = parseInt(e.date.split('-')[2]);
-      } else if (e.date && e.date.includes('/')) {
-        // dd/MM/yyyy format
-        d = parseInt(e.date.split('/')[0]);
-      }
+      if (e.date && e.date.includes('-')) d = parseInt(e.date.split('-')[2]);
+      else if (e.date && e.date.includes('/')) d = parseInt(e.date.split('/')[0]);
       if (d && e.dayType) existingTypes[d] = e.dayType;
     });
   }
 
-  // Israeli holiday names for tooltip
-  const HAG_TYPES = new Set(['חג','ערב חג','חג + סוף שבוע']);
+  // Build conflicts: days where 2+ people marked V
+  const allConstraints = (constraintsRes.success && constraintsRes.constraints) ? constraintsRes.constraints : {};
+  const vByDay = {}; // day → [name, ...]
+  Object.keys(allConstraints).forEach(name => {
+    const c = allConstraints[name];
+    (c.constraints || []).forEach((val, idx) => {
+      if (val === 'V') {
+        const d = idx + 1;
+        if (!vByDay[d]) vByDay[d] = [];
+        vByDay[d].push(name);
+      }
+    });
+  });
 
+  // Build conflict HTML
+  const conflicts = Object.keys(vByDay).filter(d => vByDay[d].length > 1).map(Number).sort((a,b)=>a-b);
+  let conflictHtml = '';
+  if (conflicts.length > 0) {
+    conflictHtml = `<div style="margin-bottom:16px">
+      <div style="font-weight:700;font-size:14px;margin-bottom:8px;color:var(--warn)">⚠️ קונפליקטים — מספר תורנים ביקשו אותו יום</div>
+      <div style="display:grid;gap:8px">`;
+    conflicts.forEach(d => {
+      const date = new Date(year, mon-1, d);
+      const dow = date.getDay();
+      const dayName = HEB_DAYS[dow];
+      const names = vByDay[d];
+      conflictHtml += `<div style="background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.3);border-radius:8px;padding:10px 14px">
+        <div style="font-weight:600;margin-bottom:6px">${d}/${mon} (${dayName}׳)</div>
+        <div style="display:flex;flex-direction:column;gap:6px">`;
+      names.forEach((name, i) => {
+        conflictHtml += `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+          <input type="radio" name="conflict-${d}" value="${name}" ${i===0?'checked':''} style="accent-color:var(--accent)">
+          <span>${name}</span>
+          ${i===0?'<span style="font-size:11px;color:var(--text3)">(ניקוד נמוך יותר — ברירת מחדל)</span>':''}
+        </label>`;
+      });
+      conflictHtml += `</div></div>`;
+    });
+    conflictHtml += `</div></div>`;
+  }
+
+  const HAG_TYPES = new Set(['חג','ערב חג','חג + סוף שבוע']);
   let html = '';
   for (let d = 1; d <= days; d++) {
     const date = new Date(year, mon-1, d);
     const dow = date.getDay();
     const dayName = HEB_DAYS[dow];
-
-    // Default: from existing schedule, or auto-detect by weekday
     let defType = existingTypes[d] || (dow===4?'חמישי': (dow===5||dow===6)?'סוף שבוע':'חול');
     const isHoliday = HAG_TYPES.has(defType);
     const rowBg = isHoliday ? 'background:rgba(234,179,8,0.08);border-radius:6px;' : '';
     const hagIcon = isHoliday ? '🕍 ' : '';
+    // Show V requests on this day
+    const vNames = vByDay[d] || [];
+    const vBadge = vNames.length > 0
+      ? `<span style="font-size:10px;color:var(--accent);background:rgba(46,160,67,0.12);border-radius:10px;padding:1px 6px;white-space:nowrap">✓ ${vNames.join(', ')}</span>`
+      : '';
 
-    html += `<div style="display:flex;align-items:center;gap:12px;padding:8px 6px;border-bottom:1px solid var(--border);${rowBg}">
+    html += `<div style="display:flex;align-items:center;gap:8px;padding:8px 6px;border-bottom:1px solid var(--border);${rowBg}flex-wrap:wrap">
       <span style="font-weight:700;min-width:28px;font-size:14px">${d}</span>
-      <span class="text-muted text-sm" style="min-width:46px;font-size:12px">${dayName}'</span>
-      <span style="min-width:18px">${hagIcon}</span>
-      <select id="gen-day-${d}" style="flex:1;background:var(--surface3);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-family:inherit;font-size:13px;outline:none;${isHoliday?'border-color:var(--warn);':''}">
+      <span class="text-muted text-sm" style="min-width:40px;font-size:12px">${dayName}׳</span>
+      <span style="min-width:16px">${hagIcon}</span>
+      <select id="gen-day-${d}" style="flex:1;min-width:120px;background:var(--surface3);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-family:inherit;font-size:13px;outline:none;${isHoliday?'border-color:var(--warn);':''}">
         ${DAY_TYPES.map(t=>`<option value="${t}" ${t===defType?'selected':''}>${t}</option>`).join('')}
       </select>
+      ${vBadge}
     </div>`;
   }
 
-  // Warning if no holidays detected
   const hasHolidays = Object.values(existingTypes).some(t => HAG_TYPES.has(t));
   const warningHtml = !hasHolidays && Object.keys(existingTypes).length === 0
     ? `<div style="background:rgba(234,179,8,0.12);border-right:3px solid var(--warn);padding:10px 12px;border-radius:6px;margin-bottom:12px;font-size:13px;color:var(--warn)">
         ⚠️ לא נמצא לוח לחודש זה — הימים מסווגים לפי יום השבוע בלבד. ודא שהחגים מוגדרים נכון.
        </div>` : '';
 
-  document.getElementById('generate-days-list').innerHTML = warningHtml + html;
+  document.getElementById('generate-days-list').innerHTML = conflictHtml + warningHtml + html;
   document.getElementById('generate-alert').innerHTML = '';
+  // Store conflicts for runGenerate
+  window._generateConflicts = conflicts.map(d => ({day: d, names: vByDay[d]}));
   openModal('modal-generate');
 }
 
@@ -2287,26 +2329,29 @@ async function runGenerate() {
   for (let d = 1; d <= days; d++) {
     dayCategories[String(d)] = document.getElementById('gen-day-'+d).value;
   }
+  // Collect conflict priority choices (which person was selected for each conflict day)
+  const conflictPriorities = {}; // day → chosen name
+  (window._generateConflicts || []).forEach(({day, names}) => {
+    const radios = document.querySelectorAll(`input[name="conflict-${day}"]`);
+    radios.forEach(r => { if (r.checked) conflictPriorities[String(day)] = r.value; });
+  });
+
   document.getElementById('generate-btn').disabled = true;
   showLoading(true);
-
-  // Try POST first (Apps Script supports it without CORS if no-cors or same origin)
-  // If fails, fall back to JSONP with full dayCategories
   let res;
   try {
     const resp = await fetch(API_URL, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({action:'generateSchedule', month, dayCategories, token}),
+      body: JSON.stringify({action:'generateSchedule', month, dayCategories, conflictPriorities, token}),
       signal: AbortSignal.timeout(25000)
     });
     res = await resp.json();
     if (!res || res.success === undefined) throw new Error('bad response');
   } catch(e) {
     console.warn('POST failed, using JSONP:', e.message);
-    res = await apiJsonp({action:'generateSchedule', month, dayCategories: JSON.stringify(dayCategories), token});
+    res = await apiJsonp({action:'generateSchedule', month, dayCategories: JSON.stringify(dayCategories), conflictPriorities: JSON.stringify(conflictPriorities), token});
   }
-
   showLoading(false);
   document.getElementById('generate-btn').disabled = false;
   if (res.success) {
