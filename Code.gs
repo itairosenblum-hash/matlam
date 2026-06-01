@@ -4014,3 +4014,16 @@ function rebuildScoresDirectly() {
 
   Logger.log('Done! acc2026: ' + JSON.stringify(acc2026).substring(0,300));
 }
+
+function testPeopleUpdate() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName('People');
+  var rows = sh.getDataRange().getValues();
+  for (var i = 1; i < rows.length; i++) {
+    Logger.log('Row ' + i + ': "' + rows[i][0] + '" col5: ' + rows[i][4]);
+    if (String(rows[i][0]).trim() === 'מנהל מערכת') {
+      Logger.log('Found! Current weekendType: ' + rows[i][4]);
+      break;
+    }
+  }
+}
