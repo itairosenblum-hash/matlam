@@ -2217,8 +2217,15 @@ async function openGenerateModal() {
   const existingTypes = {};
   if (sched.success && sched.schedule) {
     sched.schedule.forEach(e => {
-      const d = new Date(e.date.split('/').reverse().join('-')).getDate();
-      if (e.dayType) existingTypes[d] = e.dayType;
+      let d;
+      if (e.date && e.date.includes('-')) {
+        // yyyy-MM-dd format
+        d = parseInt(e.date.split('-')[2]);
+      } else if (e.date && e.date.includes('/')) {
+        // dd/MM/yyyy format
+        d = parseInt(e.date.split('/')[0]);
+      }
+      if (d && e.dayType) existingTypes[d] = e.dayType;
     });
   }
 
