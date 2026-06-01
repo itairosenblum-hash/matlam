@@ -535,7 +535,10 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
       </div>
       <div class="form-group">
         <label>סיסמה</label>
-        <input id="login-pass" type="password" placeholder="הכנס סיסמה" autocomplete="current-password">
+        <div style="position:relative">
+          <input id="login-pass" type="password" placeholder="הכנס סיסמה" autocomplete="current-password" style="padding-left:40px">
+          <button type="button" onclick="const i=document.getElementById('login-pass');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁️':'🙈'" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;padding:0;line-height:1">👁️</button>
+        </div>
       </div>
       <button class="btn btn-primary btn-full" id="login-btn" onclick="doLogin()">
         <span>התחבר</span>
