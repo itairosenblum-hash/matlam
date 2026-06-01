@@ -2364,11 +2364,13 @@ async function loadScores() {
     container.innerHTML = html;
   } else {
     var maxT = all[0]._total || 1;
+  var n2 = all.length;
     var thS = 'background:var(--surface3);border-bottom:2px solid var(--border);white-space:nowrap;padding:8px 12px';
     var mHeaders = activeMon.map(function(m){ return '<th style="'+thS+';font-size:11px">'+m.l+'</th>'; }).join('');
     var rows = all.map(function(s,i){
       var p = pMap[s.name]||{};
-      var pct = maxT>0?(s._total/maxT*100).toFixed(0):0;
+      var pct = Math.round(((n2-i)/n2)*100);
+      var bc2 = i < Math.ceil(n2/3) ? '#22c55e' : i < Math.ceil(n2*2/3) ? '#f97316' : '#ef4444';
       var wl = p.weekendType==='מלא'?'🗓️ מלא':p.weekendType==='בנפרד'?'📅 בנפרד':p.weekendType||'—';
       var mCells = activeMon.map(function(m){ var sc=(s[m.k]||{}).score; return '<td style="text-align:center;color:var(--text2);font-size:12px">'+(sc||'—')+'</td>'; }).join('');
       return '<tr><td style="font-weight:700;padding:8px 12px;white-space:nowrap">'+s.name+'</td>'
@@ -2376,7 +2378,7 @@ async function loadScores() {
         +'<td style="font-size:12px;padding:8px 12px">'+wl+'</td>'
         +'<td style="padding:8px 12px;color:var(--text2)">'+( s.acc2025||0)+'</td>'
         +'<td style="padding:8px 12px"><span style="color:var(--accent);font-weight:700">'+s._total+'</span>'
-        +'<div class="score-bar" style="width:100%;max-width:120px;margin-top:4px"><div class="score-fill" style="width:'+pct+'%"></div></div></td>'
+        +'<div class="score-bar" style="width:100%;max-width:120px;margin-top:4px"><div class="score-fill" style="width:'+pct+'%;background:'+bc2+'"></div></div></td>'
         +mCells+'</tr>';
     }).join('');
     container.innerHTML = '<div class="card" style="padding:0;overflow-x:auto">'
