@@ -2289,19 +2289,24 @@ async function runGenerate() {
   }
   document.getElementById('generate-btn').disabled = true;
   showLoading(true);
-  // Use POST for generateSchedule to avoid URL length limits with dayCategories
+
+  // Try POST first (Apps Script supports it without CORS if no-cors or same origin)
+  // If fails, fall back to JSONP with full dayCategories
   let res;
   try {
     const resp = await fetch(API_URL, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({action:'generateSchedule', month, dayCategories, token})
+      body: JSON.stringify({action:'generateSchedule', month, dayCategories, token}),
+      signal: AbortSignal.timeout(25000)
     });
     res = await resp.json();
+    if (!res || res.success === undefined) throw new Error('bad response');
   } catch(e) {
-    // Fallback to JSONP if POST fails (CORS)
-    res = await api({action:'generateSchedule', month, dayCategories});
+    console.warn('POST failed, using JSONP:', e.message);
+    res = await apiJsonp({action:'generateSchedule', month, dayCategories: JSON.stringify(dayCategories), token});
   }
+
   showLoading(false);
   document.getElementById('generate-btn').disabled = false;
   if (res.success) {
