@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#2d4a3e">
-<link rel="icon" type="image/png" href="https://itairosenblum-hash.github.io/matlam/Mazad.png">
-<link rel="apple-touch-icon" href="https://itairosenblum-hash.github.io/matlam/Mazad.png">
+<link rel="icon" type="image/png" href="https://itairosenblum-hash.github.io/matlam/SemelMatzad_Color.svg.png">
+<link rel="apple-touch-icon" href="https://itairosenblum-hash.github.io/matlam/SemelMatzad_Color.svg.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content='מפקד תורן מטל"מ'>
@@ -522,7 +522,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
     </div>
     <div class="login-card" style="position:relative;z-index:1">
       <div class="login-logo">
-        <div class="icon"><img src="https://itairosenblum-hash.github.io/matlam/Mazad.png" alt="מטל״מ" style="width:64px;height:64px;object-fit:contain"></div>
+        <div class="icon"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/SemelMatzad_Color.svg/250px-SemelMatzad_Color.svg.png" alt="מטל״מ" style="width:64px;height:64px;object-fit:contain"></div>
         <h1>מפקד תורן מטל"מ</h1>
         <div style="font-size:10px;color:var(--text3);margin-top:2px">מפקד תורן מטל"מ</div>
         <p>התחבר עם פרטי הכניסה שלך</p>
@@ -547,7 +547,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
   <div id="main-page" class="page">
     <nav class="navbar">
       <div class="nav-brand">
-        <img src="https://itairosenblum-hash.github.io/matlam/Mazad.png" alt="מטל״מ" style="height:32px;width:32px;object-fit:contain;flex-shrink:0">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/SemelMatzad_Color.svg/250px-SemelMatzad_Color.svg.png" alt="מטל״מ" style="height:32px;width:32px;object-fit:contain;flex-shrink:0">
         <span style="font-size:15px;font-weight:800;letter-spacing:-0.3px">מפקד תורן מטל"מ</span>
       </div>
       <button id="hamburger-btn" class="hamburger-btn" onclick="toggleMobileMenu()" aria-label="תפריט">
@@ -706,7 +706,10 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
             <div class="section-title">👥 ניהול תורנים</div>
             <div class="section-subtitle">כל תורן הוא גם משתמש — פרטי כניסה + פרטי תורנות</div>
           </div>
-          <button class="btn btn-primary" onclick="openAddTorani()">+ הוסף תורן</button>
+          <div class="flex gap-8">
+            <button class="btn btn-secondary" onclick="sendCredentialsAll()" title="שלח לכל התורנים מייל עם שם המשתמש שלהם">📧 שלח פרטי כניסה לכולם</button>
+            <button class="btn btn-primary" onclick="openAddTorani()">+ הוסף תורן</button>
+          </div>
         </div>
         <div id="tornim-alert"></div>
         <div id="tornim-content"></div>
@@ -1904,6 +1907,7 @@ async function loadUsers() { // keep name for tab switching
             <div class="flex gap-8">
               <button class="btn btn-secondary btn-sm" onclick='openEditTorani(${JSON.stringify(t)})'>✏️</button>
               <button class="btn btn-secondary btn-sm" onclick="resetPassword('${t.username}','${t.name}')">🔑</button>
+              <button class="btn btn-secondary btn-sm" onclick="sendCredentialsOne('${t.username}','${t.name}')" title="שלח פרטי כניסה למייל">📧</button>
               <button class="btn btn-secondary btn-sm" onclick="toggleTorani('${t.username}')">${t.active?'🔒':'🔓'}</button>
             </div>
           </td>
@@ -1990,6 +1994,22 @@ async function toggleTorani(username) {
   const res = await api({action:'toggleTorani', username});
   showLoading(false);
   if (res.success) loadUsers();
+}
+
+async function sendCredentialsAll() {
+  if (!confirm('לשלוח מייל עם שם המשתמש לכל התורנים הפעילים?')) return;
+  showLoading(true);
+  const res = await api({action:'sendCredentialsAll'});
+  showLoading(false);
+  showAlert('tornim-alert', res.success ? '✅ ' + res.message : '❌ ' + (res.error||'שגיאה'), res.success ? 'success' : 'error');
+}
+
+async function sendCredentialsOne(username, name) {
+  if (!confirm(`לשלוח מייל עם פרטי כניסה ל-${name}?`)) return;
+  showLoading(true);
+  const res = await api({action:'sendCredentialsOne', username});
+  showLoading(false);
+  showAlert('tornim-alert', res.success ? `✅ נשלח מייל ל-${name}` : '❌ ' + (res.error||'שגיאה'), res.success ? 'success' : 'error');
 }
 
 // Keep old aliases for compatibility
