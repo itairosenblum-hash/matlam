@@ -808,17 +808,15 @@ function actionGenerateSchedule(req) {
   }
 
   // Returns list sorted by score (lowest first), respecting hard constraints
-  // Bonus: people who prefer this day are sorted higher (lower in list = preferred)
+  // People with V for this day get a score bonus (treated as lower score)
   function getEligible(day, cat) {
     return activePeople
       .filter(p => !isHardBlocked(p.name, day) && canDoType(p, cat))
       .sort((a, b) => {
-        const scoreDiff = (workingScores[a.name] || 0) - (workingScores[b.name] || 0);
-        if (scoreDiff !== 0) return scoreDiff;
-        // Tiebreak: prefer those who marked V for this day
-        const aV = prefersDay(a.name, day) ? -1 : 0;
-        const bV = prefersDay(b.name, day) ? -1 : 0;
-        return aV - bV;
+        // Give V people a -50 score bonus to push them to top
+        const aScore = (workingScores[a.name] || 0) - (prefersDay(a.name, day) ? 50 : 0);
+        const bScore = (workingScores[b.name] || 0) - (prefersDay(b.name, day) ? 50 : 0);
+        return aScore - bScore;
       });
   }
 
@@ -850,11 +848,11 @@ function actionGenerateSchedule(req) {
       const elFull = activePeople
         .filter(p => p.weekendType !== 'בנפרד' &&
           !isHardBlocked(p.name, day) && !isHardBlocked(p.name, day+1))
-        .map(p => ({name:p.name, full:true, score:workingScores[p.name]||0}));
+        .map(p => ({name:p.name, full:true, score:(workingScores[p.name]||0) - (prefersDay(p.name,day)||prefersDay(p.name,day+1)?50:0)}));
 
       const elSep = activePeople
         .filter(p => p.weekendType === 'בנפרד' && !isHardBlocked(p.name, day))
-        .map(p => ({name:p.name, full:false, score:workingScores[p.name]||0}));
+        .map(p => ({name:p.name, full:false, score:(workingScores[p.name]||0) - (prefersDay(p.name,day)?50:0)}));
 
       // Merge and sort by score (lowest first)
       const all = [...elFull, ...elSep].sort((a,b) => a.score - b.score);
