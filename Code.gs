@@ -420,7 +420,6 @@ function updateScoreForMonth(name, monthIdx, dutyType, score) {
 // ===== CONSTRAINTS =====
 function actionGetConstraints(req, user) {
   const month = String(req.month || '');
-  // viewAs: admin can view another user's constraints
   const viewAs = req.viewAs;
   const lookupName = viewAs ? getNameByUsername(viewAs) : user.name;
 
@@ -428,6 +427,9 @@ function actionGetConstraints(req, user) {
   const sheet = ss.getSheetByName('Constraints_' + month);
   if (!sheet) return {success: true, constraints: new Array(31).fill(''), notes: ''};
   const rows = sheet.getDataRange().getValues();
+  // Find notes column from header
+  const headers = rows[0];
+  const notesColIdx = headers.indexOf('הערות'); // 0-based
   for (let i = 1; i < rows.length; i++) {
     if (rows[i][0] === lookupName) {
       return {
@@ -437,7 +439,7 @@ function actionGetConstraints(req, user) {
           if (c === 'X' || c === 'x' || c === true) return 'X';
           return '';
         }),
-        notes: String(rows[i][32] || '')
+        notes: notesColIdx >= 0 ? String(rows[i][notesColIdx] || '') : ''
       };
     }
   }
@@ -450,6 +452,17 @@ function getNameByUsername(username) {
     if (String(rows[i][2]) === String(username)) return String(rows[i][1]);
   }
   return username;
+}
+
+function getNotesCol(sheet) {
+  // Find the 'הערות' column, or use col 33 as default
+  const lastCol = Math.max(sheet.getLastColumn(), 33);
+  const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  const idx = headers.indexOf('הערות');
+  if (idx >= 0) return idx + 1; // 1-based
+  // Not found — set it at col 33
+  sheet.getRange(1, 33).setValue('הערות');
+  return 33;
 }
 
 function actionSaveConstraints(req, user) {
@@ -468,32 +481,32 @@ function actionSaveConstraints(req, user) {
   let sheet = ss.getSheetByName('Constraints_' + month);
   if (!sheet) sheet = createConstraintSheet(month, ss);
 
-  // row = [שם, day1..day31, notes] = 33 values exactly
+  const notesCol = getNotesCol(sheet); // find הערות column dynamically
+
   const dayValues = new Array(31).fill('').map((_, i) => {
     const c = (constraints || [])[i];
     if (c === 'V' || c === 'v') return 'V';
     if (c === 'X' || c === 'x' || c === true) return 'X';
     return '';
   });
-  const rowData = [saveName, ...dayValues, notes || ''];  // length = 33
-
-  // Ensure header row has 'הערות' in col 33
-  sheet.getRange(1, 33).setValue('הערות');
 
   // Find existing row for this person
   const lastRow = sheet.getLastRow();
   const nameCol = lastRow > 1 ? sheet.getRange(2, 1, lastRow - 1, 1).getValues() : [];
-  let found = false;
+  let targetRow = -1;
   for (let i = 0; i < nameCol.length; i++) {
     if (String(nameCol[i][0]).trim() === String(saveName).trim()) {
-      sheet.getRange(i + 2, 1, 1, 33).setValues([rowData]);
-      found = true;
+      targetRow = i + 2;
       break;
     }
   }
-  if (!found) {
-    sheet.getRange(lastRow + 1, 1, 1, 33).setValues([rowData]);
-  }
+  if (targetRow === -1) targetRow = lastRow + 1;
+
+  // Write name + 31 days
+  sheet.getRange(targetRow, 1, 1, 32).setValues([[saveName, ...dayValues]]);
+  // Write notes to the correct column
+  sheet.getRange(targetRow, notesCol).setValue(notes || '');
+
   return {success: true};
 }
 
@@ -503,6 +516,8 @@ function actionGetAllConstraints(req) {
   const sheet = ss.getSheetByName('Constraints_' + month);
   if (!sheet) return {success: true, constraints: {}, month};
   const rows = sheet.getDataRange().getValues();
+  const headers = rows[0];
+  const notesColIdx = headers.indexOf('הערות'); // 0-based
   const result = {};
   for (let i = 1; i < rows.length; i++) {
     if (!rows[i][0]) continue;
@@ -512,7 +527,7 @@ function actionGetAllConstraints(req) {
         if (c === 'X' || c === 'x' || c === true) return 'X';
         return '';
       }),
-      notes: String(rows[i][32] || '')
+      notes: notesColIdx >= 0 ? String(rows[i][notesColIdx] || '') : ''
     };
   }
   return {success: true, constraints: result, month};
