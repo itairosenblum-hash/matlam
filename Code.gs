@@ -3747,6 +3747,8 @@ function rebuildScoresDirectly() {
     var monColType  = 5 + (mon-1)*2;  // 1-based col in Scores sheet
     var monColScore = monColType + 1;
     var rows = sh.getDataRange().getValues();
+    Logger.log(shName + ' headers: ' + JSON.stringify(rows[0]));
+    Logger.log(shName + ' row1: ' + JSON.stringify(rows[1]));
     var monthScores = {};
 
     for (var ri = 1; ri < rows.length; ri++) {
