@@ -668,6 +668,11 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
             </div>
 
             <div class="form-group">
+              <label>קטגוריה</label>
+              <div id="profile-duty-category" style="padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);opacity:.7">—</div>
+            </div>
+
+            <div class="form-group">
               <label>סוג סוף שבוע</label>
               <select id="profile-weekend" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;color:var(--text);font-family:inherit;outline:none">
                 <option value="מלא">🗓️ סוף שבוע מלא (שישי + שבת יחד)</option>
@@ -3818,7 +3823,9 @@ async function loadProfile() {
 
   // Fill duty settings
   if (actEl) actEl.value = p.activity || '1';
-  // category not shown in user profile
+  // Show duty category (read-only)
+  const dutyCatEl = document.getElementById('profile-duty-category');
+  if (dutyCatEl) dutyCatEl.textContent = p.dutyCategory || 'רגיל';
   const wkEl = document.getElementById('profile-weekend');
   if (wkEl) wkEl.value = p.weekendType || 'מלא';
 
