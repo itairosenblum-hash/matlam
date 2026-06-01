@@ -400,7 +400,8 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
   #notif-panel{width:calc(100vw - 20px)!important;right:10px!important;left:10px!important}
 
   /* ── Guide cards ── */
-  #tab-guide .card{padding:14px}
+  #tab-guide .card{padding:14px;margin-bottom:16px}
+  #tab-guide > div > div{gap:16px !important}
   #tab-guide table{font-size:12px}
   #tab-guide table td, #tab-guide table th{padding:6px 8px}
 
@@ -853,7 +854,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
       <!-- GUIDE TAB (all users) -->
       <div id="tab-guide" class="tab-content hidden">
         <div class="section-title" style="margin-bottom:24px">📖 מדריך מערכת התורנויות</div>
-        <div style="max-width:800px;display:grid;gap:24px">
+        <div style="max-width:800px;display:grid;gap:24px;margin-bottom:24px">
 
           <!-- שיטת הניקוד -->
           <div class="card">
