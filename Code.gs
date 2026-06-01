@@ -99,6 +99,8 @@ function route(req) {
   if (action === 'getSwaps') return actionGetSwaps(req, user);
   if (action === 'getScores') return actionGetScores(); // all users can see scores
   if (action === 'getNotifications') return actionGetNotificationsPersonal(req, user);
+  if (action === 'clearNotification') return actionClearNotification(req, user);
+  if (action === 'clearAllNotifications') return actionClearAllNotifications(req, user);
   // duty_agent.py sync (token-based, no login required)
   if (action === 'writeSchedule') return writeScheduleFromAgent(req);
   if (action === 'updateSwap') return actionUpdateSwap(req);  // users approve/reject their own swaps
@@ -2796,6 +2798,38 @@ function actionGetNotificationsPersonal(req, user) {
   } catch(e) { Logger.log('getNotificationsPersonal error: ' + e); }
   
   return {success: true, notifications: notifs};
+}
+
+function actionClearNotification(req, user) {
+  var notifId = String(req.notifId || '').trim();
+  try {
+    var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Notifications');
+    if (!sh || sh.getLastRow() <= 1) return {success: true};
+    var rows = sh.getRange(1, 1, sh.getLastRow(), 4).getValues();
+    for (var i = rows.length - 1; i >= 1; i--) {
+      if (String(rows[i][0]).trim() === notifId) {
+        sh.deleteRow(i + 1);
+        return {success: true};
+      }
+    }
+  } catch(e) { Logger.log('clearNotification error: ' + e); }
+  return {success: true};
+}
+
+function actionClearAllNotifications(req, user) {
+  var myName = String(user.name || '').trim();
+  try {
+    var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Notifications');
+    if (!sh || sh.getLastRow() <= 1) return {success: true};
+    var rows = sh.getRange(1, 1, sh.getLastRow(), 4).getValues();
+    // Delete from bottom up to preserve row indices
+    for (var i = rows.length - 1; i >= 1; i--) {
+      if (String(rows[i][1]||'').trim() === myName) {
+        sh.deleteRow(i + 1);
+      }
+    }
+  } catch(e) { Logger.log('clearAllNotifications error: ' + e); }
+  return {success: true};
 }
 
 // ===== איפוס סיסמת ADMIN =====
