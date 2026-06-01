@@ -3241,59 +3241,6 @@ function actionGenerateScheduleV2(req) {
     }
   });
 
-  // ── PRE-RESERVE: Lock in forced_v requests before main scheduling ──
-  // Anyone who marked V on a day is "reserved" for that day and won't be
-  // assigned elsewhere first. Sort by day priority (hag > weekend > thu > regular)
-  // then by score (lowest first) to handle conflicts.
-  var dayPriority = function(d) {
-    var c = DAY_CAT[d] || 'חול';
-    if (c === 'חג' || c === 'ערב חג' || c.indexOf('חג') !== -1) return 0;
-    if (c === 'סוף שבוע') return 1;
-    if (c === 'חמישי') return 2;
-    return 3;
-  };
-
-  // Build list of all V requests: {name, day, score}
-  var allVRequests = [];
-  activeNames.forEach(function(n) {
-    var fv = (calInfo[n]||{}).forced_v || {};
-    Object.keys(fv).forEach(function(d) {
-      var dn = parseInt(d);
-      if (dn >= 1 && dn <= daysInMonth2 && canDoDay(n, dn, false)) {
-        allVRequests.push({name: n, day: dn, score: scores[n]||0});
-      }
-    });
-  });
-
-  // Sort: day priority first, then score (lowest first)
-  allVRequests.sort(function(a, b) {
-    var pa = dayPriority(a.day), pb = dayPriority(b.day);
-    if (pa !== pb) return pa - pb;
-    return a.score - b.score;
-  });
-
-  // Reserve each V request — first come first served (by priority+score)
-  // Mark the person as "reserved_for" day so they won't be picked for other days
-  var reservedFor = {}; // name → day they are reserved for
-  allVRequests.forEach(function(req) {
-    var n = req.name, d = req.day;
-    if (reservedFor[n]) return; // already reserved for another day
-    if (dayToV[d]) return;      // day already taken by someone else
-    reservedFor[n] = d;
-  });
-
-  // Apply reservations: mark reserved people as "usedV" so pickLowest skips them
-  // but track separately so we can assign them to their reserved day
-  var reservedUsedV = {};
-  Object.keys(reservedFor).forEach(function(n) { reservedUsedV[n] = true; });
-
-  // Override usedV to include reservations
-  var origUsedV = usedV;
-  var usedVWithReserved = {};
-  Object.keys(origUsedV).forEach(function(n) { usedVWithReserved[n] = true; });
-  Object.keys(reservedUsedV).forEach(function(n) { usedVWithReserved[n] = true; });
-  usedV = usedVWithReserved;
-
   // Revised pickCandidate - picks LOWEST SCORE regardless of מלא/נפרד
   function pickLowest(days, slotType, minWeekendGap) {
     var isHagSlot = slotType === 'חג' || slotType === 'ערב חג' || slotType === 'חג + סוף שבוע';
@@ -3450,27 +3397,6 @@ function actionGenerateScheduleV2(req) {
   });
 
   var dolag = activeNames.filter(function(n){return !usedV[n];});
-
-  // ── Assign reserved V people to their requested days ──────────────
-  // These are people who had forced_v and were held back from other assignments
-  Object.keys(reservedFor).forEach(function(n) {
-    var d = reservedFor[n];
-    if (dayToV[d]) return; // day already taken — skip (conflict resolved earlier)
-    if (!canDoDay(n, d, false)) return;
-    usedV[n] = true;
-    dayToV[d] = n;
-    var cat = DAY_CAT[d] || 'חול';
-    var val = DUTY_SCORES_MAP[cat] || 10;
-    slotPrimary[d] = [n, cat, val];
-    scores[n] += val;
-    if (cat === 'סוף שבוע' || cat === 'סוף שבוע מלא') people[n].last_weekend = mon;
-    // Remove from dolag if they were there
-    var di = dolag.indexOf(n);
-    if (di !== -1) dolag.splice(di, 1);
-  });
-
-  // Re-compute dolag after reserved assignments
-  dolag = activeNames.filter(function(n){return !usedV[n];});
 
   // ── 6. Reserve A/B assignment ────────────────────────────────────
   var fwPeople = new Set(Object.keys(people).filter(function(n){return people[n].duty_type==='סוף שבוע מלא';}));
