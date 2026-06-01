@@ -2408,12 +2408,12 @@ async function loadAdminConstraints() {
     return;
   }
 
-  // Only show people who actually marked something + exclude admin accounts
+  // Only show people who actually marked something OR wrote notes — exclude admin accounts
   const allNames = Object.keys(res.constraints);
   const activeNames = allNames.filter(name => {
     if (name === 'מנהל מערכת' || name === 'admin') return false; // exclude admin
     const c = res.constraints[name];
-    return c.constraints.some(v => v === 'V' || v === 'X');
+    return c.constraints.some(v => v === 'V' || v === 'X') || (c.notes && c.notes.trim());
   });
 
   if (activeNames.length === 0) {
@@ -2455,7 +2455,7 @@ async function loadAdminConstraints() {
         html += `<td></td>`;
       }
     }
-    html += `<td class="text-muted text-sm" style="min-width:120px">${c.notes||''}</td></tr>`;
+    html += `<td style="min-width:160px;padding:6px 10px;font-size:12px;color:var(--text2);max-width:220px;white-space:pre-wrap">${c.notes ? `<span style="background:var(--surface2);border-radius:6px;padding:3px 8px;display:inline-block">${c.notes}</span>` : ''}</td></tr>`;
   });
 
   html += '</tbody></table></div></div>';
