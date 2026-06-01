@@ -139,6 +139,7 @@ function route(req) {
   if (action === 'rejectProfileChange') return actionRejectProfileChange(req, user);
 
 
+  if (action === 'sendCredentialsAll') return actionSendCredentialsAll(req);
   if (action === 'sendCredentialsOne') return actionSendCredentialsOne(req);
   if (action === 'updateScheduleEntry') return actionUpdateScheduleEntry(req);
   if (action === 'initSheets') return actionInitSheets();
