@@ -808,15 +808,26 @@ function actionGenerateSchedule(req) {
   }
 
   // Returns list sorted by score (lowest first), respecting hard constraints
-  // People with V for this day get a score bonus (treated as lower score)
+  // V preference overrides mesharet av priority
   function getEligible(day, cat) {
+    const hasVPreference = activePeople.some(p => prefersDay(p.name, day) && canDoType(p, cat) && !isHardBlocked(p.name, day));
     return activePeople
       .filter(p => !isHardBlocked(p.name, day) && canDoType(p, cat))
       .sort((a, b) => {
-        // Give V people a -50 score bonus to push them to top
-        const aScore = (workingScores[a.name] || 0) - (prefersDay(a.name, day) ? 50 : 0);
-        const bScore = (workingScores[b.name] || 0) - (prefersDay(b.name, day) ? 50 : 0);
-        return aScore - bScore;
+        // If someone marked V for this day, push them to the top regardless of av status
+        const aV = prefersDay(a.name, day);
+        const bV = prefersDay(b.name, day);
+        if (aV && !bV) return -1;
+        if (!aV && bV) return 1;
+        // If no V preferences, mesharet av gets priority on Thursday (score treated as 0)
+        const aIsAv = a.dutyCategory === 'אב';
+        const bIsAv = b.dutyCategory === 'אב';
+        if (!hasVPreference) {
+          if (aIsAv && !bIsAv) return -1;
+          if (!aIsAv && bIsAv) return 1;
+        }
+        // Otherwise sort by actual score
+        return (workingScores[a.name] || 0) - (workingScores[b.name] || 0);
       });
   }
 
