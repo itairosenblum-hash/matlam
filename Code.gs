@@ -2803,7 +2803,7 @@ function syncAllScores() {
 // ===== מערכת אימיילים =====
 
 // כתובת מייל של מנהל
-var ADMIN_EMAIL = 'itai.rosenblum@example.com'; // שנה לכתובת המייל שלך
+var ADMIN_EMAIL = 'itai.rose@outlook.com';
 
 // קבל מייל של תורן לפי שם
 function getEmailByName(name) {
