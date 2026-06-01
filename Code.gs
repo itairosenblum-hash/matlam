@@ -3249,7 +3249,9 @@ function actionGenerateScheduleV2(req) {
       for(var k=0;k<4;k++){if(a[k]!==b[k])return a[k]-b[k];}return 0;
     });
     return candidates[0][4];
-  } (ערב חג + חג, or חג + חג)
+  }
+
+  // PRIORITY 1: Holiday pairs (ערב חג + חג, or חג + חג)
   HAG_PAIRS.forEach(function(pair){
     var d1=pair[0], d2=pair[1];
     if (fwCovered[d1]||fwCovered[d2]) return;
