@@ -3432,7 +3432,7 @@ let _notifInterval = null;
 function startNotifPolling() {
   checkNotifications();
   if (_notifInterval) clearInterval(_notifInterval);
-  _notifInterval = setInterval(checkNotifications, 30000); // every 30 sec
+  _notifInterval = setInterval(checkNotifications, 10000); // every 10 sec
 }
 
 function stopNotifPolling() {
@@ -3484,7 +3484,7 @@ async function checkNotifications() {
           navTab = currentUser.role === 'admin' ? 'admin-users' : 'profile';
           navLabel = currentUser.role === 'admin' ? 'לטאב תורנים' : 'לפרופיל';
         }
-        const navBtn = navTab ? `<button onclick="switchTab('${navTab}');toggleNotifPanel()" style="background:none;border:none;cursor:pointer;color:var(--accent);font-size:11px;padding:2px 4px;text-decoration:underline">${navLabel}</button>` : '';
+        const navBtn = navTab ? `<button onclick="clearPersonalNotif('${n.id}',this);switchTab('${navTab}');toggleNotifPanel()" style="background:none;border:none;cursor:pointer;color:var(--accent);font-size:11px;padding:2px 4px;text-decoration:underline">${navLabel} ←</button>` : '';
         html += `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
           <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
             <div style="font-size:12px">${escapeHtml(n.message)}</div>
