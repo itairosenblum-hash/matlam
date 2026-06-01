@@ -1916,7 +1916,11 @@ async function loadUsers() { // keep name for tab switching
         <th>פעולות</th>
       </tr></thead>
       <tbody>
-        ${res.tornim.map(t => `<tr>
+        ${res.tornim.slice().sort((a,b) => {
+          const aActive = a.active ? 0 : 1;
+          const bActive = b.active ? 0 : 1;
+          return aActive - bActive;
+        }).map(t => `<tr style="${!t.active ? 'opacity:0.5' : ''}">
           <td class="fw-bold">${t.name}</td>
           <td class="text-muted">${t.username}</td>
           <td>${t.role==='admin'?'<span class="nav-badge">מנהל</span>':'תורן'}</td>
