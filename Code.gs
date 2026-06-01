@@ -1529,22 +1529,20 @@ function _handleProfileChange(req, status) {
     var fieldHeb = field === 'weekendType' ? 'סוג סוף שבוע' : 'קטגוריה';
 
     if (status === 'אושר') {
-      // Apply change to People sheet (search by name)
+      // Apply change to People sheet — no header row, start from index 0
       var peopleSheet = ss.getSheetByName('People');
       var pRows = peopleSheet.getDataRange().getValues();
       var found = false;
-      Logger.log('Looking for name: "' + name + '" field: ' + field + ' newValue: ' + newValue);
-      for (var pi = 1; pi < pRows.length; pi++) {
-        Logger.log('Checking row ' + pi + ': "' + pRows[pi][0] + '"');
+      for (var pi = 0; pi < pRows.length; pi++) {
         if (String(pRows[pi][0]).trim() === String(name).trim()) {
           if (field === 'weekendType') peopleSheet.getRange(pi+1, 5).setValue(newValue);
           if (field === 'dutyCategory') peopleSheet.getRange(pi+1, 3).setValue(newValue);
-          Logger.log('Updated row ' + (pi+1) + ' col ' + (field === 'weekendType' ? 5 : 3) + ' to: ' + newValue);
+          Logger.log('Updated People row ' + (pi+1) + ' to: ' + newValue);
           found = true;
           break;
         }
       }
-      Logger.log('Found: ' + found);
+      Logger.log('People update found: ' + found);
 
       // Also update in Users sheet (col 7 = weekendType, col 6 = dutyCategory)
       var usersSheet3 = ss.getSheetByName('Users');
