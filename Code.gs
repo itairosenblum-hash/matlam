@@ -892,7 +892,8 @@ function actionGenerateSchedule(req) {
     }
 
     // All other days (incl. Saturday if not full-weekend): pure score
-    const score = dutyTypes[cat] || 10;
+    const scoreMap = {'חול':10,'חמישי':12,'סוף שבוע':20,'סוף שבוע מלא':40,'חג':25,'ערב חג':25,'חג + חול':35,'חג + חמישי':37,'חג + סוף שבוע':45,'חול 24 שעות':15,'חמישי 24 שעות':17,'הדממה':15,'יומיים חג':50,'ערב חג + חמישי':30};
+    const score = dutyTypes[cat] || scoreMap[cat] || 10;
     const el = getEligible(day, cat);
     const v = el[0]?.name || '', a = el[1]?.name || '', b = el[2]?.name || '';
     assignment[day] = {V:v, A:a, B:b, type:cat, score, hebrewDay, cat};
