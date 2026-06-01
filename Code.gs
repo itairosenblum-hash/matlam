@@ -3769,15 +3769,19 @@ function rebuildScoresDirectly() {
       var v2    = String(rows[ri][9]||'').trim();
       var dtype = String(rows[ri][7]||rows[ri][2]||'').trim();
       var sc    = Number(rows[ri][8]||0);
+      var isWeekend = (dtype.indexOf('סוף שבוע') !== -1);
+
       if (v && sc > 0) {
-        if (!monthScores[v]) monthScores[v] = {types: [], score: 0};
+        if (!monthScores[v]) monthScores[v] = {types: [], score: 0, weekendDays: 0};
         monthScores[v].score += sc;
-        if (dtype && monthScores[v].types.indexOf(dtype) === -1) monthScores[v].types.push(dtype);
+        if (isWeekend) monthScores[v].weekendDays++;
+        else if (dtype && monthScores[v].types.indexOf(dtype) === -1) monthScores[v].types.push(dtype);
       }
       if (v2 && sc > 0) {
-        if (!monthScores[v2]) monthScores[v2] = {types: [], score: 0};
+        if (!monthScores[v2]) monthScores[v2] = {types: [], score: 0, weekendDays: 0};
         monthScores[v2].score += sc;
-        if (dtype && monthScores[v2].types.indexOf(dtype) === -1) monthScores[v2].types.push(dtype);
+        if (isWeekend) monthScores[v2].weekendDays++;
+        else if (dtype && monthScores[v2].types.indexOf(dtype) === -1) monthScores[v2].types.push(dtype);
       }
     }
     Logger.log(shName + ' monthScores names: ' + Object.keys(monthScores).join(', '));
@@ -3785,7 +3789,14 @@ function rebuildScoresDirectly() {
     Object.keys(nameToRow).forEach(function(n) {
       var row = nameToRow[n];
       if (monthScores[n]) {
-        scoreSheet.getRange(row, monColType).setValue(monthScores[n].types.join(' + '));
+        var types = monthScores[n].types.slice();
+        // Determine weekend type based on count of weekend days assigned
+        if (monthScores[n].weekendDays >= 2) {
+          types.unshift('סוף שבוע מלא');
+        } else if (monthScores[n].weekendDays === 1) {
+          types.unshift('סוף שבוע');
+        }
+        scoreSheet.getRange(row, monColType).setValue(types.join(' + '));
         scoreSheet.getRange(row, monColScore).setValue(monthScores[n].score);
         acc2026[n] += monthScores[n].score;
       } else if (exempt[n]) {
