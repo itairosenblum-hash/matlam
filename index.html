@@ -1925,6 +1925,10 @@ async function handleProfileChange(id, action) {
     showAlert('tornim-alert', action === 'approve' ? '✅ השינוי אושר ויושם' : '❌ הבקשה נדחתה', action === 'approve' ? 'success' : 'info');
     loadProfileChangeRequests();
     loadUsers();
+    // Reload profile if visible (in case admin approved their own change)
+    if (!document.getElementById('tab-profile').classList.contains('hidden')) {
+      loadProfile();
+    }
   } else {
     showAlert('tornim-alert', res.error||'שגיאה', 'error');
   }
@@ -3898,9 +3902,12 @@ async function saveDutySettings() {
   });
   showLoading(false);
   if (res.success) {
-    showAlert('duty-settings-alert', '✅ הבקשה נשלחה למנהל לאישור. תקבל עדכון במייל.', 'success');
-    // Revert select to current value
+    showAlert('duty-settings-alert', '✅ הבקשה נשלחה למנהל לאישור. הפרופיל יעודכן לאחר האישור.', 'success');
+    // Revert select to current value — will update after admin approves
     document.getElementById('profile-weekend').value = currentWeekend;
+    // Show pending indicator
+    const sel = document.getElementById('profile-weekend');
+    if (sel) sel.title = `בקשה ממתינה לאישור: שינוי ל-"${weekendType}"`;
   } else {
     showAlert('duty-settings-alert', res.error||'שגיאה', 'error');
   }
