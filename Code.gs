@@ -1520,6 +1520,20 @@ function _handleProfileChange(req, status) {
         }
       }
       Logger.log('Found: ' + found);
+
+      // Also update in Users sheet (col 7 = weekendType, col 6 = dutyCategory)
+      var usersSheet3 = ss.getSheetByName('Users');
+      if (usersSheet3) {
+        var uRows3 = usersSheet3.getDataRange().getValues();
+        for (var ui3 = 1; ui3 < uRows3.length; ui3++) {
+          if (String(uRows3[ui3][2]).trim() === String(username).trim()) {
+            if (field === 'weekendType') usersSheet3.getRange(ui3+1, 7).setValue(newValue);
+            if (field === 'dutyCategory') usersSheet3.getRange(ui3+1, 6).setValue(newValue);
+            Logger.log('Updated Users row ' + (ui3+1) + ' to: ' + newValue);
+            break;
+          }
+        }
+      }
       // Also check Users sheet for the username-based name
       if (!found) {
         var usersSheet = ss.getSheetByName('Users');
