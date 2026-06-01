@@ -1406,29 +1406,49 @@ function actionRebuildScores(req, user) {
 var PROFILE_CHANGES_SHEET = 'ProfileChangeRequests';
 
 function actionRequestProfileChange(req, user) {
-  var {field, oldValue, newValue} = req;
+  var field = req.field, oldValue = req.oldValue, newValue = req.newValue;
   if (!field || !newValue) return {success: false, error: 'חסרים פרטים'};
 
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sh = ss.getSheetByName(PROFILE_CHANGES_SHEET);
   if (!sh) {
     sh = ss.insertSheet(PROFILE_CHANGES_SHEET);
-    sh.getRange(1,1,1,8).setValues([['ID','שם משתמש','שם','שדה','ערך ישן','ערך חדש','תאריך','סטטוס']]);
+  }
+  // Always ensure header exists in row 1
+  var firstRow = sh.getLastRow() > 0 ? sh.getRange(1,1,1,8).getValues()[0] : [];
+  if (String(firstRow[0]).trim() !== 'ID') {
+    // No header — insert it at row 1
+    if (sh.getLastRow() === 0) {
+      sh.getRange(1,1,1,8).setValues([['ID','שם משתמש','שם','שדה','ערך ישן','ערך חדש','תאריך','סטטוס']]);
+    } else {
+      sh.insertRowBefore(1);
+      sh.getRange(1,1,1,8).setValues([['ID','שם משתמש','שם','שדה','ערך ישן','ערך חדש','תאריך','סטטוס']]);
+    }
   }
 
   var id = Utilities.getUuid().substring(0,8);
   var now = new Date().toISOString();
   sh.appendRow([id, user.username, user.name, field, oldValue||'', newValue, now, 'ממתין']);
 
-  var siteUrl = 'https://itairosenblum-hash.github.io/matlam/';
   var fieldHeb = field === 'weekendType' ? 'סוג סוף שבוע' : 'קטגוריה';
+  var siteUrl = 'https://itairosenblum-hash.github.io/matlam/';
+
+  // Notification to ADMIN (in Notifications sheet for bell icon)
+  var notifSheet = ss.getSheetByName('Notifications');
+  if (notifSheet) {
+    var adminTornim = actionGetAllTornim().tornim || [];
+    var adminT = adminTornim.find(function(x){ return x.role === 'admin'; });
+    var adminName = adminT ? adminT.name : 'מנהל מערכת';
+    notifSheet.appendRow([Utilities.getUuid().substring(0,8), adminName,
+      '📋 ' + user.name + ' מבקש לשנות ' + fieldHeb + ' ל-"' + newValue + '"',
+      now]);
+  }
 
   // Mail to admin
-  var adminEmail = ADMIN_EMAIL;
-  if (adminEmail) {
+  if (ADMIN_EMAIL) {
     try {
       MailApp.sendEmail({
-        to: adminEmail,
+        to: ADMIN_EMAIL,
         subject: '📋 בקשת שינוי פרופיל — ' + user.name,
         htmlBody: '<div dir="rtl" style="font-family:Arial">' +
           '<h2>📋 בקשת שינוי פרופיל</h2>' +
@@ -1436,28 +1456,24 @@ function actionRequestProfileChange(req, user) {
           '<table style="border-collapse:collapse;width:100%">' +
           '<tr><td style="padding:8px;background:#f5f5f5;border:1px solid #ddd"><strong>שדה</strong></td><td style="padding:8px;border:1px solid #ddd">' + fieldHeb + '</td></tr>' +
           '<tr><td style="padding:8px;background:#f5f5f5;border:1px solid #ddd"><strong>ערך נוכחי</strong></td><td style="padding:8px;border:1px solid #ddd">' + (oldValue||'—') + '</td></tr>' +
-          '<tr><td style="padding:8px;background:#f5f5f5;border:1px solid #ddd"><strong>ערך חדש מבוקש</strong></td><td style="padding:8px;border:1px solid #ddd"><strong style="color:#2ea043">' + newValue + '</strong></td></tr>' +
-          '</table>' +
-          '<br><a href="' + siteUrl + '" style="background:#2ea043;color:#fff;padding:10px 20px;text-decoration:none;border-radius:6px">כניסה למערכת לאישור</a>' +
-          '</div>'
+          '<tr><td style="padding:8px;background:#f5f5f5;border:1px solid #ddd"><strong>ערך חדש</strong></td><td style="padding:8px;border:1px solid #ddd"><strong style="color:#2ea043">' + newValue + '</strong></td></tr>' +
+          '</table><br><a href="' + siteUrl + '" style="background:#2ea043;color:#fff;padding:10px 20px;text-decoration:none;border-radius:6px">כניסה לאישור</a></div>'
       });
     } catch(e) { Logger.log('Admin mail error: ' + e); }
   }
 
-  // Mail to user
-  var tornim = actionGetAllTornim().tornim || [];
-  var t = tornim.find(function(x){ return x.username === user.username; });
-  if (t && t.email) {
+  // Mail to user (confirmation that request was sent)
+  var tornim2 = actionGetAllTornim().tornim || [];
+  var t2 = tornim2.find(function(x){ return x.username === user.username; });
+  if (t2 && t2.email) {
     try {
       MailApp.sendEmail({
-        to: t.email,
-        subject: '📋 בקשתך לשינוי פרופיל נשלחה לאישור',
-        htmlBody: '<div dir="rtl" style="font-family:Arial">' +
-          '<h2>📋 בקשתך נשלחה למנהל</h2>' +
+        to: t2.email,
+        subject: '📋 בקשתך נשלחה לאישור',
+        htmlBody: '<div dir="rtl" style="font-family:Arial"><h2>📋 בקשתך נשלחה</h2>' +
           '<p>שלום <strong>' + user.name + '</strong>,</p>' +
-          '<p>בקשתך לשינוי <strong>' + fieldHeb + '</strong> מ-<strong>' + (oldValue||'—') + '</strong> ל-<strong>' + newValue + '</strong> נשלחה למנהל לאישור.</p>' +
-          '<p>תקבל/י עדכון במייל לאחר שהמנהל יאשר או ידחה את הבקשה.</p>' +
-          '</div>'
+          '<p>בקשתך לשינוי <strong>' + fieldHeb + '</strong> ל-<strong>' + newValue + '</strong> נשלחה למנהל לאישור.</p>' +
+          '<p>תקבל/י עדכון לאחר שהמנהל יטפל בבקשה.</p></div>'
       });
     } catch(e) { Logger.log('User mail error: ' + e); }
   }
