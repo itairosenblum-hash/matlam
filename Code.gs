@@ -1413,7 +1413,7 @@ function actionRequestProfileChange(req, user) {
   var sh = ss.getSheetByName(PROFILE_CHANGES_SHEET);
   if (!sh) {
     sh = ss.insertSheet(PROFILE_CHANGES_SHEET);
-    sh.getRange(1,1,1,7).setValues([['ID','שם משתמש','שם','שדה','ערך ישן','ערך חדש','תאריך','סטטוס']]);
+    sh.getRange(1,1,1,8).setValues([['ID','שם משתמש','שם','שדה','ערך ישן','ערך חדש','תאריך','סטטוס']]);
   }
 
   var id = Utilities.getUuid().substring(0,8);
