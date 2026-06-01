@@ -3079,9 +3079,18 @@ function actionGenerateScheduleV2(req) {
     var dn = dateCell instanceof Date ? dateCell.getDate() : parseInt(String(dateCell).split('/')[0]);
     if (!dn) continue;
     var cat = String(schedRows[si2][2]||'חול').trim();
-    // Normalize
     if (cat === 'שישי' || cat === 'שבת') cat = 'סוף שבוע';
     DAY_CAT[dn] = cat;
+  }
+
+  // Override with user-specified dayCategories from the request (user override always wins)
+  var userCats = req.dayCategories;
+  if (typeof userCats === 'string') { try { userCats = JSON.parse(userCats); } catch(e) { userCats = null; } }
+  if (userCats && typeof userCats === 'object') {
+    Object.keys(userCats).forEach(function(dk) {
+      var dn2 = parseInt(dk);
+      if (dn2 && userCats[dk]) DAY_CAT[dn2] = String(userCats[dk]).trim();
+    });
   }
   
   // Find weekend pairs (consecutive סוף שבוע days that are Fri+Sat)
@@ -3231,16 +3240,16 @@ function actionGenerateScheduleV2(req) {
       if (!ok) continue;
       var noSkipFlag = p.no_skip ? 0 : 1;
       var prefFlag   = prefMatches(p, slotType) ? 0 : 1;
-      candidates.push([noSkipFlag, prefFlag, scores[n], n]);
+      // forced_v: person marked V on ALL days in this slot → highest priority (flag=0)
+      var forcedVFlag = days.every(function(day){ return (calInfo[n]||{}).forced_v && calInfo[n].forced_v[day]; }) ? 0 : 1;
+      candidates.push([forcedVFlag, noSkipFlag, prefFlag, scores[n], n]);
     }
     if (!candidates.length) return null;
     candidates.sort(function(a,b){
-      for(var k=0;k<3;k++){if(a[k]!==b[k])return a[k]-b[k];}return 0;
+      for(var k=0;k<4;k++){if(a[k]!==b[k])return a[k]-b[k];}return 0;
     });
-    return candidates[0][3];
-  }
-
-  // PRIORITY 1: Holiday pairs (ערב חג + חג, or חג + חג)
+    return candidates[0][4];
+  } (ערב חג + חג, or חג + חג)
   HAG_PAIRS.forEach(function(pair){
     var d1=pair[0], d2=pair[1];
     if (fwCovered[d1]||fwCovered[d2]) return;
