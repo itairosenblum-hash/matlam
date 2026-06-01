@@ -3092,6 +3092,24 @@ function actionGenerateScheduleV2(req) {
       if (dn2 && userCats[dk]) DAY_CAT[dn2] = String(userCats[dk]).trim();
     });
   }
+
+  // Conflict priorities: admin chose who gets priority on conflict days
+  var conflictPriorities = req.conflictPriorities;
+  if (typeof conflictPriorities === 'string') { try { conflictPriorities = JSON.parse(conflictPriorities); } catch(e) { conflictPriorities = {}; } }
+  conflictPriorities = conflictPriorities || {};
+  // Inject admin-chosen priorities as forced_v (overrides existing)
+  Object.keys(conflictPriorities).forEach(function(dk) {
+    var dn = parseInt(dk);
+    var chosenName = String(conflictPriorities[dk]).trim();
+    if (!dn || !chosenName) return;
+    // Ensure this person has forced_v on this day, and clear others
+    if (!calInfo[chosenName]) calInfo[chosenName] = {constraints:{}, forced_v:{}, preference:''};
+    calInfo[chosenName].forced_v[dn] = true;
+    // Remove forced_v from others for this day
+    Object.keys(calInfo).forEach(function(n) {
+      if (n !== chosenName && calInfo[n].forced_v) delete calInfo[n].forced_v[dn];
+    });
+  });
   
   // Find weekend pairs (consecutive סוף שבוע days that are Fri+Sat)
   // Also find holiday pairs (consecutive חג days) - treated same as full weekends
