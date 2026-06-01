@@ -732,6 +732,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
             <button class="btn btn-secondary" onclick="openGenerateModal()">⚡ הפק שיבוץ</button>
             <button class="btn btn-secondary btn-sm" onclick="exportToPDF()" title="ייצוא PDF">📄 PDF</button>
             <button class="btn btn-secondary btn-sm" onclick="openSendScheduleModal()" title="שלח לוח למייל">📧 שלח</button>
+            <button class="btn btn-secondary btn-sm" onclick="rebuildScores()" title="בנה מחדש ניקוד מכל הלוחות">🔄 עדכן ניקוד</button>
             <button class="btn btn-danger btn-sm" onclick="resetSchedule()" title="איפוס לוח החודש">🗑️ אפס לוח</button>
           </div>
         </div>
@@ -3552,6 +3553,14 @@ async function testConnection() {
     showLoading(false);
     showAlert('setup-alert','✗ שגיאת חיבור: ' + e.message,'error');
   }
+}
+
+async function rebuildScores() {
+  if (!confirm('לבנות מחדש את כל הניקוד מכל לוחות 2026? פעולה זו תדרוס את הניקוד הקיים.')) return;
+  showLoading(true);
+  const res = await api({action:'rebuildScores'});
+  showLoading(false);
+  showAlert('admin-schedule-alert', res.success ? '✅ ' + res.message : '❌ ' + (res.error||'שגיאה'), res.success ? 'success' : 'error');
 }
 
 async function initSheets() {
