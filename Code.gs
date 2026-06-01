@@ -3772,11 +3772,19 @@ function rebuildScoresDirectly() {
       if (v && sc > 0) {
         if (!monthScores[v]) monthScores[v] = {type: dtype, score: 0};
         monthScores[v].score += sc;
-        monthScores[v].type = dtype;
+        // Keep the highest-scoring duty type (e.g. סוף שבוע beats חול)
+        if (sc >= (monthScores[v].topSc||0)) {
+          monthScores[v].type = dtype;
+          monthScores[v].topSc = sc;
+        }
       }
       if (v2 && sc > 0) {
         if (!monthScores[v2]) monthScores[v2] = {type: dtype, score: 0};
         monthScores[v2].score += sc;
+        if (sc >= (monthScores[v2].topSc||0)) {
+          monthScores[v2].type = dtype;
+          monthScores[v2].topSc = sc;
+        }
       }
     }
     Logger.log(shName + ' monthScores names: ' + Object.keys(monthScores).join(', '));
