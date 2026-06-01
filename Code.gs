@@ -437,7 +437,7 @@ function actionGetConstraints(req, user) {
           if (c === 'X' || c === 'x' || c === true) return 'X';
           return '';
         }),
-        notes: rows[i][32] || ''
+        notes: rows[i].length > 32 ? String(rows[i][32] || '') : ''
       };
     }
   }
@@ -455,10 +455,8 @@ function getNameByUsername(username) {
 function actionSaveConstraints(req, user) {
   const month = String(req.month || '');
   const {constraints, notes} = req;
-  // viewAs: save for the target user, not the logged-in admin
   const saveName = req.viewAs ? getNameByUsername(req.viewAs) : user.name;
   
-  // Check lock status (admin can always save)
   if (user.role !== 'admin') {
     const lockRes = actionGetLockStatus({month});
     if (lockRes.locked) {
@@ -468,21 +466,29 @@ function actionSaveConstraints(req, user) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName('Constraints_' + month);
   if (!sheet) sheet = createConstraintSheet(month, ss);
-  const rows = sheet.getDataRange().getValues();
-  const rowData = [saveName, ...constraints.map(c => {
+
+  // Ensure sheet has at least 33 columns (name + 31 days + notes)
+  if (sheet.getLastColumn() < 33) {
+    sheet.getRange(1, 33).setValue('הערות');
+  }
+
+  const rowData = [saveName, ...new Array(31).fill('').map((_, i) => {
+    const c = constraints[i];
     if (c === 'V' || c === 'v') return 'V';
     if (c === 'X' || c === 'x' || c === true) return 'X';
     return '';
   }), notes || ''];
+
+  const rows = sheet.getDataRange().getValues();
   let found = false;
   for (let i = 1; i < rows.length; i++) {
     if (rows[i][0] === saveName) {
-      sheet.getRange(i + 1, 1, 1, rowData.length).setValues([rowData]);
+      sheet.getRange(i + 1, 1, 1, 33).setValues([rowData]);
       found = true;
       break;
     }
   }
-  if (!found) sheet.appendRow(rowData);
+  if (!found) sheet.getRange(sheet.getLastRow() + 1, 1, 1, 33).setValues([rowData]);
   return {success: true};
 }
 
@@ -501,7 +507,7 @@ function actionGetAllConstraints(req) {
         if (c === 'X' || c === 'x' || c === true) return 'X';
         return '';
       }),
-      notes: rows[i][32] || ''
+      notes: rows[i].length > 32 ? String(rows[i][32] || '') : ''
     };
   }
   return {success: true, constraints: result, month};
