@@ -757,8 +757,8 @@ function actionGenerateSchedule(req) {
   }
 
   function canDoType(person, cat) {
-    // לא מוסמך / פטור - לא משובצים
-    if (person.dutyCategory === 'לא מוסמך' || person.dutyCategory === 'פטור') {
+    // בהליך הסמכה / פטור - לא משובצים
+    if (person.dutyCategory === 'בהליך הסמכה' || person.dutyCategory === 'פטור') {
       return false;
     }
     // משרת אב - only חמישי types
@@ -1468,9 +1468,9 @@ function initAllTornim() {
     ['איתי גרטל',    'itai.gartel',          'Tornut2026',  'user','1',   '',             'בנפרד', '544996678'],
     ['אלון אשורוב',  'alon.ashurov',         'Tornut2026',  'user','1',   '',             'בנפרד', '543295450'],
     ['בן דקל',       'ben.dekel',            'Tornut2026',  'user','1',   '',             'מלא',   '542029111'],
-    ['בר סרגיינקו',  'bar.sergienko',        'Tornut2026',  'user','0',   'טרם הוסמך',   'מלא',   '0507232244'],
+    ['בר סרגיינקו',  'bar.sergienko',        'Tornut2026',  'user','0',   'בהליך הסמכה',   'מלא',   '0507232244'],
     ['גיא מונט',     'guy.mont',             'Tornut2026',  'user','1',   '',             'מלא',   '503994399'],
-    ['גל איזנברגר',  'gal.eizenberger',      'Tornut2026',  'user','0',   'טרם הוסמך',   'מלא',   '0523055642'],
+    ['גל איזנברגר',  'gal.eizenberger',      'Tornut2026',  'user','0',   'בהליך הסמכה',   'מלא',   '0523055642'],
     ['גל סטי',       'gal.sti',              'Tornut2026',  'user','1',   '',             'בנפרד', '506575389'],
     ['דניאל הרשקוביץ','daniel.hershkovitz',  'Tornut2026',  'user','1',   '',             'בנפרד', '0509669933'],
     ['דניאל מלול',   'daniel.malul',         'Tornut2026',  'user','1',   '',             'בנפרד', '545499791'],
@@ -3259,7 +3259,7 @@ function actionGenerateScheduleV2(req) {
     var cat = DAY_CAT[day] || 'חול';
     if ((calInfo[name]||{}).constraints && calInfo[name].constraints[day]) return false;
     if (p.activity === '0') return false;
-    if (p.dutyCategory === 'פטור' || p.dutyCategory === 'לא מוסמך') return false;
+    if (p.dutyCategory === 'פטור' || p.dutyCategory === 'בהליך הסמכה') return false;
     if (p.activity === '0.5' && cat !== 'חמישי' && cat !== 'ערב חג') return false;
     // מלא gets FULL weekend pair or holiday pair (both days together)
     // נפרד can do any single day including weekend/holiday - no restrictions here
