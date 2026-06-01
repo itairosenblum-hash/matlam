@@ -3199,7 +3199,7 @@ function actionGenerateScheduleV2(req) {
   // Order: Holiday pairs → single holidays → weekends → thursday → regular
   // Lowest score wins regardless of מלא/נפרד type
 
-  // Paternity (0.5) always gets Thursday first
+  // Paternity (0.5) always gets Thursday first — but NOT if someone else has forced_v on that day
   var thuDays = [];
   for (var d3=1;d3<=daysInMonth2;d3++){
     if (DAY_CAT[d3]==='חמישי'||DAY_CAT[d3]==='ערב חג') thuDays.push(d3);
@@ -3210,6 +3210,11 @@ function actionGenerateScheduleV2(req) {
       var thu=thuDays[ti];
       if(dayToV[thu]) continue;
       if(!canDoDay(pat,thu,false)) continue;
+      // Skip this day if someone else has forced_v (V request) on it
+      var hasForcedV = activeNames.some(function(n){
+        return n !== pat && (calInfo[n]||{}).forced_v && calInfo[n].forced_v[thu] && canDoDay(n, thu, false);
+      });
+      if (hasForcedV) continue;
       usedV[pat]=true; dayToV[thu]=pat;
       var cat=DAY_CAT[thu];
       slotPrimary[thu]=[pat,cat,DUTY_SCORES_MAP[cat]||12];
