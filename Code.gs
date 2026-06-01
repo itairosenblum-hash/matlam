@@ -1407,6 +1407,9 @@ var PROFILE_CHANGES_SHEET = 'ProfileChangeRequests';
 
 function actionRequestProfileChange(req, user) {
   var field = req.field, oldValue = req.oldValue, newValue = req.newValue;
+  // Support impersonate: use targetName/targetUsername if provided
+  var targetUsername = req.targetUsername || user.username;
+  var targetName = req.targetName || user.name;
   if (!field || !newValue) return {success: false, error: 'חסרים פרטים'};
 
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -1428,10 +1431,11 @@ function actionRequestProfileChange(req, user) {
 
   var id = Utilities.getUuid().substring(0,8);
   var now = new Date().toISOString();
-  sh.appendRow([id, user.username, user.name, field, oldValue||'', newValue, now, 'ממתין']);
+  sh.appendRow([id, targetUsername, targetName, field, oldValue||'', newValue, now, 'ממתין']);
 
   var fieldHeb = field === 'weekendType' ? 'סוג סוף שבוע' : 'קטגוריה';
   var siteUrl = 'https://itairosenblum-hash.github.io/matlam/';
+  var displayName = targetName !== user.name ? targetName + ' (ע"י ' + user.name + ')' : targetName;
 
   // Notification to ADMIN (in Notifications sheet for bell icon)
   var notifSheet = ss.getSheetByName('Notifications');
@@ -1449,7 +1453,7 @@ function actionRequestProfileChange(req, user) {
     try {
       MailApp.sendEmail({
         to: ADMIN_EMAIL,
-        subject: '📋 בקשת שינוי פרופיל — ' + user.name,
+        subject: '📋 בקשת שינוי פרופיל — ' + displayName,
         htmlBody: '<div dir="rtl" style="font-family:Arial">' +
           '<h2>📋 בקשת שינוי פרופיל</h2>' +
           '<p><strong>' + user.name + '</strong> מבקש לשנות:</p>' +
