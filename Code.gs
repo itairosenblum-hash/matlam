@@ -133,7 +133,8 @@ function route(req) {
   if (action === 'updateTorani') return actionUpdateTorani(req);
   if (action === 'toggleTorani') return actionToggleTorani(req);
   if (action === 'deleteTorani') return actionDeleteTorani(req);
-  if (action === 'sendCredentialsAll') return actionSendCredentialsAll(req);
+  if (action === 'rebuildScores') return actionRebuildScores(req, user);
+
   if (action === 'sendCredentialsOne') return actionSendCredentialsOne(req);
   if (action === 'updateScheduleEntry') return actionUpdateScheduleEntry(req);
   if (action === 'initSheets') return actionInitSheets();
@@ -1292,7 +1293,98 @@ function actionDeleteTorani(req) {
   return actionToggleTorani({...req});
 }
 
-// ===== שלח פרטי כניסה לכל התורנים =====
+// ===== REBUILD SCORES FROM ALL SCHEDULE SHEETS =====
+function actionRebuildScores(req, user) {
+  if (user.role !== 'admin') return {success: false, error: 'אין הרשאה'};
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var scoreSheet = ss.getSheetByName('Scores');
+  if (!scoreSheet) return {success: false, error: 'גיליון Scores לא נמצא'};
+
+  var scoreRows = scoreSheet.getDataRange().getValues();
+  if (scoreRows.length < 2) return {success: false, error: 'גיליון Scores ריק — הוסף תורנים קודם'};
+
+  // Build name→row index map
+  var nameToRow = {};
+  for (var i = 1; i < scoreRows.length; i++) {
+    var nm = String(scoreRows[i][0]||'').trim();
+    if (nm) nameToRow[nm] = i + 1; // 1-based row
+  }
+
+  // Find all Schedule_YYYYMM sheets
+  var sheets = ss.getSheets();
+  var schedSheets = sheets.filter(function(s){ return /^Schedule_\d{6}$/.test(s.getName()); });
+  schedSheets.sort(function(a,b){ return a.getName().localeCompare(b.getName()); });
+
+  // Clear all monthly columns (col E onwards = col 5+)
+  var lastRow = scoreSheet.getLastRow();
+  if (lastRow > 1) {
+    scoreSheet.getRange(2, 5, lastRow - 1, 24).clearContent(); // 12 months × 2 cols = 24
+    scoreSheet.getRange(2, 4, lastRow - 1, 1).clearContent();  // clear acc2026
+  }
+
+  // Accumulate scores per person
+  var acc = {};
+  Object.keys(nameToRow).forEach(function(n){ acc[n] = 0; });
+
+  schedSheets.forEach(function(sh) {
+    var shName = sh.getName(); // Schedule_202605
+    var year = parseInt(shName.substring(9, 13));
+    var mon  = parseInt(shName.substring(13, 15));
+    if (year !== 2026) return; // only 2026 for now
+
+    var monColType  = 5 + (mon - 1) * 2; // 1-based: col E=5 for Jan
+    var monColScore = monColType + 1;
+
+    var rows = sh.getDataRange().getValues();
+    // rows[0] = headers, rows[i] = [date, day, dayType, V, A, B, notes, dutyType, score, ...]
+    var monthScores = {}; // name → {type, score}
+
+    for (var ri = 1; ri < rows.length; ri++) {
+      var v    = String(rows[ri][3]||'').trim();
+      var dtype= String(rows[ri][7]||rows[ri][2]||'').trim();
+      var sc   = Number(rows[ri][8]||0);
+      if (v && sc > 0) {
+        if (!monthScores[v] || sc > monthScores[v].score) {
+          monthScores[v] = {type: dtype, score: sc};
+        }
+      }
+    }
+
+    // Load people for פטור check
+    var peopleSheet = ss.getSheetByName('People');
+    var pRows = peopleSheet ? peopleSheet.getDataRange().getValues() : [];
+    var exempt = {};
+    for (var pi = 1; pi < pRows.length; pi++) {
+      var pn = String(pRows[pi][0]||'').trim();
+      var act = String(pRows[pi][1]||'1').trim();
+      if (pn && act === '0') exempt[pn] = true;
+    }
+
+    // Write to Scores sheet
+    Object.keys(nameToRow).forEach(function(n) {
+      var rowNum = nameToRow[n];
+      if (monthScores[n]) {
+        scoreSheet.getRange(rowNum, monColType).setValue(monthScores[n].type);
+        scoreSheet.getRange(rowNum, monColScore).setValue(monthScores[n].score);
+        acc[n] = (acc[n]||0) + monthScores[n].score;
+      } else if (exempt[n]) {
+        scoreSheet.getRange(rowNum, monColType).setValue('פטור');
+        scoreSheet.getRange(rowNum, monColScore).setValue(10);
+        acc[n] = (acc[n]||0) + 10;
+      }
+    });
+  });
+
+  // Write accumulated 2026 score (col D = 4)
+  Object.keys(nameToRow).forEach(function(n) {
+    scoreSheet.getRange(nameToRow[n], 4).setValue(acc[n]||0);
+  });
+
+  return {success: true, message: 'ניקוד עודכן מ-' + schedSheets.length + ' לוחות'};
+}
+
+
 function actionSendCredentialsAll(req) {
   const tornim = actionGetAllTornim().tornim;
   const siteUrl = 'https://itairosenblum-hash.github.io/matlam/';
