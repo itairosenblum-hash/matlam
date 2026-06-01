@@ -694,8 +694,15 @@ function actionUpdateScheduleEntry(req) {
 
 // ===== SCHEDULE GENERATION =====
 function getDutyTypesMap() {
+  // Hardcoded fallback scores (always available even if not in DutyTypes sheet)
+  const fallback = {
+    'חול':10, 'חול הקפצה':12, 'חמישי':12, 'חמישי הקפצה':15,
+    'חול 24 שעות':15, 'חמישי 24 שעות':16, 'הדממה':18, 'חמישי הדממה':19,
+    'סוף שבוע':20, 'סוף שבוע הקפצה':30, 'סוף שבוע מלא':40,
+    'ערב חג':25, 'חג':25, 'יומיים חג':50, 'פטור':10, 'דולג':0
+  };
   const rows = getSheet(SH.DUTY_TYPES).getDataRange().getValues();
-  const map = {};
+  const map = Object.assign({}, fallback);
   for (let i = 1; i < rows.length; i++) {
     if (rows[i][0]) map[String(rows[i][0])] = Number(rows[i][1]) || 0;
   }
