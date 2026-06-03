@@ -2577,6 +2577,19 @@ async function loadAdminConstraints() {
           }).join('')}
           <th style="position:static;border:1px solid var(--border);background:var(--surface3)">הערות</th>
         </tr>
+        <tr>
+          <th style="position:sticky;right:0;z-index:2;background:var(--surface3);border:1px solid var(--border)"></th>
+          ${Array.from({length:days},(_,i)=>{
+            const dow = new Date(year, mon-1, i+1).getDay();
+            const isWk = dow===5||dow===6;
+            const isTh = dow===4;
+            const bg = isWk ? 'background:rgba(99,102,241,0.12)' : isTh ? 'background:rgba(234,179,8,0.12)' : 'background:var(--surface3)';
+            const dayAbbr = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'][dow];
+            const color = isWk ? 'color:rgba(99,102,241,0.8)' : isTh ? 'color:rgba(180,130,0,0.9)' : 'color:var(--text3)';
+            return `<th style="font-size:10px;padding:2px 4px;text-align:center;border:1px solid var(--border);font-weight:400;${bg};${color}">${dayAbbr}</th>`;
+          }).join('')}
+          <th style="border:1px solid var(--border);background:var(--surface3)"></th>
+        </tr>
       </thead>
       <tbody>`;
 
