@@ -2567,9 +2567,15 @@ async function loadAdminConstraints() {
     <table class="calendar-table" style="border-collapse:collapse">
       <thead>
         <tr style="position:static">
-          <th style="position:sticky;right:0;z-index:2;background:var(--surface3);min-width:140px">שם</th>
-          ${Array.from({length:days},(_,i)=>`<th style="font-size:11px;padding:6px 4px;min-width:28px;text-align:center;position:static">${i+1}</th>`).join('')}
-          <th style="position:static">הערות</th>
+          <th style="position:sticky;right:0;z-index:2;background:var(--surface3);min-width:140px;border:1px solid var(--border)">שם</th>
+          ${Array.from({length:days},(_,i)=>{
+            const dow = new Date(year, mon-1, i+1).getDay();
+            const isWk = dow===5||dow===6;
+            const isTh = dow===4;
+            const bg = isWk ? 'background:rgba(99,102,241,0.12)' : isTh ? 'background:rgba(234,179,8,0.12)' : 'background:var(--surface3)';
+            return `<th style="font-size:11px;padding:6px 4px;min-width:28px;text-align:center;border:1px solid var(--border);${bg}">${i+1}</th>`;
+          }).join('')}
+          <th style="position:static;border:1px solid var(--border);background:var(--surface3)">הערות</th>
         </tr>
       </thead>
       <tbody>`;
@@ -2588,12 +2594,15 @@ async function loadAdminConstraints() {
     </td>`;
     for (let d = 0; d < days; d++) {
       const v = c.constraints[d];
+      const isWeekend = [5,6].includes(new Date(year, mon-1, d+1).getDay());
+      const isThursday = new Date(year, mon-1, d+1).getDay() === 4;
+      const cellBg = isWeekend ? 'background:rgba(99,102,241,0.06)' : isThursday ? 'background:rgba(234,179,8,0.06)' : '';
       if (v === 'V') {
-        html += `<td style="text-align:center"><span style="color:var(--accent);font-weight:700;font-size:14px">✓</span></td>`;
+        html += `<td style="text-align:center;border:1px solid var(--border);${cellBg}"><span style="color:var(--accent);font-weight:700;font-size:14px">✓</span></td>`;
       } else if (v === 'X') {
-        html += `<td style="text-align:center"><span style="color:var(--danger);font-weight:700;font-size:14px">✕</span></td>`;
+        html += `<td style="text-align:center;border:1px solid var(--border);${cellBg}"><span style="color:var(--danger);font-weight:700;font-size:14px">✕</span></td>`;
       } else {
-        html += `<td></td>`;
+        html += `<td style="border:1px solid var(--border);${cellBg}"></td>`;
       }
     }
     html += `<td style="min-width:160px;padding:6px 10px;font-size:12px;color:var(--text2);max-width:220px;white-space:pre-wrap">${c.notes ? `<span style="background:var(--surface2);border-radius:6px;padding:3px 8px;display:inline-block">${c.notes}</span>` : ''}</td></tr>`;
