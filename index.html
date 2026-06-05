@@ -400,8 +400,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
   #notif-panel{width:calc(100vw - 20px)!important;right:10px!important;left:10px!important}
 
   /* ── Guide cards ── */
-  #tab-guide .card{padding:14px;margin-bottom:16px}
-  #tab-guide > div > div{gap:16px !important}
+  #tab-guide .card{padding:14px}
   #tab-guide table{font-size:12px}
   #tab-guide table td, #tab-guide table th{padding:6px 8px}
 
@@ -535,10 +534,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
       </div>
       <div class="form-group">
         <label>סיסמה</label>
-        <div style="position:relative">
-          <input id="login-pass" type="password" placeholder="הכנס סיסמה" autocomplete="current-password" style="padding-left:40px">
-          <button type="button" onclick="const i=document.getElementById('login-pass');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁️':'🙈'" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;padding:0;line-height:1">👁️</button>
-        </div>
+        <input id="login-pass" type="password" placeholder="הכנס סיסמה" autocomplete="current-password">
       </div>
       <button class="btn btn-primary btn-full" id="login-btn" onclick="doLogin()">
         <span>התחבר</span>
@@ -563,12 +559,15 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
           <button id="bell-btn" class="bell-btn" onclick="toggleNotifPanel()" style="position:relative;background:none;border:none;cursor:pointer;font-size:18px;padding:4px 8px;color:var(--text2)" title="התראות">
             🔔<span id="bell-count" style="display:none;position:absolute;top:-2px;right:-2px;background:var(--danger);color:#fff;border-radius:50%;font-size:10px;font-weight:700;width:16px;height:16px;line-height:16px;text-align:center"></span>
           </button>
-          <div id="notif-panel" style="display:none;position:fixed;top:60px;left:8px;right:8px;max-width:320px;margin-left:auto;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.2)">
+          <div id="notif-panel" style="display:none;position:absolute;top:40px;right:0;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;min-width:220px;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.2)">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
               <span style="font-size:13px;font-weight:600">התראות</span>
               <button onclick="clearNotifications()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px" title="נקה הכל">✕ נקה</button>
             </div>
             <div id="notif-list" style="font-size:13px;color:var(--text2)">אין התראות</div>
+            <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px">
+              <button class="btn btn-primary btn-sm" style="width:100%" onclick="goToSwaps()">עבור להחלפות</button>
+            </div>
           </div>
         </div>
         <div id="impersonate-container" style="display:none;align-items:center;gap:6px">
@@ -665,13 +664,6 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
                 <option value="0.5">פעיל חלקי</option>
                 <option value="0">לא פעיל</option>
               </select>
-              <div class="text-muted text-sm" style="margin-top:4px">פעיל מלא — משובץ לכל סוגי התורנות | לא פעיל — לא משובץ</div>
-            </div>
-
-            <div class="form-group">
-              <label>קטגוריה</label>
-              <div id="profile-duty-category" style="padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);opacity:.7">—</div>
-              <div class="text-muted text-sm" style="margin-top:4px">רגיל — שיבוץ רגיל לפי ניקוד | משרת אב — מועדף לחמישי | פטור — לא משובץ | בהליך הסמכה — לא משובץ עד לאישור</div>
             </div>
 
             <div class="form-group">
@@ -680,7 +672,6 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
                 <option value="מלא">🗓️ סוף שבוע מלא (שישי + שבת יחד)</option>
                 <option value="בנפרד">📅 ימים בנפרד (שישי או שבת בנפרד)</option>
               </select>
-              <div class="text-muted text-sm" style="margin-top:4px">מלא — מקבל תורנות שישי ושבת כיחידה אחת (40 נקודות) | בנפרד — מקבל שישי או שבת בנפרד (20 נקודות לכל יום)</div>
             </div>
             <p class="text-muted text-sm" style="margin-bottom:12px">סטטוס וקטגוריה מוגדרים על-ידי המנהל בלבד</p>
             <button class="btn btn-primary" onclick="saveDutySettings()">💾 שמור הגדרות</button>
@@ -715,13 +706,9 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
             <div class="section-title">👥 ניהול תורנים</div>
             <div class="section-subtitle">כל תורן הוא גם משתמש — פרטי כניסה + פרטי תורנות</div>
           </div>
-          <div class="flex gap-8">
-            <button class="btn btn-secondary" onclick="sendCredentialsAll()" title="שלח לכל התורנים מייל עם שם המשתמש שלהם">📧 שלח פרטי כניסה לכולם</button>
-            <button class="btn btn-primary" onclick="openAddTorani()">+ הוסף תורן</button>
-          </div>
+          <button class="btn btn-primary" onclick="openAddTorani()">+ הוסף תורן</button>
         </div>
         <div id="tornim-alert"></div>
-        <div id="profile-change-requests" style="margin-bottom:16px"></div>
         <div id="tornim-content"></div>
       </div>
       <!-- ADMIN: SCHEDULE TAB -->
@@ -738,7 +725,6 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
             <button class="btn btn-secondary" onclick="openGenerateModal()">⚡ הפק שיבוץ</button>
             <button class="btn btn-secondary btn-sm" onclick="exportToPDF()" title="ייצוא PDF">📄 PDF</button>
             <button class="btn btn-secondary btn-sm" onclick="openSendScheduleModal()" title="שלח לוח למייל">📧 שלח</button>
-            <button class="btn btn-secondary btn-sm" onclick="rebuildScores()" title="בנה מחדש ניקוד מכל הלוחות">🔄 עדכן ניקוד</button>
             <button class="btn btn-danger btn-sm" onclick="resetSchedule()" title="איפוס לוח החודש">🗑️ אפס לוח</button>
           </div>
         </div>
@@ -864,7 +850,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
       <!-- GUIDE TAB (all users) -->
       <div id="tab-guide" class="tab-content hidden">
         <div class="section-title" style="margin-bottom:24px">📖 מדריך מערכת התורנויות</div>
-        <div style="max-width:800px;display:grid;gap:24px;margin-bottom:24px">
+        <div style="max-width:800px;display:grid;gap:24px">
 
           <!-- שיטת הניקוד -->
           <div class="card">
@@ -881,7 +867,9 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
                   <tr><td>פטור</td><td><span style="color:var(--text3);font-weight:700">10</span></td><td class="text-muted text-sm">ניקוד סמלי</td></tr>
                   <tr><td>חול</td><td><span style="color:var(--accent);font-weight:700">10</span></td><td class="text-muted text-sm">יום חול רגיל</td></tr>
                   <tr><td>חמישי</td><td><span style="color:var(--accent);font-weight:700">12</span></td><td class="text-muted text-sm">יום חמישי</td></tr>
+                  <tr><td>חול הקפצה</td><td><span style="color:var(--accent);font-weight:700">12</span></td><td class="text-muted text-sm">הקפצה ביום חול</td></tr>
                   <tr><td>חול 24 שעות</td><td><span style="color:var(--accent);font-weight:700">15</span></td><td class="text-muted text-sm">24 שעות ביום חול</td></tr>
+                  <tr><td>חמישי הקפצה</td><td><span style="color:var(--accent);font-weight:700">15</span></td><td class="text-muted text-sm">הקפצה ביום חמישי</td></tr>
                   <tr><td>חמישי 24 שעות</td><td><span style="color:var(--accent);font-weight:700">16</span></td><td class="text-muted text-sm">24 שעות בחמישי</td></tr>
                   <tr><td>הדממה</td><td><span style="color:var(--accent);font-weight:700">18</span></td><td class="text-muted text-sm">תורנות הדממה</td></tr>
                   <tr><td>חמישי הדממה</td><td><span style="color:var(--accent);font-weight:700">19</span></td><td class="text-muted text-sm">הדממה בחמישי</td></tr>
@@ -893,6 +881,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
                   <tr><td>חמישי 24 שעות + חול</td><td><span style="color:var(--warn);font-weight:700">26</span></td><td class="text-muted text-sm">—</td></tr>
                   <tr><td>הדממה + חול</td><td><span style="color:var(--warn);font-weight:700">28</span></td><td class="text-muted text-sm">—</td></tr>
                   <tr><td>חול + שבת / שבת הקפצה</td><td><span style="color:var(--warn);font-weight:700">30</span></td><td class="text-muted text-sm">—</td></tr>
+                  <tr><td>סוף שבוע הקפצה</td><td><span style="color:var(--warn);font-weight:700">30</span></td><td class="text-muted text-sm">הקפצה בסוף שבוע</td></tr>
                   <tr><td>חול 24 שעות + חול 24 שעות</td><td><span style="color:var(--warn);font-weight:700">30</span></td><td class="text-muted text-sm">—</td></tr>
                   <tr><td>הדממה + חמישי</td><td><span style="color:var(--warn);font-weight:700">30</span></td><td class="text-muted text-sm">—</td></tr>
                   <tr><td>חול 24 שעות + חמישי</td><td><span style="color:var(--warn);font-weight:700">31</span></td><td class="text-muted text-sm">—</td></tr>
@@ -922,7 +911,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
                 <tr><td class="fw-bold">רגיל</td><td class="text-muted text-sm">משובץ לכל סוגי התורנויות לפי ניקוד</td></tr>
                 <tr><td class="fw-bold" style="color:var(--warn)">משרת אב</td><td class="text-muted text-sm">חמישי בלבד — מקסימום תורנות אחת לחודשיים</td></tr>
                 <tr><td class="fw-bold" style="color:var(--text2)">פטור</td><td class="text-muted text-sm">לא משובץ אוטומטית</td></tr>
-                <tr><td class="fw-bold" style="color:var(--danger)">בהליך הסמכה</td><td class="text-muted text-sm">בתהליך הכשרה — לא משובץ עד לאישור</td></tr>
+                <tr><td class="fw-bold" style="color:var(--danger)">לא מוסמך</td><td class="text-muted text-sm">בתהליך הכשרה — לא משובץ עד לאישור</td></tr>
               </tbody>
             </table>
           </div>
@@ -983,8 +972,6 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
             <div style="background:var(--surface2);border-radius:8px;padding:12px 14px;font-size:13px;color:var(--text2)">
               💡 מי שלא שובץ החודש ("דולג") מקבל +10 נקודות אוטומטית. תורן חדש מקבל ניקוד התחלתי שווה לממוצע כל התורנים הפעילים.
             </div>
-
-          </div><!-- /card שיטת השיבוץ האוטומטי -->
 
           <!-- אילוצים -->
           <div class="card">
@@ -1086,6 +1073,63 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
             </div>
           </div>
 
+
+          <!-- פרופיל ושינוי פרטים -->
+          <div class="card">
+            <div class="card-title" style="font-size:16px;margin-bottom:16px">👤 פרופיל אישי ושינוי פרטים</div>
+            <p style="color:var(--text2);font-size:14px;line-height:1.8;margin-bottom:16px">
+              בלשונית <strong>"👤 פרופיל"</strong> תוכל לראות את הפרטים האישיים שלך ולבקש שינויים.
+            </p>
+            <div style="display:grid;gap:10px;margin-bottom:14px">
+              <div style="display:flex;gap:12px;align-items:flex-start;padding:10px 14px;background:var(--surface2);border-radius:8px">
+                <span style="font-size:18px">📋</span>
+                <div>
+                  <div style="font-weight:600;font-size:14px">פרטים שניתן לשנות</div>
+                  <div style="color:var(--text2);font-size:13px;margin-top:3px">טלפון, אימייל וסיסמה — ניתן לעדכן ישירות. שינויים בסוג תורנות וסוג סוף שבוע דורשים אישור מנהל.</div>
+                </div>
+              </div>
+              <div style="display:flex;gap:12px;align-items:flex-start;padding:10px 14px;background:var(--surface2);border-radius:8px">
+                <span style="font-size:18px">✉️</span>
+                <div>
+                  <div style="font-weight:600;font-size:14px">בקשת שינוי פרופיל</div>
+                  <div style="color:var(--text2);font-size:13px;margin-top:3px">הבקשה נשלחת למנהל לאישור. תקבל התראה באימייל לאחר שהבקשה אושרה או נדחתה.</div>
+                </div>
+              </div>
+              <div style="display:flex;gap:12px;align-items:flex-start;padding:10px 14px;background:var(--surface2);border-radius:8px">
+                <span style="font-size:18px">🔑</span>
+                <div>
+                  <div style="font-weight:600;font-size:14px">שינוי סיסמה</div>
+                  <div style="color:var(--text2);font-size:13px;margin-top:3px">הזן סיסמה נוכחית + סיסמה חדשה. הסיסמה החדשה חייבת להיות לפחות 6 תווים.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- התראות -->
+          <div class="card">
+            <div class="card-title" style="font-size:16px;margin-bottom:16px">🔔 מערכת ההתראות</div>
+            <p style="color:var(--text2);font-size:14px;line-height:1.8;margin-bottom:14px">
+              הפעמון 🔔 בפינה הימנית העליונה מציג התראות על אירועים רלוונטיים. לחיצה עליו פותחת את פאנל ההתראות.
+            </p>
+            <div style="display:grid;gap:8px;margin-bottom:14px">
+              <div style="display:flex;gap:10px;align-items:center;padding:8px 12px;background:var(--surface2);border-radius:8px;font-size:13px">
+                <span>📨</span><span style="color:var(--text2)">בקשת החלפה נכנסת — מישהו ביקש להחליף איתך תורנות</span>
+              </div>
+              <div style="display:flex;gap:10px;align-items:center;padding:8px 12px;background:var(--surface2);border-radius:8px;font-size:13px">
+                <span>✅</span><span style="color:var(--text2)">בקשת ההחלפה שלך אושרה / נדחתה</span>
+              </div>
+              <div style="display:flex;gap:10px;align-items:center;padding:8px 12px;background:var(--surface2);border-radius:8px;font-size:13px">
+                <span>👤</span><span style="color:var(--text2)">בקשת שינוי פרופיל שלך אושרה / נדחתה</span>
+              </div>
+              <div style="display:flex;gap:10px;align-items:center;padding:8px 12px;background:var(--surface2);border-radius:8px;font-size:13px">
+                <span>📣</span><span style="color:var(--text2)">הודעה כללית מהמנהל לכלל התורנים</span>
+              </div>
+            </div>
+            <div style="background:var(--surface3);border-radius:8px;padding:12px 14px;font-size:13px;color:var(--text2)">
+              💡 לחיצה על <strong style="color:var(--text)">"עבור להחלפות"</strong> בפאנל תנווט ישירות ללשונית ההחלפות. ניתן לנקות את כל ההתראות בלחיצה על ✕.
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -1163,7 +1207,8 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
           <option value="">רגיל</option>
           <option value="אב">אב</option>
           <option value="פטור">פטור</option>
-          <option value="בהליך הסמכה">בהליך הסמכה</option>
+          <option value="טרם הוסמך">טרם הוסמך</option>
+          <option value="לא מוסמך">לא מוסמך</option>
         </select>
       </div>
       <div class="form-group">
@@ -1206,15 +1251,12 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
       <select id="edit-dutytype" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;color:var(--text);font-family:inherit;outline:none">
         <option value="">— ללא שינוי —</option>
         <option value="חול">חול (10)</option>
-        <option value="חול הקפצה">חול הקפצה (12)</option>
         <option value="חמישי">חמישי (12)</option>
-        <option value="חמישי הקפצה">חמישי הקפצה (15)</option>
         <option value="חול 24 שעות">חול 24 שעות (15)</option>
         <option value="חמישי 24 שעות">חמישי 24 שעות (16)</option>
         <option value="הדממה">הדממה (18)</option>
         <option value="חמישי הדממה">חמישי הדממה (19)</option>
         <option value="סוף שבוע">סוף שבוע (20)</option>
-        <option value="סוף שבוע הקפצה">סוף שבוע הקפצה (30)</option>
         <option value="סוף שבוע מלא">סוף שבוע מלא (40)</option>
         <option value="ערב חג">ערב חג (25)</option>
         <option value="חג">חג (25)</option>
@@ -1287,7 +1329,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
 // =====================================================
 // CONFIG & STATE
 // =====================================================
-const API_URL = 'https://script.google.com/macros/s/AKfycbxvCYnnOtKrRfRqXeMIDKsAOOr1bN4eCfEJo7znZMqCxBGr7DJkIIF56gCgl8u2q3YL/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxLY1ua-fc-y8TinN1gZGNm-3z8TG--hzTgou18TGZJEI5-dVqc20Xam5O72gKqySbItA/exec';
 let token = sessionStorage.getItem('duty_token') || '';
 let currentUser = JSON.parse(sessionStorage.getItem('duty_user') || 'null');
 let allPeople = [];
@@ -1306,7 +1348,7 @@ function parseMonth(val) {
   const s = String(year) + String(mon).padStart(2,'0');
   return {year, mon, days, s};
 }
-const DAY_TYPES = ['חול','חול הקפצה','חמישי','חמישי הקפצה','חמישי 24 שעות','חול 24 שעות','סוף שבוע','סוף שבוע הקפצה','ערב חג','חג','יומיים חג'];
+const DAY_TYPES = ['חול','חמישי','חמישי 24 שעות','חול 24 שעות','סוף שבוע','ערב חג','חג','יומיים חג'];
 const HEB_DAYS = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 
 // =====================================================
@@ -1320,7 +1362,7 @@ function apiJsonp(params) {
       delete window[cbName];
       if (script.parentNode) script.parentNode.removeChild(script);
       reject(new Error('timeout — בדוק שה-Apps Script פרוס כ-Anyone'));
-    }, 60000);
+    }, 30000);
     window[cbName] = (data) => {
       clearTimeout(timeoutId);
       delete window[cbName];
@@ -1646,7 +1688,7 @@ function switchTab(id) {
   if (id === 'constraints') { loadConstraints(); checkConstraintLock(); }
   if (id === 'my-schedule') loadMySchedule();
   if (id === 'profile') loadProfile();
-  if (id === 'admin-users') { loadUsers(); loadProfileChangeRequests(); }
+  if (id === 'admin-users') loadUsers();
   if (id === 'admin-schedule') loadAdminSchedule();
   if (id === 'admin-scores') loadScores();
   if (id === 'admin-constraints') { loadAdminConstraints(); loadLockStatus(); }
@@ -1705,18 +1747,6 @@ async function loadConstraints() {
   renderConstraintGrid(year, mon, days);
 }
 
-// Israeli holidays 2025-2026 for constraint calendar display
-const IL_HOLIDAYS = {
-  '2025-09-22':{n:'ערב ר"ה'},'2025-09-23':{n:'ראש השנה'},'2025-09-24':{n:'ראש השנה ב'},'2025-10-01':{n:'ערב יוה"כ'},'2025-10-02':{n:'יום כיפור'},'2025-10-06':{n:'ערב סוכות'},'2025-10-07':{n:'סוכות'},'2025-10-13':{n:'הושענא רבה'},'2025-10-14':{n:'שמחת תורה'},
-  '2026-03-13':{n:'תענית אסתר'},'2026-03-14':{n:'פורים'},'2026-03-15':{n:'שושן פורים'},
-  '2026-03-31':{n:'ערב פסח'},'2026-04-01':{n:'פסח א'},'2026-04-02':{n:'פסח ב'},'2026-04-07':{n:'פסח ז'},'2026-04-08':{n:'פסח ח'},
-  '2026-04-21':{n:'יום הזיכרון'},'2026-04-22':{n:'יום העצמאות'},
-  '2026-05-20':{n:'ערב שבועות'},'2026-05-21':{n:'שבועות'},
-  '2026-07-22':{n:'ערב תשב"א'},'2026-07-23':{n:'תשעה באב'},
-  '2026-09-19':{n:'ערב ר"ה'},'2026-09-20':{n:'ראש השנה'},'2026-09-21':{n:'ראש השנה ב'},'2026-09-28':{n:'ערב יוה"כ'},'2026-09-29':{n:'יום כיפור'},
-  '2026-10-03':{n:'ערב סוכות'},'2026-10-04':{n:'סוכות'},'2026-10-10':{n:'הושענא רבה'},'2026-10-11':{n:'שמחת תורה'}
-};
-
 function renderConstraintGrid(year, mon, days) {
   const container = document.getElementById('constraints-grid');
   const today = new Date();
@@ -1742,28 +1772,25 @@ function renderConstraintGrid(year, mon, days) {
     const date = new Date(year, mon-1, d);
     const dow = date.getDay();
     const dateStr = `${year}-${String(mon).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const cellState = constraintData[d-1] || '';
     const isToday = dateStr === todayStr;
     const isWeekend = dow === 5 || dow === 6;
     const isThursday = dow === 4;
-    const holiday = IL_HOLIDAYS[dateStr];
 
     let dayCls = 'cal-day constraint-cal-day';
     if (isToday) dayCls += ' today';
     if (isWeekend) dayCls += ' cal-weekend';
     if (isThursday) dayCls += ' cal-thursday';
-    if (holiday) dayCls += ' cal-holiday';
     if (constraintData[d-1] === 'X') dayCls += ' constraint-blocked';
     if (constraintData[d-1] === 'V') dayCls += ' constraint-preferred';
 
-    let typeLabel = holiday ? holiday.n : isWeekend ? 'סוף שבוע' : isThursday ? 'חמישי' : 'חול';
-    let typeCls = holiday ? 'badge-holiday' : isWeekend ? 'badge-weekend' : isThursday ? 'badge-thursday' : 'badge-weekday';
+    let typeLabel = isWeekend ? 'סוף שבוע' : isThursday ? 'חמישי' : 'חול';
+    let typeCls = isWeekend ? 'badge-weekend' : isThursday ? 'badge-thursday' : 'badge-weekday';
 
     html += `
     <div class="${dayCls}" onclick="toggleConstraint(${d-1})" id="ccal-${d}" style="cursor:pointer;user-select:none">
       <div class="cal-day-num">${d}</div>
-      <div class="cal-day-type ${typeCls}" style="font-size:9px;padding:1px 5px;border-radius:10px;margin-top:2px;width:fit-content;${holiday?'background:rgba(234,179,8,0.2);color:var(--warn)':''}">
-        ${holiday ? '🕍 ' : ''}${typeLabel}
-      </div>
+      <div class="cal-day-type ${typeCls}" style="font-size:9px;padding:1px 5px;border-radius:10px;margin-top:2px;width:fit-content">${typeLabel}</div>
       <div class="constraint-indicator" id="ci-${d}" style="margin-top:4px;font-size:16px;font-weight:700;text-align:center">
         ${constraintData[d-1] === 'V' ? '<span style="color:var(--accent)">✓</span>' : constraintData[d-1] === 'X' ? '<span style="color:var(--danger)">✕</span>' : ''}
       </div>
@@ -1771,7 +1798,7 @@ function renderConstraintGrid(year, mon, days) {
   }
 
   // Fill remaining cells (desktop only)
-  if (!isMob) {
+  if (!isMobAdmin) {
     const totalCells = firstDay + days;
     const remainder = totalCells % 7;
     if (remainder > 0) {
@@ -1780,15 +1807,15 @@ function renderConstraintGrid(year, mon, days) {
       }
     }
   }
-  html += isMob ? `</div></div>` : `</div></div></div>`;
+  html += `</div></div></div>`;
   container.innerHTML = html;
 }
 
 
 function toggleConstraint(idx) {
-  // Cycle: '' → 'X' → 'V' → ''
+  // Cycle: '' → 'V' → 'X' → ''
   const cur = constraintData[idx] || '';
-  const next = cur === '' ? 'X' : cur === 'X' ? 'V' : '';
+  const next = cur === '' ? 'V' : cur === 'V' ? 'X' : '';
   constraintData[idx] = next;
   const day = idx + 1;
   const cell = document.getElementById('ccal-' + day);
@@ -1900,48 +1927,6 @@ async function loadMySchedule() {
 // =====================================================
 let editingTorani = null;
 
-async function loadProfileChangeRequests() {
-  const res = await api({action:'getProfileChangeRequests'});
-  console.log('profileChangeRequests:', JSON.stringify(res));
-  const container = document.getElementById('profile-change-requests');
-  if (!res.success || !res.requests || !res.requests.length) { container.innerHTML = ''; return; }
-  const fieldHeb = f => f === 'weekendType' ? 'סוג סוף שבוע' : 'קטגוריה';
-  container.innerHTML = `<div class="card" style="border:2px solid var(--warn);margin-bottom:16px">
-    <div class="card-title" style="color:var(--warn)">⏳ בקשות שינוי פרופיל ממתינות לאישור (${res.requests.length})</div>
-    <div style="display:grid;gap:10px;margin-top:12px">
-      ${res.requests.map(r => `
-      <div style="background:var(--surface2);border-radius:8px;padding:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:space-between">
-        <div>
-          <div style="font-weight:600">${r.name}</div>
-          <div style="font-size:13px;color:var(--text2)">${fieldHeb(r.field)}: <span style="text-decoration:line-through">${r.oldValue||'—'}</span> → <strong style="color:var(--accent)">${r.newValue}</strong></div>
-        </div>
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-primary btn-sm" onclick="handleProfileChange('${r.id}','approve')">✅ אשר</button>
-          <button class="btn btn-secondary btn-sm" onclick="handleProfileChange('${r.id}','reject')">❌ דחה</button>
-        </div>
-      </div>`).join('')}
-    </div>
-  </div>`;
-}
-
-async function handleProfileChange(id, action) {
-  const apiAction = action === 'approve' ? 'approveProfileChange' : 'rejectProfileChange';
-  showLoading(true);
-  const res = await api({action: apiAction, id});
-  showLoading(false);
-  if (res.success) {
-    showAlert('tornim-alert', action === 'approve' ? '✅ השינוי אושר ויושם' : '❌ הבקשה נדחתה', action === 'approve' ? 'success' : 'info');
-    loadProfileChangeRequests();
-    loadUsers();
-    // Reload profile if visible (in case admin approved their own change)
-    if (!document.getElementById('tab-profile').classList.contains('hidden')) {
-      loadProfile();
-    }
-  } else {
-    showAlert('tornim-alert', res.error||'שגיאה', 'error');
-  }
-}
-
 async function loadUsers() { // keep name for tab switching
   showLoading(true);
   const res = await api({action:'getAllTornim'});
@@ -1966,9 +1951,7 @@ async function loadUsers() { // keep name for tab switching
         <th>פעולות</th>
       </tr></thead>
       <tbody>
-        ${res.tornim.slice().sort((a,b) => (a.active?0:1)-(b.active?0:1)).map(t => {
-          const rowStyle = t.active ? '' : 'opacity:0.5';
-          return `<tr style="${rowStyle}">
+        ${res.tornim.map(t => `<tr>
           <td class="fw-bold">${t.name}</td>
           <td class="text-muted">${t.username}</td>
           <td>${t.role==='admin'?'<span class="nav-badge">מנהל</span>':'תורן'}</td>
@@ -1981,11 +1964,10 @@ async function loadUsers() { // keep name for tab switching
             <div class="flex gap-8">
               <button class="btn btn-secondary btn-sm" onclick='openEditTorani(${JSON.stringify(t)})'>✏️</button>
               <button class="btn btn-secondary btn-sm" onclick="resetPassword('${t.username}','${t.name}')">🔑</button>
-              <button class="btn btn-secondary btn-sm" onclick="sendCredentialsOne('${t.username}','${t.name}')" title="שלח פרטי כניסה למייל">📧</button>
               <button class="btn btn-secondary btn-sm" onclick="toggleTorani('${t.username}')">${t.active?'🔒':'🔓'}</button>
             </div>
           </td>
-        </tr>`;}).join('')}
+        </tr>`).join('')}
       </tbody>
     </table></div>`;
 }
@@ -2068,22 +2050,6 @@ async function toggleTorani(username) {
   const res = await api({action:'toggleTorani', username});
   showLoading(false);
   if (res.success) loadUsers();
-}
-
-async function sendCredentialsAll() {
-  if (!confirm('לשלוח מייל עם שם המשתמש לכל התורנים הפעילים?')) return;
-  showLoading(true);
-  const res = await api({action:'sendCredentialsAll'});
-  showLoading(false);
-  showAlert('tornim-alert', res.success ? '✅ ' + res.message : '❌ ' + (res.error||'שגיאה'), res.success ? 'success' : 'error');
-}
-
-async function sendCredentialsOne(username, name) {
-  if (!confirm(`לשלוח מייל עם פרטי כניסה ל-${name}?`)) return;
-  showLoading(true);
-  const res = await api({action:'sendCredentialsOne', username});
-  showLoading(false);
-  showAlert('tornim-alert', res.success ? `✅ נשלח מייל ל-${name}` : '❌ ' + (res.error||'שגיאה'), res.success ? 'success' : 'error');
 }
 
 // Keep old aliases for compatibility
@@ -2276,103 +2242,54 @@ async function saveEntry() {
 async function openGenerateModal() {
   const {year, mon, days, s: month} = parseMonth(document.getElementById('admin-schedule-month').value);
 
-  // Fetch existing schedule + constraints in parallel
+  // Fetch existing schedule to read holiday types
   showLoading(true);
-  const [sched, constraintsRes] = await Promise.all([
-    api({action:'getSchedule', month}),
-    api({action:'getAllConstraints', month})
-  ]);
+  const sched = await api({action:'getSchedule', month});
   showLoading(false);
 
-  // Build day → dayType map
+  // Build a map of day → dayType from existing schedule
   const existingTypes = {};
   if (sched.success && sched.schedule) {
     sched.schedule.forEach(e => {
-      let d;
-      if (e.date && e.date.includes('-')) d = parseInt(e.date.split('-')[2]);
-      else if (e.date && e.date.includes('/')) d = parseInt(e.date.split('/')[0]);
-      if (d && e.dayType) existingTypes[d] = e.dayType;
+      const d = new Date(e.date.split('/').reverse().join('-')).getDate();
+      if (e.dayType) existingTypes[d] = e.dayType;
     });
   }
 
-  // Build conflicts: days where 2+ people marked V
-  const allConstraints = (constraintsRes.success && constraintsRes.constraints) ? constraintsRes.constraints : {};
-  const vByDay = {}; // day → [name, ...]
-  Object.keys(allConstraints).forEach(name => {
-    const c = allConstraints[name];
-    (c.constraints || []).forEach((val, idx) => {
-      if (val === 'V') {
-        const d = idx + 1;
-        if (!vByDay[d]) vByDay[d] = [];
-        vByDay[d].push(name);
-      }
-    });
-  });
-
-  // Build conflict HTML
-  const conflicts = Object.keys(vByDay).filter(d => vByDay[d].length > 1).map(Number).sort((a,b)=>a-b);
-  let conflictHtml = '';
-  if (conflicts.length > 0) {
-    conflictHtml = `<div style="margin-bottom:16px">
-      <div style="font-weight:700;font-size:14px;margin-bottom:8px;color:var(--warn)">⚠️ קונפליקטים — מספר תורנים ביקשו אותו יום</div>
-      <div style="display:grid;gap:8px">`;
-    conflicts.forEach(d => {
-      const date = new Date(year, mon-1, d);
-      const dow = date.getDay();
-      const dayName = HEB_DAYS[dow];
-      const names = vByDay[d];
-      conflictHtml += `<div style="background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.3);border-radius:8px;padding:10px 14px">
-        <div style="font-weight:600;margin-bottom:6px">${d}/${mon} (${dayName}׳)</div>
-        <div style="display:flex;flex-direction:column;gap:6px">`;
-      names.forEach((name, i) => {
-        conflictHtml += `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
-          <input type="radio" name="conflict-${d}" value="${name}" ${i===0?'checked':''} style="accent-color:var(--accent)">
-          <span>${name}</span>
-          ${i===0?'<span style="font-size:11px;color:var(--text3)">(ניקוד נמוך יותר — ברירת מחדל)</span>':''}
-        </label>`;
-      });
-      conflictHtml += `</div></div>`;
-    });
-    conflictHtml += `</div></div>`;
-  }
-
+  // Israeli holiday names for tooltip
   const HAG_TYPES = new Set(['חג','ערב חג','חג + סוף שבוע']);
+
   let html = '';
   for (let d = 1; d <= days; d++) {
     const date = new Date(year, mon-1, d);
     const dow = date.getDay();
     const dayName = HEB_DAYS[dow];
+
+    // Default: from existing schedule, or auto-detect by weekday
     let defType = existingTypes[d] || (dow===4?'חמישי': (dow===5||dow===6)?'סוף שבוע':'חול');
     const isHoliday = HAG_TYPES.has(defType);
     const rowBg = isHoliday ? 'background:rgba(234,179,8,0.08);border-radius:6px;' : '';
     const hagIcon = isHoliday ? '🕍 ' : '';
-    // Show V requests on this day
-    const vNames = vByDay[d] || [];
-    const vBadge = vNames.length > 0
-      ? `<span style="font-size:10px;color:var(--accent);background:rgba(46,160,67,0.12);border-radius:10px;padding:1px 6px;white-space:nowrap">✓ ${vNames.join(', ')}</span>`
-      : '';
 
-    html += `<div style="display:flex;align-items:center;gap:8px;padding:8px 6px;border-bottom:1px solid var(--border);${rowBg}flex-wrap:wrap">
+    html += `<div style="display:flex;align-items:center;gap:12px;padding:8px 6px;border-bottom:1px solid var(--border);${rowBg}">
       <span style="font-weight:700;min-width:28px;font-size:14px">${d}</span>
-      <span class="text-muted text-sm" style="min-width:40px;font-size:12px">${dayName}׳</span>
-      <span style="min-width:16px">${hagIcon}</span>
-      <select id="gen-day-${d}" style="flex:1;min-width:120px;background:var(--surface3);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-family:inherit;font-size:13px;outline:none;${isHoliday?'border-color:var(--warn);':''}">
+      <span class="text-muted text-sm" style="min-width:46px;font-size:12px">${dayName}'</span>
+      <span style="min-width:18px">${hagIcon}</span>
+      <select id="gen-day-${d}" style="flex:1;background:var(--surface3);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-family:inherit;font-size:13px;outline:none;${isHoliday?'border-color:var(--warn);':''}">
         ${DAY_TYPES.map(t=>`<option value="${t}" ${t===defType?'selected':''}>${t}</option>`).join('')}
       </select>
-      ${vBadge}
     </div>`;
   }
 
+  // Warning if no holidays detected
   const hasHolidays = Object.values(existingTypes).some(t => HAG_TYPES.has(t));
   const warningHtml = !hasHolidays && Object.keys(existingTypes).length === 0
     ? `<div style="background:rgba(234,179,8,0.12);border-right:3px solid var(--warn);padding:10px 12px;border-radius:6px;margin-bottom:12px;font-size:13px;color:var(--warn)">
         ⚠️ לא נמצא לוח לחודש זה — הימים מסווגים לפי יום השבוע בלבד. ודא שהחגים מוגדרים נכון.
        </div>` : '';
 
-  document.getElementById('generate-days-list').innerHTML = conflictHtml + warningHtml + html;
+  document.getElementById('generate-days-list').innerHTML = warningHtml + html;
   document.getElementById('generate-alert').innerHTML = '';
-  // Store conflicts for runGenerate
-  window._generateConflicts = conflicts.map(d => ({day: d, names: vByDay[d]}));
   openModal('modal-generate');
 }
 
@@ -2382,29 +2299,9 @@ async function runGenerate() {
   for (let d = 1; d <= days; d++) {
     dayCategories[String(d)] = document.getElementById('gen-day-'+d).value;
   }
-  // Collect conflict priority choices (which person was selected for each conflict day)
-  const conflictPriorities = {}; // day → chosen name
-  (window._generateConflicts || []).forEach(({day, names}) => {
-    const radios = document.querySelectorAll(`input[name="conflict-${day}"]`);
-    radios.forEach(r => { if (r.checked) conflictPriorities[String(day)] = r.value; });
-  });
-
   document.getElementById('generate-btn').disabled = true;
   showLoading(true);
-  let res;
-  try {
-    const resp = await fetch(API_URL, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({action:'generateSchedule', month, dayCategories, conflictPriorities, token}),
-      signal: AbortSignal.timeout(25000)
-    });
-    res = await resp.json();
-    if (!res || res.success === undefined) throw new Error('bad response');
-  } catch(e) {
-    console.warn('POST failed, using JSONP:', e.message);
-    res = await apiJsonp({action:'generateSchedule', month, dayCategories: JSON.stringify(dayCategories), conflictPriorities: JSON.stringify(conflictPriorities), token});
-  }
+  const res = await api({action:'generateSchedule', month, dayCategories});
   showLoading(false);
   document.getElementById('generate-btn').disabled = false;
   if (res.success) {
@@ -2507,13 +2404,11 @@ async function loadScores() {
     container.innerHTML = html;
   } else {
     var maxT = all[0]._total || 1;
-  var n2 = all.length;
     var thS = 'background:var(--surface3);border-bottom:2px solid var(--border);white-space:nowrap;padding:8px 12px';
     var mHeaders = activeMon.map(function(m){ return '<th style="'+thS+';font-size:11px">'+m.l+'</th>'; }).join('');
     var rows = all.map(function(s,i){
       var p = pMap[s.name]||{};
-      var pct = Math.round(((n2-i)/n2)*100);
-      var bc2 = i < Math.ceil(n2/3) ? '#22c55e' : i < Math.ceil(n2*2/3) ? '#f97316' : '#ef4444';
+      var pct = maxT>0?(s._total/maxT*100).toFixed(0):0;
       var wl = p.weekendType==='מלא'?'🗓️ מלא':p.weekendType==='בנפרד'?'📅 בנפרד':p.weekendType||'—';
       var mCells = activeMon.map(function(m){ var sc=(s[m.k]||{}).score; return '<td style="text-align:center;color:var(--text2);font-size:12px">'+(sc||'—')+'</td>'; }).join('');
       return '<tr><td style="font-weight:700;padding:8px 12px;white-space:nowrap">'+s.name+'</td>'
@@ -2521,7 +2416,7 @@ async function loadScores() {
         +'<td style="font-size:12px;padding:8px 12px">'+wl+'</td>'
         +'<td style="padding:8px 12px;color:var(--text2)">'+( s.acc2025||0)+'</td>'
         +'<td style="padding:8px 12px"><span style="color:var(--accent);font-weight:700">'+s._total+'</span>'
-        +'<div class="score-bar" style="width:100%;max-width:120px;margin-top:4px"><div class="score-fill" style="width:'+pct+'%;background:'+bc2+'"></div></div></td>'
+        +'<div class="score-bar" style="width:60px;margin-top:4px"><div class="score-fill" style="width:'+pct+'%"></div></div></td>'
         +mCells+'</tr>';
     }).join('');
     container.innerHTML = '<div class="card" style="padding:0;overflow-x:auto">'
@@ -2545,12 +2440,12 @@ async function loadAdminConstraints() {
     return;
   }
 
-  // Only show people who actually marked something OR wrote notes — exclude admin accounts
+  // Only show people who actually marked something + exclude admin accounts
   const allNames = Object.keys(res.constraints);
   const activeNames = allNames.filter(name => {
     if (name === 'מנהל מערכת' || name === 'admin') return false; // exclude admin
     const c = res.constraints[name];
-    return c.constraints.some(v => v === 'V' || v === 'X') || (c.notes && c.notes.trim());
+    return c.constraints.some(v => v === 'V' || v === 'X');
   });
 
   if (activeNames.length === 0) {
@@ -2567,28 +2462,9 @@ async function loadAdminConstraints() {
     <table class="calendar-table" style="border-collapse:collapse">
       <thead>
         <tr style="position:static">
-          <th style="position:sticky;right:0;z-index:2;background:var(--surface3);min-width:140px;border:1px solid var(--border)">שם</th>
-          ${Array.from({length:days},(_,i)=>{
-            const dow = new Date(year, mon-1, i+1).getDay();
-            const isWk = dow===5||dow===6;
-            const isTh = dow===4;
-            const bg = isWk ? 'background:rgba(99,102,241,0.12)' : isTh ? 'background:rgba(234,179,8,0.12)' : 'background:var(--surface3)';
-            return `<th style="font-size:11px;padding:6px 4px;min-width:28px;text-align:center;border:1px solid var(--border);${bg}">${i+1}</th>`;
-          }).join('')}
-          <th style="position:static;border:1px solid var(--border);background:var(--surface3)">הערות</th>
-        </tr>
-        <tr>
-          <th style="position:sticky;right:0;z-index:2;background:var(--surface3);border:1px solid var(--border)"></th>
-          ${Array.from({length:days},(_,i)=>{
-            const dow = new Date(year, mon-1, i+1).getDay();
-            const isWk = dow===5||dow===6;
-            const isTh = dow===4;
-            const bg = isWk ? 'background:rgba(99,102,241,0.12)' : isTh ? 'background:rgba(234,179,8,0.12)' : 'background:var(--surface3)';
-            const dayAbbr = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'][dow];
-            const color = isWk ? 'color:rgba(99,102,241,0.8)' : isTh ? 'color:rgba(180,130,0,0.9)' : 'color:var(--text3)';
-            return `<th style="font-size:10px;padding:2px 4px;text-align:center;border:1px solid var(--border);font-weight:400;${bg};${color}">${dayAbbr}</th>`;
-          }).join('')}
-          <th style="border:1px solid var(--border);background:var(--surface3)"></th>
+          <th style="position:sticky;right:0;z-index:2;background:var(--surface3);min-width:140px">שם</th>
+          ${Array.from({length:days},(_,i)=>`<th style="font-size:11px;padding:6px 4px;min-width:28px;text-align:center;position:static">${i+1}</th>`).join('')}
+          <th style="position:static">הערות</th>
         </tr>
       </thead>
       <tbody>`;
@@ -2597,28 +2473,21 @@ async function loadAdminConstraints() {
     const c = res.constraints[name];
     const xCount = c.constraints.filter(v => v === 'X').length;
     const vCount = c.constraints.filter(v => v === 'V').length;
-    html += `<td style="white-space:nowrap;font-weight:600;position:sticky;right:0;background:var(--surface);z-index:1;padding:8px 12px">
-      <div style="display:flex;align-items:center;gap:6px">
-        <button onclick="adminEditConstraint('${name.replace(/'/g,"\\'")}','${month}')" style="background:var(--surface3);border:1px solid var(--border);border-radius:6px;padding:2px 7px;cursor:pointer;font-size:11px;color:var(--text2)" title="ערוך אילוצים">✏️</button>
-        <span>${name}</span>
-        ${vCount ? `<span style="color:var(--accent);font-size:11px">✓${vCount}</span>` : ''}
-        ${xCount ? `<span style="color:var(--danger);font-size:11px">✕${xCount}</span>` : ''}
-      </div>
-    </td>`;
+    html += `<tr><td style="white-space:nowrap;font-weight:600;position:sticky;right:0;background:var(--surface);z-index:1;padding:8px 12px">${name}`;
+    if (vCount) html += ` <span style="color:var(--accent);font-size:11px">✓${vCount}</span>`;
+    if (xCount) html += ` <span style="color:var(--danger);font-size:11px">✕${xCount}</span>`;
+    html += `</td>`;
     for (let d = 0; d < days; d++) {
       const v = c.constraints[d];
-      const isWeekend = [5,6].includes(new Date(year, mon-1, d+1).getDay());
-      const isThursday = new Date(year, mon-1, d+1).getDay() === 4;
-      const cellBg = isWeekend ? 'background:rgba(99,102,241,0.06)' : isThursday ? 'background:rgba(234,179,8,0.06)' : '';
       if (v === 'V') {
-        html += `<td style="text-align:center;border:1px solid var(--border);${cellBg}"><span style="color:var(--accent);font-weight:700;font-size:14px">✓</span></td>`;
+        html += `<td style="text-align:center"><span style="color:var(--accent);font-weight:700;font-size:14px">✓</span></td>`;
       } else if (v === 'X') {
-        html += `<td style="text-align:center;border:1px solid var(--border);${cellBg}"><span style="color:var(--danger);font-weight:700;font-size:14px">✕</span></td>`;
+        html += `<td style="text-align:center"><span style="color:var(--danger);font-weight:700;font-size:14px">✕</span></td>`;
       } else {
-        html += `<td style="border:1px solid var(--border);${cellBg}"></td>`;
+        html += `<td></td>`;
       }
     }
-    html += `<td style="min-width:160px;padding:6px 10px;font-size:12px;color:var(--text2);max-width:220px;white-space:pre-wrap">${c.notes ? `<span style="background:var(--surface2);border-radius:6px;padding:3px 8px;display:inline-block">${c.notes}</span>` : ''}</td></tr>`;
+    html += `<td class="text-muted text-sm" style="min-width:120px">${c.notes||''}</td></tr>`;
   });
 
   html += '</tbody></table></div></div>';
@@ -2626,32 +2495,9 @@ async function loadAdminConstraints() {
 }
 
 
-async function adminEditConstraint(name, month) {
-  // Find username by name
-  const tornim = (await api({action:'getAllTornim'})).tornim || [];
-  const t = tornim.find(x => x.name === name);
-  if (!t) return alert('לא נמצא תורן: ' + name);
-
-  // Set impersonate to this user
-  const sel = document.getElementById('impersonate-select');
-  if (sel) {
-    sel.value = t.username;
-    await impersonateUser(t.username);
-  }
-
-  // Set constraint month to the current admin constraint month
-  const constraintSel = document.getElementById('constraint-month-select');
-  if (constraintSel && month) {
-    constraintSel.value = month;
-  }
-
-  // Navigate to constraints tab
-  switchTab('constraints');
-  await loadConstraints();
-  showAlert('constraint-alert', `✏️ עורך אילוצים של ${name}`, 'info');
-}
-
-
+// =====================================================
+// ADMIN: PEOPLE MANAGEMENT
+// =====================================================
 async function loadPeople() {
   showLoading(true);
   const res = await api({action:'getPeople'});
@@ -2659,7 +2505,7 @@ async function loadPeople() {
   if (!res.success) return;
 
   const WEEKEND_TYPES = ['מלא','בנפרד'];
-  const DUTY_CATEGORIES = ['','אב','פטור','בהליך הסמכה'];
+  const DUTY_CATEGORIES = ['','אב','פטור','טרם הוסמך'];
 
   const container = document.getElementById('people-content');
   container.innerHTML = `<div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto">
@@ -3463,7 +3309,7 @@ let _notifInterval = null;
 function startNotifPolling() {
   checkNotifications();
   if (_notifInterval) clearInterval(_notifInterval);
-  _notifInterval = setInterval(checkNotifications, 10000); // every 10 sec
+  _notifInterval = setInterval(checkNotifications, 30000); // every 30 sec
 }
 
 function stopNotifPolling() {
@@ -3504,31 +3350,17 @@ async function checkNotifications() {
       );
 
       let html = '';
-      // Personal notifications (swap results, profile changes)
+      // Personal notifications (swap results)
       personalNotifs.forEach(n => {
-        // Detect notification type for navigation
-        let navTab = '', navLabel = '';
-        if (n.message && n.message.includes('החלפה')) {
-          navTab = currentUser.role === 'admin' ? 'admin-swaps' : 'swap';
-          navLabel = 'לטאב החלפות';
-        } else if (n.message && (n.message.includes('פרופיל') || n.message.includes('סוף שבוע') || n.message.includes('קטגוריה'))) {
-          navTab = currentUser.role === 'admin' ? 'admin-users' : 'profile';
-          navLabel = currentUser.role === 'admin' ? 'לטאב תורנים' : 'לפרופיל';
-        }
-        const navBtn = navTab ? `<button onclick="clearPersonalNotif('${n.id}',this);switchTab('${navTab}');toggleNotifPanel()" style="background:none;border:none;cursor:pointer;color:var(--accent);font-size:11px;padding:2px 4px;text-decoration:underline">${navLabel} ←</button>` : '';
-        html += `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
-          <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
-            <div style="font-size:12px">${escapeHtml(n.message)}</div>
-            <button onclick="clearPersonalNotif('${n.id}',this)" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;flex-shrink:0" title="סמן כנקרא">✕</button>
-          </div>
-          ${navBtn}
+        html += `<div style="padding:8px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:start;gap:8px">
+          <div style="font-size:12px">${escapeHtml(n.message)}</div>
+          <button onclick="clearPersonalNotif('${n.id}',this)" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;flex-shrink:0" title="סמן כנקרא">✕</button>
         </div>`;
       });
       // Swap pending items
       swapItems.forEach(s => {
-        const swapTab = currentUser.role === 'admin' ? 'admin-swaps' : 'swap';
-        html += `<div style="padding:6px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="switchTab('${swapTab}');toggleNotifPanel()">
-          <div style="font-weight:600;font-size:12px">⏳ בקשת החלפה ← לחץ לפרטים</div>
+        html += `<div style="padding:6px 0;border-bottom:1px solid var(--border)">
+          <div style="font-weight:600;font-size:12px">⏳ בקשת החלפה</div>
           <div style="font-size:11px;color:var(--text2)">${s.fromName} עם ${s.withWho} — ${s.date}</div>
         </div>`;
       });
@@ -3599,9 +3431,10 @@ async function clearNotifications() {
   updateBellIcon(0);
   updateBadge('swap', 0);
   updateBadge('admin-swaps', 0);
-  // Delete personal notifications from server
+  // Delete personal notifications from server (in background)
   try { await api({action:'clearAllNotifications'}); } catch(e) {}
-  // Don't re-check immediately — swap items will refresh on next poll (30s)
+  // Re-check to update badges accurately (swap pending still shows)
+  checkNotifications();
 }
 
 function updateBellIcon(count) {
@@ -3641,14 +3474,6 @@ async function testConnection() {
     showLoading(false);
     showAlert('setup-alert','✗ שגיאת חיבור: ' + e.message,'error');
   }
-}
-
-async function rebuildScores() {
-  if (!confirm('לבנות מחדש את כל הניקוד מכל לוחות 2026? פעולה זו תדרוס את הניקוד הקיים.')) return;
-  showLoading(true);
-  const res = await api({action:'rebuildScores'});
-  showLoading(false);
-  showAlert('admin-schedule-alert', res.success ? '✅ ' + res.message : '❌ ' + (res.error||'שגיאה'), res.success ? 'success' : 'error');
 }
 
 async function initSheets() {
@@ -3750,10 +3575,8 @@ function toggleMobileMenu() {
 }
 
 function closeMobileMenu(e) {
-  if (!e || !e.target) return;
   const tabs = document.getElementById('nav-tabs-container');
   const btn = document.getElementById('hamburger-btn');
-  if (!tabs || !btn) return;
   if (!tabs.contains(e.target) && !btn.contains(e.target)) {
     tabs.classList.remove('open');
     btn.classList.remove('open');
@@ -3848,9 +3671,7 @@ async function loadProfile() {
 
   // Fill duty settings
   if (actEl) actEl.value = p.activity || '1';
-  // Show duty category (read-only)
-  const dutyCatEl = document.getElementById('profile-duty-category');
-  if (dutyCatEl) dutyCatEl.textContent = p.dutyCategory || 'רגיל';
+  // category not shown in user profile
   const wkEl = document.getElementById('profile-weekend');
   if (wkEl) wkEl.value = p.weekendType || 'מלא';
 
@@ -3916,32 +3737,15 @@ async function changePassword() {
 
 async function saveDutySettings() {
   const weekendType = document.getElementById('profile-weekend').value;
-  const currentWeekend = _profilePerson ? _profilePerson.weekendType : '';
-  if (weekendType === currentWeekend) {
-    showAlert('duty-settings-alert', 'לא בוצע שינוי', 'info');
-    return;
-  }
-  if (!confirm(`לשלוח בקשה לשינוי סוג סוף שבוע מ-"${currentWeekend}" ל-"${weekendType}"?\nהבקשה תועבר למנהל לאישור.`)) return;
   showLoading(true);
-  const res = await api({
-    action:'requestProfileChange',
-    username: currentUser.username,
-    targetUsername: _profilePerson ? _profilePerson.username : currentUser.username,
-    targetName: _profilePerson ? _profilePerson.name : currentUser.name,
-    field: 'weekendType',
-    oldValue: currentWeekend,
-    newValue: weekendType
-  });
+  const res = await api({action:'updateTorani', username: currentUser.username, weekendType});
   showLoading(false);
   if (res.success) {
-    showAlert('duty-settings-alert', '✅ הבקשה נשלחה למנהל לאישור. הפרופיל יעודכן לאחר האישור.', 'success');
-    // Revert select to current value — will update after admin approves
-    document.getElementById('profile-weekend').value = currentWeekend;
-    // Show pending indicator
-    const sel = document.getElementById('profile-weekend');
-    if (sel) sel.title = `בקשה ממתינה לאישור: שינוי ל-"${weekendType}"`;
+    showAlert('duty-settings-alert','✅ הגדרות התורנות נשמרו','success');
+    if (_profilePerson) _profilePerson.weekendType = weekendType;
+    loadProfile(); // refresh banner
   } else {
-    showAlert('duty-settings-alert', res.error||'שגיאה', 'error');
+    showAlert('duty-settings-alert', res.error||'שגיאה','error');
   }
 }
 </script>
