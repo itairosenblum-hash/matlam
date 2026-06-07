@@ -453,17 +453,17 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
   .cst-num{font-size:11px}
   .cst-icon{font-size:14px}
 
-  /* ── Schedule: hide desktop grid on mobile, show card rows ── */
+  /* ── Schedule: swap to mobile rows on small screens ── */
   #admin-schedule-content .cal-grid,
   #user-schedule-content .cal-grid,
   #full-schedule-content .cal-grid{display:none!important}
   #admin-schedule-content .cal-header,
   #user-schedule-content .cal-header,
   #full-schedule-content .cal-header{display:none!important}
-  #admin-schedule-content > div > div > div:first-child,
-  #user-schedule-content > div > div > div:first-child,
-  #full-schedule-content > div > div > div:first-child{min-width:0!important}
   .mob-sched{display:block!important}
+
+  /* ── Schedule desktop grid: visible on tablet+ ── */
+  .mob-sched{display:none}
 
   /* ── Notification panel ── */
   #notif-panel{width:calc(100vw - 20px)!important;right:10px!important;left:10px!important}
@@ -2179,7 +2179,10 @@ function renderAdminSchedule(schedule, month) {
     if (mdow===5||mdow===6) mCls += ' ms-weekend';
     else if (mdow===4) mCls += ' ms-thursday';
     if (mds===todayStr) mCls += ' ms-today';
-    mHtml += `<div class="${mCls}">
+    const mKey = `cal_${month}_${md}`;
+    window._calEntries = window._calEntries || {};
+    window._calEntries[mKey] = me || {date:mds,v:'',a:'',b:'',notes:'',dayType:'',dutyType:''};
+    mHtml += `<div class="${mCls}" onclick="openCalEntry('${mKey}','${month}')" style="cursor:pointer">
       <div class="mob-sched-date"><div class="msn">${md}</div><div class="msd">${HEB_DAYS_F[mdow]}</div></div>
       <div class="mob-sched-cell"><div class="mob-sched-lbl">מבצע</div><div class="mob-sched-name mv">${me.v||'—'}</div></div>
       <div class="mob-sched-cell"><div class="mob-sched-lbl">עתודה א'</div><div class="mob-sched-name ma">${me.a||'—'}</div></div>
