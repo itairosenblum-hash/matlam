@@ -331,63 +331,6 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
 .constraint-blocked .cal-day-num{color:var(--danger)}
 .constraint-preferred{background:rgba(46,160,67,0.1)!important;border-color:rgba(46,160,67,0.35)!important}
 .constraint-preferred .cal-day-num{color:var(--accent)}
-
-/* =========================================
-   CONSTRAINT GRID - isolated cst-* classes
-   (no dependency on cal-day/cal-grid)
-   ========================================= */
-.cst-header-row{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:3px}
-.cst-header-cell{text-align:center;font-size:10px;font-weight:600;color:var(--text2);padding:3px 0}
-.cst-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
-.cst-day{
-  background:var(--surface2);border:1px solid var(--border);border-radius:6px;
-  padding:5px 2px;min-height:60px;display:flex;flex-direction:column;
-  align-items:center;justify-content:space-between;
-  cursor:pointer;transition:all .15s;user-select:none;text-align:center;
-}
-.cst-day:hover{border-color:var(--border2);transform:scale(1.03)}
-.cst-day:active{transform:scale(0.96)}
-.cst-day.cst-empty{background:transparent;border-color:transparent;pointer-events:none}
-.cst-day.cst-weekend{background:rgba(139,92,246,0.07);border-color:rgba(139,92,246,0.2)}
-.cst-day.cst-thursday{background:rgba(210,153,34,0.07);border-color:rgba(210,153,34,0.2)}
-.cst-day.cst-today{border-color:var(--accent);border-width:2px}
-.cst-day.cst-blocked{background:rgba(218,54,51,0.14)!important;border-color:rgba(218,54,51,0.5)!important}
-.cst-day.cst-preferred{background:rgba(46,160,67,0.12)!important;border-color:rgba(46,160,67,0.45)!important}
-.cst-num{font-size:13px;font-weight:700;color:var(--text);line-height:1}
-.cst-day.cst-blocked .cst-num{color:var(--danger)}
-.cst-day.cst-preferred .cst-num{color:var(--accent)}
-.cst-day.cst-today .cst-num{color:var(--accent)}
-.cst-type{font-size:8px;color:var(--text3);margin-top:1px}
-.cst-icon{font-size:17px;font-weight:800;min-height:20px;margin-top:2px;line-height:1}
-
-/* =========================================
-   MOBILE SCHEDULE - 3-column card rows
-   ========================================= */
-.mob-sched{display:none}
-.mob-sched-day{
-  display:grid;grid-template-columns:52px 1fr 1fr 1fr;
-  border:1px solid var(--border);border-radius:10px;margin-bottom:6px;overflow:hidden;
-}
-.mob-sched-date{
-  background:var(--surface2);display:flex;flex-direction:column;
-  align-items:center;justify-content:center;padding:8px 4px;
-  border-left:1px solid var(--border);
-}
-.mob-sched-date .msn{font-size:20px;font-weight:800;color:var(--text);line-height:1}
-.mob-sched-date .msd{font-size:10px;color:var(--text3);margin-top:2px}
-.mob-sched-cell{
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  padding:8px 4px;text-align:center;border-left:1px solid var(--border);min-height:58px;
-}
-.mob-sched-lbl{font-size:9px;color:var(--text3);font-weight:600;margin-bottom:3px}
-.mob-sched-name{font-size:11px;font-weight:600;color:var(--text);word-break:break-word;line-height:1.3}
-.mob-sched-name.mv{color:var(--accent)}
-.mob-sched-name.ma{color:var(--info)}
-.mob-sched-name.mb{color:var(--warn)}
-.mob-sched-day.ms-weekend .mob-sched-date{background:rgba(139,92,246,0.1)}
-.mob-sched-day.ms-thursday .mob-sched-date{background:rgba(210,153,34,0.1)}
-.mob-sched-day.ms-today{border-color:var(--accent);border-width:2px}
-.mob-sched-day.ms-mine{border-color:#f97316;border-width:2px}
 /* ---- RESPONSIVE ---- */
 @media(max-width:768px){
   /* ── Navbar ── */
@@ -448,22 +391,10 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
   .swap-item{flex-direction:column;gap:8px}
   .swap-actions{flex-wrap:wrap;gap:6px;justify-content:flex-end}
 
-  /* ── Constraints calendar (cst-* classes - no override needed) ── */
-  .cst-day{min-height:52px;padding:4px 2px}
-  .cst-num{font-size:11px}
-  .cst-icon{font-size:14px}
-
-  /* ── Schedule: swap to mobile rows on small screens ── */
-  #admin-schedule-content .cal-grid,
-  #user-schedule-content .cal-grid,
-  #full-schedule-content .cal-grid{display:none!important}
-  #admin-schedule-content .cal-header,
-  #user-schedule-content .cal-header,
-  #full-schedule-content .cal-header{display:none!important}
-  .mob-sched{display:block!important}
-
-  /* ── Schedule desktop grid: visible on tablet+ ── */
-  .mob-sched{display:none}
+  /* ── Constraints calendar ── */
+  .constraint-cal{font-size:11px}
+  .constraint-month-grid{grid-template-columns:repeat(5,1fr)!important}
+  .constraint-cal-day{padding:6px 4px;min-height:36px;font-size:11px}
 
   /* ── Notification panel ── */
   #notif-panel{width:calc(100vw - 20px)!important;right:10px!important;left:10px!important}
@@ -1741,71 +1672,86 @@ let constraintData = new Array(31).fill(false);
 async function loadConstraints() {
   const {year, mon, days, s: month} = parseMonth(document.getElementById('constraint-month-select').value);
   showLoading(true);
-  try {
-    const res = await api({action:'getConstraints', month, ...(currentUser._impersonating ? {viewAs: currentUser.username} : {})});
-    if (res && res.success) {
-      constraintData = res.constraints.slice(0, days).map(c => {
-        if (c === 'V' || c === 'v') return 'V';
-        if (c === 'X' || c === 'x' || c === true) return 'X';
-        return '';
-      });
-      while (constraintData.length < days) constraintData.push('');
-      document.getElementById('constraint-notes').value = res.notes || '';
-    }
-  } catch(e) {
-    console.error('loadConstraints error:', e);
-    if (!constraintData || constraintData.length < days) constraintData = new Array(days).fill('');
-  } finally {
-    showLoading(false);
-    renderConstraintGrid(year, mon, days);
+  const res = await api({action:'getConstraints', month, viewAs: currentUser.username});
+  showLoading(false);
+  if (res.success) {
+    // Support both old boolean format and new V/X format
+    constraintData = res.constraints.slice(0, days).map(c => {
+      if (c === 'V' || c === 'v') return 'V';
+      if (c === 'X' || c === 'x' || c === true) return 'X';
+      return '';
+    });
+    while (constraintData.length < days) constraintData.push('');
+    document.getElementById('constraint-notes').value = res.notes || '';
   }
+  renderConstraintGrid(year, mon, days);
 }
 
 function renderConstraintGrid(year, mon, days) {
   const container = document.getElementById('constraints-grid');
-  if (!container) return;
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-  const firstDay = new Date(year, mon-1, 1).getDay();
-  const dayHeaders = ["א'","ב'","ג'","ד'","ה'","ו'","ש'"];
 
-  let html = `<div class="cst-header-row">${dayHeaders.map(d=>`<div class="cst-header-cell">${d}</div>`).join('')}</div>`;
-  html += `<div class="cst-grid">`;
+  const firstDay = new Date(year, mon-1, 1).getDay(); // 0=Sun
+  const dayHeaders = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 
-  for (let i = 0; i < firstDay; i++) html += `<div class="cst-day cst-empty"></div>`;
+  const isMob = window.innerWidth <= 640;
+  let html = isMob
+    ? `<div><div class="cal-grid">`
+    : `<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;cursor:grab">
+  <div style="min-width:560px">
+  <div class="cal-header">${dayHeaders.map(d=>`<div class="cal-header-cell">${d}</div>`).join('')}</div>
+  <div class="cal-grid">`;
+
+  // Empty cells before first day
+  for (let i = 0; i < firstDay; i++) {
+    html += `<div class="cal-day empty"></div>`;
+  }
 
   for (let d = 1; d <= days; d++) {
-    const dow = new Date(year, mon-1, d).getDay();
+    const date = new Date(year, mon-1, d);
+    const dow = date.getDay();
     const dateStr = `${year}-${String(mon).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const cellState = constraintData[d-1] || '';
     const isToday = dateStr === todayStr;
     const isWeekend = dow === 5 || dow === 6;
     const isThursday = dow === 4;
-    const state = constraintData[d-1] || '';
 
-    let cls = 'cst-day';
-    if (isWeekend) cls += ' cst-weekend';
-    else if (isThursday) cls += ' cst-thursday';
-    if (isToday) cls += ' cst-today';
-    if (state === 'X') cls += ' cst-blocked';
-    else if (state === 'V') cls += ' cst-preferred';
+    let dayCls = 'cal-day constraint-cal-day';
+    if (isToday) dayCls += ' today';
+    if (isWeekend) dayCls += ' cal-weekend';
+    if (isThursday) dayCls += ' cal-thursday';
+    if (constraintData[d-1] === 'X') dayCls += ' constraint-blocked';
+    if (constraintData[d-1] === 'V') dayCls += ' constraint-preferred';
 
-    const typeLabel = isWeekend ? 'ש"ס' : isThursday ? "ה'" : 'חול';
-    const icon = state === 'V' ? `<span style="color:var(--accent)">✓</span>` :
-                 state === 'X' ? `<span style="color:var(--danger)">✕</span>` : '';
+    let typeLabel = isWeekend ? 'סוף שבוע' : isThursday ? 'חמישי' : 'חול';
+    let typeCls = isWeekend ? 'badge-weekend' : isThursday ? 'badge-thursday' : 'badge-weekday';
 
-    html += `<div class="${cls}" onclick="toggleConstraint(${d-1})" id="ccal-${d}">
-      <div class="cst-num">${d}</div>
-      <div class="cst-type">${typeLabel}</div>
-      <div class="cst-icon" id="ci-${d}">${icon}</div>
+    html += `
+    <div class="${dayCls}" onclick="toggleConstraint(${d-1})" id="ccal-${d}" style="cursor:pointer;user-select:none">
+      <div class="cal-day-num">${d}</div>
+      <div class="cal-day-type ${typeCls}" style="font-size:9px;padding:1px 5px;border-radius:10px;margin-top:2px;width:fit-content">${typeLabel}</div>
+      <div class="constraint-indicator" id="ci-${d}" style="margin-top:4px;font-size:16px;font-weight:700;text-align:center">
+        ${constraintData[d-1] === 'V' ? '<span style="color:var(--accent)">✓</span>' : constraintData[d-1] === 'X' ? '<span style="color:var(--danger)">✕</span>' : ''}
+      </div>
     </div>`;
   }
 
-  const total = firstDay + days;
-  const rem = total % 7;
-  if (rem > 0) for (let i = 0; i < 7 - rem; i++) html += `<div class="cst-day cst-empty"></div>`;
-  html += `</div>`;
+  // Fill remaining cells (desktop only)
+  if (!isMobAdmin) {
+    const totalCells = firstDay + days;
+    const remainder = totalCells % 7;
+    if (remainder > 0) {
+      for (let i = 0; i < 7 - remainder; i++) {
+        html += `<div class="cal-day empty"></div>`;
+      }
+    }
+  }
+  html += `</div></div></div>`;
   container.innerHTML = html;
 }
+
+
 function toggleConstraint(idx) {
   // Cycle: '' → 'V' → 'X' → ''
   const cur = constraintData[idx] || '';
@@ -1816,9 +1762,9 @@ function toggleConstraint(idx) {
   const indicator = document.getElementById('ci-' + day);
 
   if (cell) {
-    cell.classList.remove('cst-blocked','cst-preferred');
-    if (next === 'X') cell.classList.add('cst-blocked');
-    if (next === 'V') cell.classList.add('cst-preferred');
+    cell.classList.remove('constraint-blocked','constraint-preferred');
+    if (next === 'X') cell.classList.add('constraint-blocked');
+    if (next === 'V') cell.classList.add('constraint-preferred');
   }
   if (indicator) {
     indicator.innerHTML =
@@ -1835,7 +1781,7 @@ async function saveConstraints() {
   const month = String(document.getElementById('constraint-month-select').value);
   const notes = document.getElementById('constraint-notes').value;
   showLoading(true);
-  const res = await api({action:'saveConstraints', month, constraints: constraintData, notes, ...(currentUser._impersonating ? {viewAs: currentUser.username} : {})});
+  const res = await api({action:'saveConstraints', month, constraints: constraintData, notes, viewAs: currentUser.username}); // V/X/'' array
   showLoading(false);
   showAlert('constraint-alert', res.success ? '✓ האילוצים נשמרו בהצלחה!' : res.error, res.success?'success':'error');
 }
@@ -2167,32 +2113,8 @@ function renderAdminSchedule(schedule, month) {
   }
 
   html += `</div></div></div>`;
-
-  // Mobile: 3-column rows (מבצע | עתודה א' | עתודה ב')
-  const HEB_DAYS_F = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
-  let mHtml = '<div class="mob-sched">';
-  for (let md = 1; md <= daysInMonth; md++) {
-    const mds = `${year}-${String(mon).padStart(2,'0')}-${String(md).padStart(2,'0')}`;
-    const me = schedMap[mds] || {};
-    const mdow = new Date(year, mon-1, md).getDay();
-    let mCls = 'mob-sched-day';
-    if (mdow===5||mdow===6) mCls += ' ms-weekend';
-    else if (mdow===4) mCls += ' ms-thursday';
-    if (mds===todayStr) mCls += ' ms-today';
-    const mKey = `cal_${month}_${md}`;
-    window._calEntries = window._calEntries || {};
-    window._calEntries[mKey] = me || {date:mds,v:'',a:'',b:'',notes:'',dayType:'',dutyType:''};
-    mHtml += `<div class="${mCls}" onclick="openCalEntry('${mKey}','${month}')" style="cursor:pointer">
-      <div class="mob-sched-date"><div class="msn">${md}</div><div class="msd">${HEB_DAYS_F[mdow]}</div></div>
-      <div class="mob-sched-cell"><div class="mob-sched-lbl">מבצע</div><div class="mob-sched-name mv">${me.v||'—'}</div></div>
-      <div class="mob-sched-cell"><div class="mob-sched-lbl">עתודה א'</div><div class="mob-sched-name ma">${me.a||'—'}</div></div>
-      <div class="mob-sched-cell"><div class="mob-sched-lbl">עתודה ב'</div><div class="mob-sched-name mb">${me.b||'—'}</div></div>
-    </div>`;
-  }
-  mHtml += '</div>';
-  container.innerHTML = html + mHtml;
+  container.innerHTML = html;
 }
-
 
 
 // =====================================================
@@ -2471,45 +2393,173 @@ async function loadAdminConstraints() {
     return;
   }
 
+  // Fetch user list to get username mapping for saveConstraints viewAs
+  if (!window._allUsers || !window._allUsers.length) {
+    const uRes = await api({action:'getAllTornim'});
+    if (uRes.success) window._allUsers = uRes.tornim;
+  }
+
+  // Store editable state per person
+  const editState = {};
+  activeNames.forEach(name => {
+    const c = res.constraints[name];
+    editState[name] = {
+      constraints: [...c.constraints],
+      notes: c.notes || '',
+      dirty: false
+    };
+  });
+  window._constraintEditState = editState;
+  window._constraintMonth = month;
+
   let html = `<div class="stats-grid">
     <div class="stat-card"><div class="stat-val">${activeNames.length}</div><div class="stat-label">הגישו אילוצים</div></div>
     <div class="stat-card"><div class="stat-val">${days}</div><div class="stat-label">ימים בחודש</div></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:12px;color:var(--text2)">
+    <span>💡 לחץ על תא לעריכה:</span>
+    <span style="display:inline-flex;align-items:center;gap:4px;background:rgba(218,54,51,0.12);border:1px solid rgba(218,54,51,0.3);border-radius:4px;padding:2px 7px;color:var(--danger);font-weight:700">✕ חסום</span>
+    <span style="display:inline-flex;align-items:center;gap:4px;background:rgba(46,160,67,0.12);border:1px solid rgba(46,160,67,0.3);border-radius:4px;padding:2px 7px;color:var(--accent);font-weight:700">✓ מועדף</span>
+    <span style="display:inline-flex;align-items:center;gap:4px;background:var(--surface3);border:1px solid var(--border);border-radius:4px;padding:2px 7px;color:var(--text3)">— ריק</span>
   </div>`;
 
   html += `<div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto">
-    <table class="calendar-table" style="border-collapse:collapse">
+    <table class="calendar-table" style="border-collapse:collapse;border:1px solid var(--border2)">
       <thead>
         <tr style="position:static">
-          <th style="position:sticky;right:0;z-index:2;background:var(--surface3);min-width:140px">שם</th>
-          ${Array.from({length:days},(_,i)=>`<th style="font-size:11px;padding:6px 4px;min-width:28px;text-align:center;position:static">${i+1}</th>`).join('')}
-          <th style="position:static">הערות</th>
+          <th style="position:sticky;right:0;z-index:2;background:var(--surface3);min-width:140px;border:1px solid var(--border2)">שם</th>
+          ${Array.from({length:days},(_,i)=>`<th style="font-size:11px;padding:6px 4px;min-width:30px;text-align:center;position:static;border:1px solid var(--border2)">${i+1}</th>`).join('')}
+          <th style="position:static;border:1px solid var(--border2);min-width:160px">הערות</th>
+          <th style="position:static;border:1px solid var(--border2);min-width:70px">שמור</th>
         </tr>
       </thead>
-      <tbody>`;
+      <tbody id="admin-constraints-tbody">`;
 
   activeNames.forEach(name => {
     const c = res.constraints[name];
     const xCount = c.constraints.filter(v => v === 'X').length;
     const vCount = c.constraints.filter(v => v === 'V').length;
-    html += `<tr><td style="white-space:nowrap;font-weight:600;position:sticky;right:0;background:var(--surface);z-index:1;padding:8px 12px">${name}`;
-    if (vCount) html += ` <span style="color:var(--accent);font-size:11px">✓${vCount}</span>`;
-    if (xCount) html += ` <span style="color:var(--danger);font-size:11px">✕${xCount}</span>`;
-    html += `</td>`;
+    const safeName = name.replace(/"/g, '&quot;');
+    html += `<tr id="crow-${CSS.escape(name)}" data-name="${safeName}">
+      <td style="white-space:nowrap;font-weight:600;position:sticky;right:0;background:var(--surface);z-index:1;padding:8px 12px;border:1px solid var(--border2)">
+        ${name}
+        <span class="x-count-badge" style="color:var(--danger);font-size:11px"> ✕<span class="xc">${xCount}</span></span>
+        <span class="v-count-badge" style="color:var(--accent);font-size:11px"> ✓<span class="vc">${vCount}</span></span>
+      </td>`;
     for (let d = 0; d < days; d++) {
       const v = c.constraints[d];
-      if (v === 'V') {
-        html += `<td style="text-align:center"><span style="color:var(--accent);font-weight:700;font-size:14px">✓</span></td>`;
-      } else if (v === 'X') {
-        html += `<td style="text-align:center"><span style="color:var(--danger);font-weight:700;font-size:14px">✕</span></td>`;
-      } else {
-        html += `<td></td>`;
-      }
+      const cellStyle = v === 'V'
+        ? 'background:rgba(46,160,67,0.12);color:var(--accent)'
+        : v === 'X'
+        ? 'background:rgba(218,54,51,0.1);color:var(--danger)'
+        : '';
+      html += `<td data-name="${safeName}" data-day="${d}" onclick="adminToggleConstraintCell(this)"
+        style="text-align:center;cursor:pointer;padding:4px 2px;border:1px solid var(--border2);transition:background .15s;${cellStyle}"
+        title="לחץ לשינוי">
+        <span style="font-weight:700;font-size:14px">${v === 'V' ? '✓' : v === 'X' ? '✕' : ''}</span>
+      </td>`;
     }
-    html += `<td class="text-muted text-sm" style="min-width:120px">${c.notes||''}</td></tr>`;
+    html += `<td style="border:1px solid var(--border2);padding:4px 6px">
+        <input type="text" value="${(c.notes||'').replace(/"/g,'&quot;')}"
+          onchange="adminUpdateConstraintNotes(this,'${safeName}')"
+          oninput="adminMarkDirty('${safeName}')"
+          style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:3px 6px;color:var(--text);font-family:inherit;font-size:12px;outline:none"/>
+      </td>
+      <td style="border:1px solid var(--border2);padding:4px 6px;text-align:center">
+        <button id="save-btn-${safeName}" onclick="adminSaveConstraintRow('${safeName}')"
+          style="background:var(--surface3);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;color:var(--text2);font-family:inherit;opacity:0.4;pointer-events:none;transition:all .2s">
+          💾 שמור
+        </button>
+      </td>
+    </tr>`;
   });
 
   html += '</tbody></table></div></div>';
   container.innerHTML = html;
+}
+
+function adminToggleConstraintCell(td) {
+  const name = td.dataset.name;
+  const day = parseInt(td.dataset.day);
+  const state = window._constraintEditState[name];
+  if (!state) return;
+  const cur = state.constraints[day];
+  const next = cur === 'X' ? 'V' : cur === 'V' ? '' : 'X';
+  state.constraints[day] = next;
+  // Update cell appearance
+  if (next === 'V') {
+    td.style.background = 'rgba(46,160,67,0.12)';
+    td.style.color = 'var(--accent)';
+    td.querySelector('span').textContent = '✓';
+  } else if (next === 'X') {
+    td.style.background = 'rgba(218,54,51,0.1)';
+    td.style.color = 'var(--danger)';
+    td.querySelector('span').textContent = '✕';
+  } else {
+    td.style.background = '';
+    td.style.color = '';
+    td.querySelector('span').textContent = '';
+  }
+  // Update counters
+  const row = td.closest('tr');
+  const xCount = state.constraints.filter(v => v === 'X').length;
+  const vCount = state.constraints.filter(v => v === 'V').length;
+  row.querySelector('.xc').textContent = xCount;
+  row.querySelector('.vc').textContent = vCount;
+  adminMarkDirty(name);
+}
+
+function adminUpdateConstraintNotes(input, name) {
+  const state = window._constraintEditState[name];
+  if (state) state.notes = input.value;
+}
+
+function adminMarkDirty(name) {
+  const state = window._constraintEditState[name];
+  if (!state) return;
+  state.dirty = true;
+  const btn = document.getElementById('save-btn-' + name);
+  if (btn) {
+    btn.style.opacity = '1';
+    btn.style.pointerEvents = 'auto';
+    btn.style.background = 'var(--accent)';
+    btn.style.color = '#fff';
+    btn.style.borderColor = 'var(--accent2)';
+  }
+}
+
+async function adminSaveConstraintRow(name) {
+  const state = window._constraintEditState[name];
+  if (!state) return;
+  const month = window._constraintMonth;
+  const btn = document.getElementById('save-btn-' + name);
+  if (btn) { btn.textContent = '⏳ שומר...'; btn.style.pointerEvents = 'none'; }
+
+  // Find the username for this person
+  const users = window._allUsers || [];
+  const userObj = users.find(u => u.name === name);
+  const viewAs = userObj ? userObj.username : null;
+
+  const payload = {action:'saveConstraints', month, constraints: state.constraints, notes: state.notes};
+  if (viewAs) payload.viewAs = viewAs;
+  const res = await api(payload);
+
+  if (btn) {
+    if (res.success) {
+      btn.textContent = '✓ נשמר';
+      btn.style.background = 'var(--surface3)';
+      btn.style.color = 'var(--text2)';
+      btn.style.borderColor = 'var(--border)';
+      btn.style.opacity = '0.4';
+      state.dirty = false;
+      setTimeout(() => { if (btn) btn.textContent = '💾 שמור'; }, 2000);
+    } else {
+      btn.textContent = '❌ שגיאה';
+      btn.style.background = 'var(--danger)';
+      btn.style.pointerEvents = 'auto';
+      setTimeout(() => { if (btn) { btn.textContent = '💾 שמור'; btn.style.background = 'var(--accent)'; btn.style.pointerEvents = 'auto'; } }, 2500);
+    }
+  }
 }
 
 
@@ -2846,29 +2896,12 @@ function renderUserSchedule(schedule, month) {
   if (rem > 0) for (let i = 0; i < 7-rem; i++) html += `<div class="cal-day empty"></div>`;
 
   html += '</div></div></div>';
+  html += `<div style="display:flex;gap:16px;margin-top:12px;flex-wrap:wrap;font-size:12px;color:var(--text2)">
+    <span><span style="background:rgba(46,160,67,0.15);padding:2px 8px;border-radius:4px">■</span> התורנות שלי</span>
+    <span>✓ מבצע &nbsp; א׳ עתודה ראשונה &nbsp; ב׳ עתודה שנייה</span>
+  </div>`;
 
-  // Mobile: 3-column rows
-  const HEB_DAYS_U = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
-  let uHtml = '<div class="mob-sched">';
-  schedule.forEach(ue => {
-    const ud = parseInt(ue.date.split('-')[2]);
-    const udow = new Date(year, mon-1, ud).getDay();
-    const isMe = ue.v===currentUser.name||ue.a===currentUser.name||ue.b===currentUser.name;
-    let uCls = 'mob-sched-day';
-    if (udow===5||udow===6) uCls += ' ms-weekend';
-    else if (udow===4) uCls += ' ms-thursday';
-    if (ue.date===todayStr) uCls += ' ms-today';
-    else if (isMe) uCls += ' ms-mine';
-    uHtml += `<div class="${uCls}">
-      <div class="mob-sched-date"><div class="msn">${ud}</div><div class="msd">${HEB_DAYS_U[udow]}</div></div>
-      <div class="mob-sched-cell"><div class="mob-sched-lbl">מבצע</div><div class="mob-sched-name mv">${ue.v||'—'}</div></div>
-      <div class="mob-sched-cell"><div class="mob-sched-lbl">עתודה א'</div><div class="mob-sched-name ma">${ue.a||'—'}</div></div>
-      <div class="mob-sched-cell"><div class="mob-sched-lbl">עתודה ב'</div><div class="mob-sched-name mb">${ue.b||'—'}</div></div>
-    </div>`;
-  });
-  uHtml += '</div>';
-
-  container.innerHTML = html + uHtml;
+  container.innerHTML = html;
 }
 
 // =====================================================
