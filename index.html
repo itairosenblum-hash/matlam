@@ -368,7 +368,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
 
   /* Empty indicator */
   .cal-persons:empty::after,
-  .cal-day:not(:has(.cal-v)) .cal-persons::after{
+  .cal-day:not(:has(.mob-v)):not(:has(.cal-v)) .cal-persons::after{
     content:'לא שובץ';
     color:var(--text3);
     font-size:11px;
