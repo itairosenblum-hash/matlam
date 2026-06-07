@@ -323,58 +323,14 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
     font-style:italic;
   }
 }
+.constraint-cal-day{cursor:pointer;transition:all .15s}
 .cal-mine { border:2px solid #f97316 !important; background:rgba(249,115,22,0.15) !important; }
-/* ---- CONSTRAINT GRID (isolated, no cal-day dependency) ---- */
-.cst-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:8px}
-.cst-header-row{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px}
-.cst-header-cell{text-align:center;font-size:11px;font-weight:600;color:var(--text2);padding:4px 0}
-.cst-day{
-  background:var(--surface2);border:1px solid var(--border);border-radius:8px;
-  padding:6px 4px;min-height:64px;display:flex;flex-direction:column;align-items:center;
-  justify-content:space-between;cursor:pointer;transition:all .15s;user-select:none;
-  text-align:center;
-}
-.cst-day:hover{border-color:var(--border2);transform:scale(1.03)}
-.cst-day:active{transform:scale(0.96)}
-.cst-day.cst-empty{background:transparent;border-color:transparent;pointer-events:none}
-.cst-day.cst-weekend{background:rgba(139,92,246,0.07);border-color:rgba(139,92,246,0.2)}
-.cst-day.cst-thursday{background:rgba(210,153,34,0.07);border-color:rgba(210,153,34,0.2)}
-.cst-day.cst-today{border-color:var(--accent);border-width:2px}
-.cst-day.cst-blocked{background:rgba(218,54,51,0.14)!important;border-color:rgba(218,54,51,0.5)!important}
-.cst-day.cst-preferred{background:rgba(46,160,67,0.12)!important;border-color:rgba(46,160,67,0.45)!important}
-.cst-num{font-size:13px;font-weight:700;color:var(--text);line-height:1}
-.cst-day.cst-blocked .cst-num{color:var(--danger)}
-.cst-day.cst-preferred .cst-num{color:var(--accent)}
-.cst-day.cst-today .cst-num{color:var(--accent)}
-.cst-type{font-size:8px;color:var(--text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-.cst-icon{font-size:18px;font-weight:800;line-height:1;min-height:20px;margin-top:2px}
-/* ---- MOBILE SCHEDULE ROWS ---- */
-.mob-sched{display:none}
-.mob-sched-day{
-  display:grid;grid-template-columns:52px 1fr 1fr 1fr;gap:0;
-  border:1px solid var(--border);border-radius:10px;margin-bottom:6px;overflow:hidden;
-}
-.mob-sched-date{
-  background:var(--surface2);display:flex;flex-direction:column;align-items:center;
-  justify-content:center;padding:8px 4px;border-left:1px solid var(--border);
-}
-.mob-sched-date .msn{font-size:20px;font-weight:800;color:var(--text);line-height:1}
-.mob-sched-date .msd{font-size:10px;color:var(--text3);margin-top:2px}
-.mob-sched-cell{
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  padding:8px 4px;text-align:center;border-left:1px solid var(--border);min-height:60px;
-}
-.mob-sched-cell:last-child{border-left:none}
-.mob-sched-lbl{font-size:9px;color:var(--text3);font-weight:600;margin-bottom:3px;white-space:nowrap}
-.mob-sched-name{font-size:11px;font-weight:600;color:var(--text);word-break:break-word;line-height:1.3}
-.mob-sched-name.mv{color:var(--accent)}
-.mob-sched-name.ma{color:var(--info)}
-.mob-sched-name.mb{color:var(--warn)}
-.mob-sched-day.ms-weekend{background:rgba(139,92,246,0.04)}
-.mob-sched-day.ms-weekend .mob-sched-date{background:rgba(139,92,246,0.1)}
-.mob-sched-day.ms-thursday{background:rgba(210,153,34,0.04)}
-.mob-sched-day.ms-today{border-color:var(--accent);border-width:2px}
-.mob-sched-day.ms-mine{border-color:#f97316;border-width:2px}
+.constraint-cal-day:hover{border-color:var(--border2);transform:scale(1.02)}
+.constraint-cal-day:active{transform:scale(0.97)}
+.constraint-blocked{background:rgba(218,54,51,0.12)!important;border-color:rgba(218,54,51,0.4)!important}
+.constraint-blocked .cal-day-num{color:var(--danger)}
+.constraint-preferred{background:rgba(46,160,67,0.1)!important;border-color:rgba(46,160,67,0.35)!important}
+.constraint-preferred .cal-day-num{color:var(--accent)}
 /* ---- RESPONSIVE ---- */
 @media(max-width:768px){
   /* ── Navbar ── */
@@ -435,16 +391,10 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
   .swap-item{flex-direction:column;gap:8px}
   .swap-actions{flex-wrap:wrap;gap:6px;justify-content:flex-end}
 
-  /* ── Constraints calendar (uses isolated cst-* classes, no override needed) ── */
-  .cst-day{min-height:56px;padding:4px 2px}
-  .cst-num{font-size:12px}
-  .cst-icon{font-size:15px}
-
-  /* ── Schedule: hide desktop grid, show mobile rows ── */
-  #admin-schedule-content > div:first-child,
-  #user-schedule-content > div:first-child,
-  #full-schedule-content > div:first-child{display:none!important}
-  .mob-sched{display:block!important}
+  /* ── Constraints calendar ── */
+  .constraint-cal{font-size:11px}
+  .constraint-month-grid{grid-template-columns:repeat(5,1fr)!important}
+  .constraint-cal-day{padding:6px 4px;min-height:36px;font-size:11px}
 
   /* ── Notification panel ── */
   #notif-panel{width:calc(100vw - 20px)!important;right:10px!important;left:10px!important}
@@ -1722,7 +1672,7 @@ let constraintData = new Array(31).fill(false);
 async function loadConstraints() {
   const {year, mon, days, s: month} = parseMonth(document.getElementById('constraint-month-select').value);
   showLoading(true);
-  const res = await api({action:'getConstraints', month, viewAs: currentUser.username});
+  const res = await api({action:'getConstraints', month, ...(currentUser._impersonating ? {viewAs: currentUser.username} : {})});
   showLoading(false);
   if (res.success) {
     // Support both old boolean format and new V/X format
@@ -1741,47 +1691,63 @@ function renderConstraintGrid(year, mon, days) {
   const container = document.getElementById('constraints-grid');
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
   const firstDay = new Date(year, mon-1, 1).getDay(); // 0=Sun
-  const dayHeaders = ["א'","ב'","ג'","ד'","ה'","ו'","ש'"];
+  const dayHeaders = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 
-  // Always render as 7-column grid using isolated cst-* classes
-  let html = `<div class="cst-header-row">${dayHeaders.map(d=>`<div class="cst-header-cell">${d}</div>`).join('')}</div>`;
-  html += `<div class="cst-grid">`;
+  const isMob = window.innerWidth <= 640;
+  let html = isMob
+    ? `<div><div class="cal-grid">`
+    : `<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;cursor:grab">
+  <div style="min-width:560px">
+  <div class="cal-header">${dayHeaders.map(d=>`<div class="cal-header-cell">${d}</div>`).join('')}</div>
+  <div class="cal-grid">`;
 
-  for (let i = 0; i < firstDay; i++) html += `<div class="cst-day cst-empty"></div>`;
+  // Empty cells before first day
+  for (let i = 0; i < firstDay; i++) {
+    html += `<div class="cal-day empty"></div>`;
+  }
 
   for (let d = 1; d <= days; d++) {
     const date = new Date(year, mon-1, d);
     const dow = date.getDay();
     const dateStr = `${year}-${String(mon).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const cellState = constraintData[d-1] || '';
     const isToday = dateStr === todayStr;
     const isWeekend = dow === 5 || dow === 6;
     const isThursday = dow === 4;
-    const state = constraintData[d-1] || '';
 
-    let cls = 'cst-day';
-    if (isWeekend) cls += ' cst-weekend';
-    if (isThursday) cls += ' cst-thursday';
-    if (isToday) cls += ' cst-today';
-    if (state === 'X') cls += ' cst-blocked';
-    if (state === 'V') cls += ' cst-preferred';
+    let dayCls = 'cal-day constraint-cal-day';
+    if (isToday) dayCls += ' today';
+    if (isWeekend) dayCls += ' cal-weekend';
+    if (isThursday) dayCls += ' cal-thursday';
+    if (constraintData[d-1] === 'X') dayCls += ' constraint-blocked';
+    if (constraintData[d-1] === 'V') dayCls += ' constraint-preferred';
 
-    const typeLabel = isWeekend ? 'ש"ס' : isThursday ? "חמישי" : 'חול';
-    const icon = state === 'V' ? '<span style="color:var(--accent)">✓</span>' :
-                 state === 'X' ? '<span style="color:var(--danger)">✕</span>' : '';
+    let typeLabel = isWeekend ? 'סוף שבוע' : isThursday ? 'חמישי' : 'חול';
+    let typeCls = isWeekend ? 'badge-weekend' : isThursday ? 'badge-thursday' : 'badge-weekday';
 
-    html += `<div class="${cls}" onclick="toggleConstraint(${d-1})" id="ccal-${d}">
-      <div class="cst-num">${d}</div>
-      <div class="cst-type">${typeLabel}</div>
-      <div class="cst-icon" id="ci-${d}">${icon}</div>
+    html += `
+    <div class="${dayCls}" onclick="toggleConstraint(${d-1})" id="ccal-${d}" style="cursor:pointer;user-select:none">
+      <div class="cal-day-num">${d}</div>
+      <div class="cal-day-type ${typeCls}" style="font-size:9px;padding:1px 5px;border-radius:10px;margin-top:2px;width:fit-content">${typeLabel}</div>
+      <div class="constraint-indicator" id="ci-${d}" style="margin-top:4px;font-size:16px;font-weight:700;text-align:center">
+        ${constraintData[d-1] === 'V' ? '<span style="color:var(--accent)">✓</span>' : constraintData[d-1] === 'X' ? '<span style="color:var(--danger)">✕</span>' : ''}
+      </div>
     </div>`;
   }
 
-  const totalCells = firstDay + days;
-  const remainder = totalCells % 7;
-  if (remainder > 0) for (let i = 0; i < 7 - remainder; i++) html += `<div class="cst-day cst-empty"></div>`;
-
-  html += `</div>`;
+  // Fill remaining cells (desktop only)
+  if (!isMobAdmin) {
+    const totalCells = firstDay + days;
+    const remainder = totalCells % 7;
+    if (remainder > 0) {
+      for (let i = 0; i < 7 - remainder; i++) {
+        html += `<div class="cal-day empty"></div>`;
+      }
+    }
+  }
+  html += `</div></div></div>`;
   container.innerHTML = html;
 }
 
@@ -1796,9 +1762,9 @@ function toggleConstraint(idx) {
   const indicator = document.getElementById('ci-' + day);
 
   if (cell) {
-    cell.classList.remove('cst-blocked','cst-preferred');
-    if (next === 'X') cell.classList.add('cst-blocked');
-    if (next === 'V') cell.classList.add('cst-preferred');
+    cell.classList.remove('constraint-blocked','constraint-preferred');
+    if (next === 'X') cell.classList.add('constraint-blocked');
+    if (next === 'V') cell.classList.add('constraint-preferred');
   }
   if (indicator) {
     indicator.innerHTML =
@@ -1815,7 +1781,7 @@ async function saveConstraints() {
   const month = String(document.getElementById('constraint-month-select').value);
   const notes = document.getElementById('constraint-notes').value;
   showLoading(true);
-  const res = await api({action:'saveConstraints', month, constraints: constraintData, notes, viewAs: currentUser.username}); // V/X/'' array
+  const res = await api({action:'saveConstraints', month, constraints: constraintData, notes, ...(currentUser._impersonating ? {viewAs: currentUser.username} : {})});
   showLoading(false);
   showAlert('constraint-alert', res.success ? '✓ האילוצים נשמרו בהצלחה!' : res.error, res.success?'success':'error');
 }
@@ -2147,31 +2113,7 @@ function renderAdminSchedule(schedule, month) {
   }
 
   html += `</div></div></div>`;
-
-  // Mobile: card rows (מבצע | עתודה א' | עתודה ב')
-  const HEB_DAYS_FULL = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
-  let mobHtml = `<div class="mob-sched">`;
-  for (let d2 = 1; d2 <= daysInMonth; d2++) {
-    const ds2 = `${year}-${String(mon).padStart(2,'0')}-${String(d2).padStart(2,'0')}`;
-    const e2 = schedMap[ds2] || {};
-    const dow2 = new Date(year, mon-1, d2).getDay();
-    const isTod2 = ds2 === todayStr;
-    const isWE2 = dow2 === 5 || dow2 === 6;
-    const isThu2 = dow2 === 4;
-    let mCls = 'mob-sched-day';
-    if (isWE2) mCls += ' ms-weekend';
-    else if (isThu2) mCls += ' ms-thursday';
-    if (isTod2) mCls += ' ms-today';
-    mobHtml += `<div class="${mCls}">
-      <div class="mob-sched-date"><div class="msn">${d2}</div><div class="msd">${HEB_DAYS_FULL[dow2]}</div></div>
-      <div class="mob-sched-cell"><div class="mob-sched-lbl">מבצע</div><div class="mob-sched-name mv">${e2.v||'—'}</div></div>
-      <div class="mob-sched-cell"><div class="mob-sched-lbl">עתודה א'</div><div class="mob-sched-name ma">${e2.a||'—'}</div></div>
-      <div class="mob-sched-cell"><div class="mob-sched-lbl">עתודה ב'</div><div class="mob-sched-name mb">${e2.b||'—'}</div></div>
-    </div>`;
-  }
-  mobHtml += `</div>`;
-
-  container.innerHTML = html + mobHtml;
+  container.innerHTML = html;
 }
 
 
@@ -2826,32 +2768,12 @@ function renderUserSchedule(schedule, month) {
   if (rem > 0) for (let i = 0; i < 7-rem; i++) html += `<div class="cal-day empty"></div>`;
 
   html += '</div></div></div>';
+  html += `<div style="display:flex;gap:16px;margin-top:12px;flex-wrap:wrap;font-size:12px;color:var(--text2)">
+    <span><span style="background:rgba(46,160,67,0.15);padding:2px 8px;border-radius:4px">■</span> התורנות שלי</span>
+    <span>✓ מבצע &nbsp; א׳ עתודה ראשונה &nbsp; ב׳ עתודה שנייה</span>
+  </div>`;
 
-  // Mobile: card rows
-  const HEB_FULL = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
-  let mobH = `<div class="mob-sched">`;
-  schedule.forEach(e2 => {
-    const d2 = parseInt(e2.date.split('-')[2] || e2.date.split('/')[0]);
-    const dow2 = new Date(year, mon-1, d2).getDay();
-    const isTod2 = e2.date === todayStr;
-    const isWE2 = dow2 === 5 || dow2 === 6;
-    const isThu2 = dow2 === 4;
-    const isMe2 = e2.v===currentUser.name||e2.a===currentUser.name||e2.b===currentUser.name;
-    let mCls = 'mob-sched-day';
-    if (isWE2) mCls += ' ms-weekend';
-    else if (isThu2) mCls += ' ms-thursday';
-    if (isTod2) mCls += ' ms-today';
-    if (isMe2 && !isTod2) mCls += ' ms-mine';
-    mobH += `<div class="${mCls}">
-      <div class="mob-sched-date"><div class="msn">${d2}</div><div class="msd">${HEB_FULL[dow2]}</div></div>
-      <div class="mob-sched-cell"><div class="mob-sched-lbl">מבצע</div><div class="mob-sched-name mv">${e2.v||'—'}</div></div>
-      <div class="mob-sched-cell"><div class="mob-sched-lbl">עתודה א'</div><div class="mob-sched-name ma">${e2.a||'—'}</div></div>
-      <div class="mob-sched-cell"><div class="mob-sched-lbl">עתודה ב'</div><div class="mob-sched-name mb">${e2.b||'—'}</div></div>
-    </div>`;
-  });
-  mobH += `</div>`;
-
-  container.innerHTML = html + mobH;
+  container.innerHTML = html;
 }
 
 // =====================================================
