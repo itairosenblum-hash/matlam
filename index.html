@@ -863,8 +863,8 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
               <table class="schedule-table" style="min-width:400px">
                 <thead><tr><th>סוג תורנות</th><th>ניקוד</th><th>הסבר</th></tr></thead>
                 <tbody>
-                  <tr><td>דולג</td><td><span style="color:var(--text3);font-weight:700">0</span></td><td class="text-muted text-sm">לא שובץ החודש</td></tr>
-                  <tr><td>פטור</td><td><span style="color:var(--accent);font-weight:700">10</span></td><td class="text-muted text-sm">ניקוד סמלי</td></tr>
+                  <tr><td>דולג</td><td><span style="color:var(--text3);font-weight:700">0</span></td><td class="text-muted text-sm">פטור / לא שובץ</td></tr>
+                  <tr><td>פטור</td><td><span style="color:var(--text3);font-weight:700">10</span></td><td class="text-muted text-sm">ניקוד סמלי</td></tr>
                   <tr><td>חול</td><td><span style="color:var(--accent);font-weight:700">10</span></td><td class="text-muted text-sm">יום חול רגיל</td></tr>
                   <tr><td>חמישי</td><td><span style="color:var(--accent);font-weight:700">12</span></td><td class="text-muted text-sm">יום חמישי</td></tr>
                   <tr><td>חול 24 שעות</td><td><span style="color:var(--accent);font-weight:700">15</span></td><td class="text-muted text-sm">24 שעות ביום חול</td></tr>
@@ -872,27 +872,24 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
                   <tr><td>הדממה</td><td><span style="color:var(--accent);font-weight:700">18</span></td><td class="text-muted text-sm">תורנות הדממה</td></tr>
                   <tr><td>חמישי הדממה</td><td><span style="color:var(--accent);font-weight:700">19</span></td><td class="text-muted text-sm">הדממה בחמישי</td></tr>
                   <tr><td>סוף שבוע</td><td><span style="color:var(--warn);font-weight:700">20</span></td><td class="text-muted text-sm">שישי או שבת בנפרד</td></tr>
-                  <tr><td>חול + חמישי</td><td><span style="color:var(--warn);font-weight:700">22</span></td><td class="text-muted text-sm">יום חול + יום חמישי</td></tr>
+                  <tr><td>חול + חמישי</td><td><span style="color:var(--warn);font-weight:700">22</span></td><td class="text-muted text-sm">חול + חמישי</td></tr>
                   <tr><td>חול + חול</td><td><span style="color:var(--warn);font-weight:700">24</span></td><td class="text-muted text-sm">שני ימי חול</td></tr>
-                  <tr><td>חג</td><td><span style="color:var(--warn);font-weight:700">25</span></td><td class="text-muted text-sm">יום חג</td></tr>
-                  <tr><td>ערב חג</td><td><span style="color:var(--warn);font-weight:700">25</span></td><td class="text-muted text-sm">ערב חג</td></tr>
+                  <tr><td>חג / ערב חג</td><td><span style="color:var(--warn);font-weight:700">25</span></td><td class="text-muted text-sm">יום חג או ערב חג</td></tr>
                   <tr><td>חול 24 שעות + חול</td><td><span style="color:var(--warn);font-weight:700">25</span></td><td class="text-muted text-sm">—</td></tr>
                   <tr><td>חמישי 24 שעות + חול</td><td><span style="color:var(--warn);font-weight:700">26</span></td><td class="text-muted text-sm">—</td></tr>
                   <tr><td>הדממה + חול</td><td><span style="color:var(--warn);font-weight:700">28</span></td><td class="text-muted text-sm">—</td></tr>
-                  <tr><td>חול + שבת</td><td><span style="color:var(--warn);font-weight:700">30</span></td><td class="text-muted text-sm">—</td></tr>
-                  <tr><td>שבת הקפצה</td><td><span style="color:var(--warn);font-weight:700">30</span></td><td class="text-muted text-sm">הקפצה בשבת</td></tr>
-                  <tr><td>הדממה + חמישי</td><td><span style="color:var(--warn);font-weight:700">30</span></td><td class="text-muted text-sm">—</td></tr>
+                  <tr><td>חול + שבת / שבת הקפצה</td><td><span style="color:var(--warn);font-weight:700">30</span></td><td class="text-muted text-sm">—</td></tr>
                   <tr><td>חול 24 שעות + חול 24 שעות</td><td><span style="color:var(--warn);font-weight:700">30</span></td><td class="text-muted text-sm">—</td></tr>
+                  <tr><td>הדממה + חמישי</td><td><span style="color:var(--warn);font-weight:700">30</span></td><td class="text-muted text-sm">—</td></tr>
                   <tr><td>חול 24 שעות + חמישי</td><td><span style="color:var(--warn);font-weight:700">31</span></td><td class="text-muted text-sm">—</td></tr>
                   <tr><td>סוף שבוע + חמישי</td><td><span style="color:var(--danger);font-weight:700">32</span></td><td class="text-muted text-sm">—</td></tr>
-                  <tr><td>חג + חול</td><td><span style="color:var(--danger);font-weight:700">35</span></td><td class="text-muted text-sm">—</td></tr>
                   <tr><td>חול 24 שעות + שבת</td><td><span style="color:var(--danger);font-weight:700">35</span></td><td class="text-muted text-sm">—</td></tr>
+                  <tr><td>חג + חול</td><td><span style="color:var(--danger);font-weight:700">35</span></td><td class="text-muted text-sm">—</td></tr>
                   <tr><td>סוף שבוע + חול</td><td><span style="color:var(--danger);font-weight:700">36</span></td><td class="text-muted text-sm">—</td></tr>
                   <tr><td>חג + חמישי</td><td><span style="color:var(--danger);font-weight:700">37</span></td><td class="text-muted text-sm">—</td></tr>
                   <tr><td>סוף שבוע מלא</td><td><span style="color:var(--danger);font-weight:700">40</span></td><td class="text-muted text-sm">שישי + שבת ביחד</td></tr>
                   <tr><td>חג + סוף שבוע</td><td><span style="color:var(--danger);font-weight:700">45</span></td><td class="text-muted text-sm">—</td></tr>
-                  <tr><td>יומיים חג</td><td><span style="color:var(--danger);font-weight:700">50</span></td><td class="text-muted text-sm">—</td></tr>
-                  <tr><td>סוף שבוע מלא + חול</td><td><span style="color:var(--danger);font-weight:700">50</span></td><td class="text-muted text-sm">הניקוד הגבוה ביותר</td></tr>
+                  <tr><td>יומיים חג / סוף שבוע מלא + חול</td><td><span style="color:var(--danger);font-weight:700">50</span></td><td class="text-muted text-sm">הניקוד הגבוה ביותר</td></tr>
                 </tbody>
               </table>
             </div>
@@ -970,9 +967,8 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
             </div>
 
             <div style="background:var(--surface2);border-radius:8px;padding:12px 14px;font-size:13px;color:var(--text2)">
-              💡 תורן חדש מקבל ניקוד התחלתי שווה לממוצע כל התורנים הפעילים — כדי להיכנס לסבב בצורה הוגנת.
+              💡 מי שלא שובץ החודש ("דולג") מקבל +10 נקודות אוטומטית. תורן חדש מקבל ניקוד התחלתי שווה לממוצע כל התורנים הפעילים.
             </div>
-          </div>
 
           <!-- אילוצים -->
           <div class="card">
@@ -1071,63 +1067,6 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
               <div>⏳ <strong>ממתין לאישור מנהל</strong> — התורן אישר, מחכה למנהל</div>
               <div>✅ <strong>אושר</strong> — הלוח עודכן</div>
               <div>❌ <strong>נדחה</strong> — הבקשה נדחתה</div>
-            </div>
-          </div>
-
-
-          <!-- פרופיל ושינוי פרטים -->
-          <div class="card">
-            <div class="card-title" style="font-size:16px;margin-bottom:16px">👤 פרופיל אישי ושינוי פרטים</div>
-            <p style="color:var(--text2);font-size:14px;line-height:1.8;margin-bottom:16px">
-              בלשונית <strong>"👤 פרופיל"</strong> תוכל לראות את הפרטים האישיים שלך ולבקש שינויים.
-            </p>
-            <div style="display:grid;gap:10px;margin-bottom:14px">
-              <div style="display:flex;gap:12px;align-items:flex-start;padding:10px 14px;background:var(--surface2);border-radius:8px">
-                <span style="font-size:18px">📋</span>
-                <div>
-                  <div style="font-weight:600;font-size:14px">פרטים שניתן לשנות</div>
-                  <div style="color:var(--text2);font-size:13px;margin-top:3px">טלפון, אימייל וסיסמה — ניתן לעדכן ישירות. שינויים בסוג תורנות וסוג סוף שבוע דורשים אישור מנהל.</div>
-                </div>
-              </div>
-              <div style="display:flex;gap:12px;align-items:flex-start;padding:10px 14px;background:var(--surface2);border-radius:8px">
-                <span style="font-size:18px">✉️</span>
-                <div>
-                  <div style="font-weight:600;font-size:14px">בקשת שינוי פרופיל</div>
-                  <div style="color:var(--text2);font-size:13px;margin-top:3px">הבקשה נשלחת למנהל לאישור. תקבל התראה באימייל לאחר שהבקשה אושרה או נדחתה.</div>
-                </div>
-              </div>
-              <div style="display:flex;gap:12px;align-items:flex-start;padding:10px 14px;background:var(--surface2);border-radius:8px">
-                <span style="font-size:18px">🔑</span>
-                <div>
-                  <div style="font-weight:600;font-size:14px">שינוי סיסמה</div>
-                  <div style="color:var(--text2);font-size:13px;margin-top:3px">הזן סיסמה נוכחית + סיסמה חדשה. הסיסמה החדשה חייבת להיות לפחות 6 תווים.</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- התראות -->
-          <div class="card">
-            <div class="card-title" style="font-size:16px;margin-bottom:16px">🔔 מערכת ההתראות</div>
-            <p style="color:var(--text2);font-size:14px;line-height:1.8;margin-bottom:14px">
-              הפעמון 🔔 בפינה הימנית העליונה מציג התראות על אירועים רלוונטיים. לחיצה עליו פותחת את פאנל ההתראות.
-            </p>
-            <div style="display:grid;gap:8px;margin-bottom:14px">
-              <div style="display:flex;gap:10px;align-items:center;padding:8px 12px;background:var(--surface2);border-radius:8px;font-size:13px">
-                <span>📨</span><span style="color:var(--text2)">בקשת החלפה נכנסת — מישהו ביקש להחליף איתך תורנות</span>
-              </div>
-              <div style="display:flex;gap:10px;align-items:center;padding:8px 12px;background:var(--surface2);border-radius:8px;font-size:13px">
-                <span>✅</span><span style="color:var(--text2)">בקשת ההחלפה שלך אושרה / נדחתה</span>
-              </div>
-              <div style="display:flex;gap:10px;align-items:center;padding:8px 12px;background:var(--surface2);border-radius:8px;font-size:13px">
-                <span>👤</span><span style="color:var(--text2)">בקשת שינוי פרופיל שלך אושרה / נדחתה</span>
-              </div>
-              <div style="display:flex;gap:10px;align-items:center;padding:8px 12px;background:var(--surface2);border-radius:8px;font-size:13px">
-                <span>📣</span><span style="color:var(--text2)">הודעה כללית מהמנהל לכלל התורנים</span>
-              </div>
-            </div>
-            <div style="background:var(--surface3);border-radius:8px;padding:12px 14px;font-size:13px;color:var(--text2)">
-              💡 ניתן לנקות את כל ההתראות בלחיצה על ✕.
             </div>
           </div>
 
@@ -1799,7 +1738,7 @@ function renderConstraintGrid(year, mon, days) {
   }
 
   // Fill remaining cells (desktop only)
-  if (!isMobAdmin) {
+  if (!isMob) {
     const totalCells = firstDay + days;
     const remainder = totalCells % 7;
     if (remainder > 0) {
