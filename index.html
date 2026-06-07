@@ -1765,7 +1765,7 @@ function renderConstraintGrid(year, mon, days) {
   }
 
   // Fill remaining cells (desktop only)
-  if (!isMobAdmin) {
+  if (!isMob) {
     const totalCells = firstDay + days;
     const remainder = totalCells % 7;
     if (remainder > 0) {
