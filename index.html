@@ -749,10 +749,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
               <select id="admin-schedule-month" onchange="debounceLoad(loadAdminSchedule)"></select>
             </div>
             <button class="btn btn-secondary" onclick="openGenerateModal()">⚡ הפק שיבוץ</button>
-            <div style="display:flex;gap:2px;background:var(--surface3);border-radius:var(--radius);padding:3px">
-              <button id="admin-view-grid" onclick="setScheduleView('grid','admin')" class="tab-btn active" title="גריד">⊞</button>
-              <button id="admin-view-list" onclick="setScheduleView('list','admin')" class="tab-btn" title="רשימה">☰</button>
-            </div>
+
             <button class="btn btn-secondary btn-sm" onclick="exportToPDF()" title="ייצוא PDF">📄 PDF</button>
             <button class="btn btn-secondary btn-sm" onclick="openSendScheduleModal()" title="שלח לוח למייל">📧 שלח</button>
             <button class="btn btn-danger btn-sm" onclick="resetSchedule()" title="איפוס לוח החודש">🗑️ אפס לוח</button>
@@ -815,14 +812,8 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
             <div class="section-title">📅 לוח תורנויות</div>
             <div class="section-subtitle">תצוגה בלבד</div>
           </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <div class="month-picker">
-              <select id="user-schedule-month" onchange="loadUserFullSchedule()"></select>
-            </div>
-            <div style="display:flex;gap:2px;background:var(--surface3);border-radius:var(--radius);padding:3px">
-              <button id="user-view-grid" onclick="setScheduleView('grid','user')" class="tab-btn active" title="גריד">⊞</button>
-              <button id="user-view-list" onclick="setScheduleView('list','user')" class="tab-btn" title="רשימה">☰</button>
-            </div>
+          <div class="month-picker">
+            <select id="user-schedule-month" onchange="loadUserFullSchedule()"></select>
           </div>
         </div>
         <div id="user-schedule-content"></div>
@@ -2057,19 +2048,12 @@ async function loadAdminSchedule() {
 }
 
 function renderAdminSchedule(schedule, month) {
-  window._lastAdminSchedule = {schedule, month};
   const container = document.getElementById('admin-schedule-content');
   if (!schedule || !schedule.length) {
     container.innerHTML = `<div class="empty-state"><div class="icon">📭</div><p>אין לוח תורנויות לחודש זה. לחץ "הפק שיבוץ" כדי להתחיל.</p></div>`;
     return;
   }
-  // Apply view mode
-  const viewMode = _schedView.admin || 'grid';
-  const gb = document.getElementById('admin-view-grid');
-  const lb = document.getElementById('admin-view-list');
-  if (gb) gb.classList.toggle('active', viewMode === 'grid');
-  if (lb) lb.classList.toggle('active', viewMode === 'list');
-  if (viewMode === 'list') {
+  if (window.innerWidth <= 640) {
     container.innerHTML = renderScheduleList(schedule, month, 'admin');
     return;
   }
@@ -2418,24 +2402,6 @@ async function loadScores() {
 // =====================================================
 // SCHEDULE VIEW TOGGLE (grid / list)
 // =====================================================
-const _schedView = {admin: localStorage.getItem('schedView_admin') || 'grid', user: localStorage.getItem('schedView_user') || 'grid'};
-
-function setScheduleView(mode, who) {
-  _schedView[who] = mode;
-  localStorage.setItem('schedView_' + who, mode);
-  const gridBtn = document.getElementById(who + '-view-grid');
-  const listBtn = document.getElementById(who + '-view-list');
-  if (gridBtn) { gridBtn.classList.toggle('active', mode === 'grid'); }
-  if (listBtn) { listBtn.classList.toggle('active', mode === 'list'); }
-  if (who === 'admin') {
-    const s = window._lastAdminSchedule;
-    if (s) renderAdminSchedule(s.schedule, s.month);
-  } else {
-    const s = window._lastUserSchedule;
-    if (s) renderUserSchedule(s.schedule, s.month);
-  }
-}
-
 function renderScheduleList(schedule, month, who) {
   const HEB_DAYS_FULL = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
   const {year, mon} = parseMonth(month);
@@ -2499,7 +2465,7 @@ async function loadAdminConstraints() {
   const activeNames = allNames.filter(name => {
     if (name === 'מנהל מערכת' || name === 'admin') return false; // exclude admin
     const c = res.constraints[name];
-    return c.constraints.some(v => v === 'V' || v === 'X');
+    return c.constraints.some(v => v === 'V' || v === 'X') || (c.notes && c.notes.trim());
   });
 
   if (activeNames.length === 0) {
@@ -2973,14 +2939,8 @@ async function loadUserFullSchedule() {
 }
 
 function renderUserSchedule(schedule, month) {
-  window._lastUserSchedule = {schedule, month};
   const container = document.getElementById('user-schedule-content');
-  const viewMode = _schedView.user || 'grid';
-  const gb = document.getElementById('user-view-grid');
-  const lb = document.getElementById('user-view-list');
-  if (gb) gb.classList.toggle('active', viewMode === 'grid');
-  if (lb) lb.classList.toggle('active', viewMode === 'list');
-  if (viewMode === 'list') {
+  if (window.innerWidth <= 640) {
     container.innerHTML = renderScheduleList(schedule, month, 'user');
     return;
   }
