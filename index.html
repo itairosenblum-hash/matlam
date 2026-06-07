@@ -229,11 +229,16 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
   }
   .cal-header{display:none!important}
   .cal-grid{display:flex!important;flex-direction:column;gap:6px!important;padding:8px!important}
+  /* Exception: constraint calendar stays as 7-column grid */
+  #constraints-grid .cal-grid{display:grid!important;flex-direction:unset!important;grid-template-columns:repeat(7,1fr)!important;gap:3px!important;padding:4px!important}
   .cal-header-row{display:none!important}
   .cal-empty{display:none!important}
   .cal-day-num:empty{display:none}
 
-  .cal-day{
+  /* Schedule cal-day: card row layout (NOT for constraint calendar) */
+  #admin-schedule-content .cal-day,
+  #user-schedule-content .cal-day,
+  #full-schedule-content .cal-day{
     display:grid!important;
     grid-template-columns:52px 1fr auto!important;
     min-height:auto!important;
@@ -1672,19 +1677,24 @@ let constraintData = new Array(31).fill(false);
 async function loadConstraints() {
   const {year, mon, days, s: month} = parseMonth(document.getElementById('constraint-month-select').value);
   showLoading(true);
-  const res = await api({action:'getConstraints', month, viewAs: currentUser.username});
-  showLoading(false);
-  if (res.success) {
-    // Support both old boolean format and new V/X format
-    constraintData = res.constraints.slice(0, days).map(c => {
-      if (c === 'V' || c === 'v') return 'V';
-      if (c === 'X' || c === 'x' || c === true) return 'X';
-      return '';
-    });
-    while (constraintData.length < days) constraintData.push('');
-    document.getElementById('constraint-notes').value = res.notes || '';
+  try {
+    const res = await api({action:'getConstraints', month, viewAs: currentUser.username});
+    if (res && res.success) {
+      constraintData = res.constraints.slice(0, days).map(c => {
+        if (c === 'V' || c === 'v') return 'V';
+        if (c === 'X' || c === 'x' || c === true) return 'X';
+        return '';
+      });
+      while (constraintData.length < days) constraintData.push('');
+      document.getElementById('constraint-notes').value = res.notes || '';
+    }
+  } catch(e) {
+    console.error('loadConstraints error:', e);
+    if (!constraintData || constraintData.length < days) constraintData = new Array(days).fill('');
+  } finally {
+    showLoading(false);
+    renderConstraintGrid(year, mon, days);
   }
-  renderConstraintGrid(year, mon, days);
 }
 
 function renderConstraintGrid(year, mon, days) {
@@ -1738,7 +1748,7 @@ function renderConstraintGrid(year, mon, days) {
   }
 
   // Fill remaining cells (desktop only)
-  if (!isMob) {
+  if (!isMobAdmin) {
     const totalCells = firstDay + days;
     const remainder = totalCells % 7;
     if (remainder > 0) {
@@ -1747,8 +1757,7 @@ function renderConstraintGrid(year, mon, days) {
       }
     }
   }
-  // Mobile opens 2 divs, desktop opens 3 divs (overflow + min-width + cal-grid)
-  html += isMob ? `</div></div>` : `</div></div></div>`;
+  html += `</div></div></div>`;
   container.innerHTML = html;
 }
 
