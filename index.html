@@ -1718,19 +1718,62 @@ function renderConstraintGrid(year, mon, days) {
   const container = document.getElementById('constraints-grid');
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-
-  const firstDay = new Date(year, mon-1, 1).getDay(); // 0=Sun
+  const firstDay = new Date(year, mon-1, 1).getDay();
   const dayHeaders = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
-
+  const HEB_DAYS_FULL = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
   const isMob = window.innerWidth <= 640;
-  let html = isMob
-    ? `<div><div class="cal-grid">`
-    : `<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;cursor:grab">
+
+  if (isMob) {
+    // ── Mobile: same row-per-day style as schedule list ──
+    let html = '<div class="sched-list">';
+    for (let d = 1; d <= days; d++) {
+      const dow = new Date(year, mon-1, d).getDay();
+      const dateStr = `${year}-${String(mon).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const isToday = dateStr === todayStr;
+      const isWE = dow === 5 || dow === 6;
+      const isThu = dow === 4;
+      const val = constraintData[d-1] || '';
+
+      let cls = 'sched-row';
+      if (isToday) cls += ' sl-today';
+      else if (isWE) cls += ' sl-weekend';
+      else if (isThu) cls += ' sl-thursday';
+      if (val === 'X') cls += ' constraint-blocked';
+      if (val === 'V') cls += ' constraint-preferred';
+
+      const indicatorHtml = val === 'V'
+        ? `<span style="color:var(--accent);font-size:22px;font-weight:800">✓</span>`
+        : val === 'X'
+        ? `<span style="color:var(--danger);font-size:22px;font-weight:800">✕</span>`
+        : `<span style="color:var(--text3);font-size:18px">—</span>`;
+
+      let typeLabel = isWE ? 'סוף שבוע' : isThu ? 'חמישי' : 'חול';
+      let typeCls = isWE ? 'badge-weekend' : isThu ? 'badge-thursday' : 'badge-weekday';
+
+      html += `<div class="${cls}" id="ccal-${d}" onclick="toggleConstraint(${d-1})" style="cursor:pointer;user-select:none">
+        <div class="sl-date">
+          <div class="sl-date-num">${d}</div>
+          <div class="sl-date-name">${HEB_DAYS_FULL[dow]}</div>
+        </div>
+        <div class="sl-cell" style="flex:1">
+          <div class="sl-lbl"><span class="cal-day-type ${typeCls}" style="font-size:10px;padding:2px 7px;border-radius:10px">${typeLabel}</span></div>
+        </div>
+        <div class="sl-cell" style="align-items:center;justify-content:center;min-width:60px;border-left:none">
+          <div id="ci-${d}" style="text-align:center">${indicatorHtml}</div>
+        </div>
+      </div>`;
+    }
+    html += '</div>';
+    container.innerHTML = html;
+    return;
+  }
+
+  // ── Desktop: 7-column grid (unchanged) ──
+  let html = `<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;cursor:grab">
   <div style="min-width:560px">
   <div class="cal-header">${dayHeaders.map(d=>`<div class="cal-header-cell">${d}</div>`).join('')}</div>
   <div class="cal-grid">`;
 
-  // Empty cells before first day
   for (let i = 0; i < firstDay; i++) {
     html += `<div class="cal-day empty"></div>`;
   }
@@ -1739,7 +1782,6 @@ function renderConstraintGrid(year, mon, days) {
     const date = new Date(year, mon-1, d);
     const dow = date.getDay();
     const dateStr = `${year}-${String(mon).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const cellState = constraintData[d-1] || '';
     const isToday = dateStr === todayStr;
     const isWeekend = dow === 5 || dow === 6;
     const isThursday = dow === 4;
@@ -1764,14 +1806,11 @@ function renderConstraintGrid(year, mon, days) {
     </div>`;
   }
 
-  // Fill remaining cells (desktop only)
-  if (!isMob) {
-    const totalCells = firstDay + days;
-    const remainder = totalCells % 7;
-    if (remainder > 0) {
-      for (let i = 0; i < 7 - remainder; i++) {
-        html += `<div class="cal-day empty"></div>`;
-      }
+  const totalCells = firstDay + days;
+  const remainder = totalCells % 7;
+  if (remainder > 0) {
+    for (let i = 0; i < 7 - remainder; i++) {
+      html += `<div class="cal-day empty"></div>`;
     }
   }
   html += `</div></div></div>`;
@@ -1794,9 +1833,17 @@ function toggleConstraint(idx) {
     if (next === 'V') cell.classList.add('constraint-preferred');
   }
   if (indicator) {
-    indicator.innerHTML =
-      next === 'V' ? '<span style="color:var(--accent)">✓</span>' :
-      next === 'X' ? '<span style="color:var(--danger)">✕</span>' : '';
+    const isMob = window.innerWidth <= 640;
+    if (isMob) {
+      indicator.innerHTML =
+        next === 'V' ? '<span style="color:var(--accent);font-size:22px;font-weight:800">✓</span>' :
+        next === 'X' ? '<span style="color:var(--danger);font-size:22px;font-weight:800">✕</span>' :
+        '<span style="color:var(--text3);font-size:18px">—</span>';
+    } else {
+      indicator.innerHTML =
+        next === 'V' ? '<span style="color:var(--accent)">✓</span>' :
+        next === 'X' ? '<span style="color:var(--danger)">✕</span>' : '';
+    }
   }
   const prefEl = document.getElementById('pref-count');
   const blockEl = document.getElementById('blocked-count');
