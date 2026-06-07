@@ -1789,7 +1789,7 @@ function renderConstraintGrid(year, mon, days) {
     if (state === 'X') cls += ' cst-blocked';
     else if (state === 'V') cls += ' cst-preferred';
 
-    const typeLabel = isWeekend ? 'ש"ס' : isThursday ? 'ה'' : 'חול';
+    const typeLabel = isWeekend ? 'ש"ס' : isThursday ? "ה'" : 'חול';
     const icon = state === 'V' ? `<span style="color:var(--accent)">✓</span>` :
                  state === 'X' ? `<span style="color:var(--danger)">✕</span>` : '';
 
