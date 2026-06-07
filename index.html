@@ -1978,6 +1978,7 @@ async function loadUsers() { // keep name for tab switching
             <div class="flex gap-8">
               <button class="btn btn-secondary btn-sm" onclick='openEditTorani(${JSON.stringify(t)})'>✏️</button>
               <button class="btn btn-secondary btn-sm" onclick="resetPassword('${t.username}','${t.name}')">🔑</button>
+              <button class="btn btn-secondary btn-sm" onclick="sendLoginDetails('${t.username}','${t.name}')" title="שלח פרטי כניסה למייל">📧</button>
               <button class="btn btn-secondary btn-sm" onclick="toggleTorani('${t.username}')">${t.active?'🔒':'🔓'}</button>
             </div>
           </td>
@@ -2057,6 +2058,15 @@ async function saveTorani() {
   showLoading(false);
   if (res.success) { closeModal('modal-add-torani'); loadUsers(); }
   else showAlert('torani-alert', res.error||'שגיאה', 'error');
+}
+
+async function sendLoginDetails(username, name) {
+  if (!confirm(`לשלוח פרטי כניסה למייל של ${name}?`)) return;
+  showLoading(true);
+  const res = await api({action:'sendCredentialsOne', username});
+  showLoading(false);
+  if (res.ok) showAlert('torani-alert', `פרטי כניסה נשלחו ל-${name} ✉️`, 'success');
+  else showAlert('torani-alert', res.error || 'שגיאה בשליחה', 'error');
 }
 
 async function toggleTorani(username) {
