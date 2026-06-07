@@ -285,13 +285,58 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
   .cal-persons{
     display:flex!important;
     flex-direction:column;
-    gap:3px;
+    gap:4px;
     min-width:0;
     flex:1;
   }
   .cal-day-type-label{
-    margin-bottom:4px!important;
+    margin-bottom:2px!important;
   }
+
+  /* 3-cell persons row: מבצע | א | ב */
+  .mob-persons-row{
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr;
+    gap:4px;
+  }
+  .mob-v2-row{
+    border-top:1px dashed rgba(128,128,128,0.25);
+    padding-top:4px;
+    margin-top:2px;
+    opacity:0.8;
+  }
+  .mob-person-cell{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    border-radius:8px;
+    padding:4px 3px;
+    min-height:44px;
+    text-align:center;
+  }
+  .mob-person-empty{
+    background:var(--surface2);
+    opacity:0.3;
+  }
+  .mob-person-label{
+    font-size:9px;
+    font-weight:700;
+    opacity:0.7;
+    line-height:1;
+    margin-bottom:2px;
+  }
+  .mob-person-name{
+    font-size:11px;
+    font-weight:600;
+    line-height:1.2;
+    word-break:break-word;
+  }
+  .mob-v{background:rgba(46,160,67,0.12);color:var(--accent)}
+  .mob-a{background:rgba(56,139,253,0.12);color:var(--info)}
+  .mob-b{background:rgba(210,153,34,0.1);color:var(--warn)}
+
+  /* legacy cal-person (used in user-schedule view) */
   .cal-person{
     font-size:11px!important;
     padding:3px 6px!important;
@@ -299,7 +344,6 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
     display:block!important;
     white-space:normal!important;
     overflow:visible!important;
-    text-overflow:unset!important;
     width:100%!important;
     word-break:break-word;
     line-height:1.3;
@@ -2080,15 +2124,6 @@ function renderAdminSchedule(schedule, month) {
     const isHolType = e.dayType === 'חג' || e.dayType === 'ערב חג';
     const dutyLabel = isHolType && e.notes ? e.notes : (e.dutyType || '');
     const typeBadge = dutyLabel ? `<div class="cal-day-type ${getDayBadge(e.dayType)}" style="font-size:9px;padding:1px 5px;border-radius:10px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${dutyLabel}">${dutyLabel}</div>` : '';
-    const vTag = e.v ? `<div class="cal-person cal-v" style="font-weight:700">✓ ${e.v}</div>` : '';
-    const aTag = e.a ? `<div class="cal-person cal-a" style="opacity:0.85">א ${e.a}</div>` : '';
-    const bTag = e.b ? `<div class="cal-person cal-b" style="opacity:0.75">ב ${e.b}</div>` : '';
-    const v2Tag = e.v2 ? `<div style="border-top:1px dashed rgba(128,128,128,0.3);margin-top:3px;padding-top:2px;opacity:0.75">
-      <div style="font-size:8px;color:var(--text3);margin-bottom:1px">תורנות שנייה</div>
-      <div class="cal-person cal-v" style="font-size:9px">✓ ${e.v2}</div>
-      ${e.a2?`<div class="cal-person cal-a" style="font-size:9px">א ${e.a2}</div>`:''}
-      ${e.b2?`<div class="cal-person cal-b" style="font-size:9px">ב ${e.b2}</div>`:''}
-    </div>` : '';
     const entryKey = `cal_${month}_${d}`;
     window._calEntries = window._calEntries || {};
     window._calEntries[entryKey] = e || {date:dateStr,v:'',a:'',b:'',v2:'',a2:'',b2:'',notes:'',dayType:cat,dutyType:''};
@@ -2097,6 +2132,23 @@ function renderAdminSchedule(schedule, month) {
     const HEB_DAYS_SHORT = ['א','ב','ג','ד','ה','ו','ש'];
     const dateObj2 = new Date(year, mon-1, d);
     const dayName = HEB_DAYS_SHORT[dateObj2.getDay()];
+
+    const mkCell = (name, cls, prefix) => name
+      ? `<div class="mob-person-cell ${cls}"><span class="mob-person-label">${prefix}</span><span class="mob-person-name">${name}</span></div>`
+      : `<div class="mob-person-cell mob-person-empty"></div>`;
+
+    const personsRow = `<div class="mob-persons-row">
+      ${mkCell(e.v,'mob-v','✓')}
+      ${mkCell(e.a,'mob-a','א')}
+      ${mkCell(e.b,'mob-b','ב')}
+    </div>`;
+
+    const v2Row = e.v2 ? `<div class="mob-persons-row mob-v2-row">
+      ${mkCell(e.v2,'mob-v','✓')}
+      ${mkCell(e.a2||'','mob-a','א')}
+      ${mkCell(e.b2||'','mob-b','ב')}
+    </div>` : '';
+
     html += `
     <div class="${dayCls}">
       <div class="cal-day-header">
@@ -2105,7 +2157,7 @@ function renderAdminSchedule(schedule, month) {
       </div>
       <div class="cal-persons">
         ${typeBadge ? `<div class="cal-day-type-label">${typeBadge}</div>` : ''}
-        ${vTag}${aTag}${bTag}${v2Tag}
+        ${personsRow}${v2Row}
       </div>
       <button class="cal-edit-btn" onclick="openCalEntry('${entryKey}','${month}')">✏️</button>
     </div>`;
