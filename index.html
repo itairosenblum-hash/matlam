@@ -295,11 +295,12 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
     font-size:12px!important;
     padding:2px 8px!important;
     border-radius:20px!important;
-    display:inline-block!important;
-    white-space:nowrap!important;
-    overflow:hidden!important;
-    text-overflow:ellipsis!important;
-    max-width:180px!important;
+    display:block!important;
+    white-space:normal!important;
+    overflow:visible!important;
+    text-overflow:unset!important;
+    max-width:100%!important;
+    word-break:break-word;
   }
   .cal-v{font-size:13px!important;font-weight:700!important}
 
@@ -1738,7 +1739,7 @@ function renderConstraintGrid(year, mon, days) {
   }
 
   // Fill remaining cells (desktop only)
-  if (!isMob) {
+  if (!isMobAdmin) {
     const totalCells = firstDay + days;
     const remainder = totalCells % 7;
     if (remainder > 0) {
