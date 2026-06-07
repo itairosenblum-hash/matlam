@@ -1862,6 +1862,11 @@ async function loadMySchedule() {
   res.schedule.forEach(e => { schedMap[e.date] = e; });
   const myDates = new Set(myEntries.map(e => e.date));
 
+  const HEB_DAYS_SHORT = ['א','ב','ג','ד','ה','ו','ש'];
+  const mkCell = (name, cls, prefix) => name
+    ? `<div class="mob-person-cell ${cls}"><span class="mob-person-label">${prefix}</span><span class="mob-person-name">${name}</span></div>`
+    : `<div class="mob-person-cell mob-person-empty"></div>`;
+
   const dayHeaders = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 
   let html = `
@@ -1878,34 +1883,45 @@ async function loadMySchedule() {
     const isToday = dateStr === todayStr;
     const dow = new Date(year, mon-1, d).getDay();
     const isWeekend = dow === 5 || dow === 6;
+    const isThursday = dow === 4;
 
     let dayCls = 'cal-day';
-    if (isToday) dayCls += ' today'; // highlighted
+    if (isToday) dayCls += ' today';
+    else if (isMine) dayCls += ' cal-mine';
     if (isWeekend) dayCls += ' cal-weekend';
-    if (isMine) dayCls += '; border-color:var(--accent);background:var(--accent-glow)';
+    else if (isThursday) dayCls += ' cal-thursday';
 
-    let roleTag = '';
-    if (isMine) {
-      // Show only this user's role(s) in this shift
-      const roleLines = [];
-      if (e.v===currentUser.name) roleLines.push(`<div class="cal-person cal-v" style="font-weight:700">✓ מבצע</div>`);
-      if (e.a===currentUser.name) roleLines.push(`<div class="cal-person cal-a">א עתודה א׳</div>`);
-      if (e.b===currentUser.name) roleLines.push(`<div class="cal-person cal-b">ב עתודה ב׳</div>`);
-      if (e.v2===currentUser.name) roleLines.push(`<div class="cal-person cal-v" style="font-size:10px;opacity:0.8">✓ מבצע שני</div>`);
-      const role = roleLines.join('');
-      const isHolDay = e.dayType === 'חג' || e.dayType === 'ערב חג';
-      const typeLabel = isHolDay && e.notes ? e.notes : (e.dutyType || '');
-      const typeTag = typeLabel ? `<div class="cal-day-type ${getDayBadge(e.dayType)}" style="font-size:9px;padding:1px 5px;border-radius:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${typeLabel}">${typeLabel}</div>` : '';
-      roleTag = typeTag + role;
-    }
+    const dayName = HEB_DAYS_SHORT[dow];
+    const isHolDay = e.dayType === 'חג' || e.dayType === 'ערב חג';
+    const typeLabel = isHolDay && e.notes ? e.notes : (e.dutyType || '');
+    const typeBadge = typeLabel ? `<div class="cal-day-type-label"><div class="cal-day-type ${getDayBadge(e.dayType)}" style="font-size:9px;padding:1px 5px;border-radius:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">${typeLabel}</div></div>` : '';
 
-    html += `<div class="${dayCls}"><div class="cal-day-num">${d}</div>${roleTag}</div>`;
+    const personsRow = `<div class="mob-persons-row">
+      ${mkCell(e.v,'mob-v','✓')}
+      ${mkCell(e.a,'mob-a','א')}
+      ${mkCell(e.b,'mob-b','ב')}
+    </div>`;
+    const v2Row = e.v2 ? `<div class="mob-persons-row mob-v2-row">
+      ${mkCell(e.v2,'mob-v','✓')}
+      ${mkCell(e.a2||'','mob-a','א')}
+      ${mkCell(e.b2||'','mob-b','ב')}
+    </div>` : '';
+
+    html += `<div class="${dayCls}">
+      <div class="cal-day-header">
+        <div class="cal-day-num">${d}</div>
+        <div class="cal-day-name">${dayName}</div>
+      </div>
+      <div class="cal-persons">
+        ${typeBadge}${personsRow}${v2Row}
+      </div>
+    </div>`;
   }
 
   const totalCells = firstDay + daysInMonth;
   const rem = totalCells % 7;
   if (rem > 0) for (let i = 0; i < 7-rem; i++) html += `<div class="cal-day empty"></div>`;
-  html += isMob ? `</div></div>` : `</div></div></div>`;
+  html += `</div></div></div>`;
 
   if (!myEntries.length) {
     html += `<div class="alert alert-info" style="margin-top:12px">🎉 אין לך תורנויות מוגדרות לחודש זה</div>`;
@@ -2797,6 +2813,11 @@ function renderUserSchedule(schedule, month) {
   const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
   const firstDay = new Date(year, mon-1, 1).getDay();
   const days = HEB_DAYS;
+  const HEB_DAYS_SHORT = ['א','ב','ג','ד','ה','ו','ש'];
+
+  const mkCell = (name, cls, prefix) => name
+    ? `<div class="mob-person-cell ${cls}"><span class="mob-person-label">${prefix}</span><span class="mob-person-name">${name}</span></div>`
+    : `<div class="mob-person-cell mob-person-empty"></div>`;
 
   let html = `<div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><div style="min-width:560px">
     <div class="cal-header">${days.map(d=>`<div class="cal-header-cell">${d}</div>`).join('')}</div>
@@ -2808,18 +2829,36 @@ function renderUserSchedule(schedule, month) {
     const d = parseInt(e.date.split('-')[2] || e.date.split('/')[0]);
     const isToday = e.date === todayStr;
     const isMe = e.v===currentUser.name||e.a===currentUser.name||e.b===currentUser.name||e.v2===currentUser.name;
+    const dow = new Date(year, mon-1, d).getDay();
     let cls = 'cal-day';
     if (isToday) cls += ' today';
-    if (e.dayType==='סוף שבוע'||e.dayType==='סוף שבוע מלא') cls += ' cal-weekend';
-    if (e.dayType==='חמישי'||e.dayType==='חמישי 24 שעות') cls += ' cal-thursday';
-    if (isMe && !isToday) cls += ' cal-mine'; // yellow for my days
+    if (e.dayType==='סוף שבוע'||e.dayType==='סוף שבוע מלא'||dow===5||dow===6) cls += ' cal-weekend';
+    else if (e.dayType==='חמישי'||e.dayType==='חמישי 24 שעות'||dow===4) cls += ' cal-thursday';
+    if (isMe && !isToday) cls += ' cal-mine';
     const badge = getDayBadge(e.dayType);
+    const dutyLabel = (e.dayType==='חג'||e.dayType==='ערב חג') && e.notes ? e.notes : (e.dutyType||e.dayType||'');
+    const typeBadge = dutyLabel ? `<div class="cal-day-type-label"><div class="cal-day-type ${badge}" style="font-size:9px;padding:1px 5px;border-radius:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">${dutyLabel}</div></div>` : '';
+    const dayName = HEB_DAYS_SHORT[dow];
+
+    const personsRow = `<div class="mob-persons-row">
+      ${mkCell(e.v,'mob-v','✓')}
+      ${mkCell(e.a,'mob-a','א')}
+      ${mkCell(e.b,'mob-b','ב')}
+    </div>`;
+    const v2Row = e.v2 ? `<div class="mob-persons-row mob-v2-row">
+      ${mkCell(e.v2,'mob-v','✓')}
+      ${mkCell(e.a2||'','mob-a','א')}
+      ${mkCell(e.b2||'','mob-b','ב')}
+    </div>` : '';
+
     html += `<div class="${cls}">
-      <div class="cal-day-num">${d}</div>
-      ${e.dutyType||e.dayType?`<div class="cal-day-type ${badge}" style="font-size:9px;padding:1px 4px;border-radius:10px">${e.notes||e.dutyType||e.dayType}</div>`:''}
-      ${e.v?`<div class="cal-person cal-v" title="מבצע">✓ ${e.v}</div>`:''}
-      ${e.a?`<div class="cal-person cal-a" title="עתודה א׳">א ${e.a}</div>`:''}
-      ${e.b?`<div class="cal-person cal-b" title="עתודה ב׳">ב ${e.b}</div>`:''}
+      <div class="cal-day-header">
+        <div class="cal-day-num">${d}</div>
+        <div class="cal-day-name">${dayName}</div>
+      </div>
+      <div class="cal-persons">
+        ${typeBadge}${personsRow}${v2Row}
+      </div>
     </div>`;
   });
 
