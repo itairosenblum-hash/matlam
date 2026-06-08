@@ -1967,10 +1967,10 @@ function actionSendScheduleEmails(req) {
     const duties = personSchedule[p.name];
     const rows_html = duties.map(d => `
       <tr>
-        <td style="padding:8px;border-bottom:1px solid #eee">${d.date}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee">${d.day}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee">${d.dutyType}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold;color:${d.role==='מבצע'?'#1a7f37':'#0969da'}">${d.role}</td>
+        <td style="padding:8px;border:1px solid #ddd">${d.date}</td>
+        <td style="padding:8px;border:1px solid #ddd">${d.day}</td>
+        <td style="padding:8px;border:1px solid #ddd">${d.dutyType}</td>
+        <td style="padding:8px;border:1px solid #ddd;font-weight:bold;color:${d.role==='מבצע'?'#1a7f37':'#0969da'}">${d.role}</td>
       </tr>`).join('');
     
     try {
@@ -1980,12 +1980,12 @@ function actionSendScheduleEmails(req) {
         htmlBody: `<div dir="rtl" style="font-family:Arial;padding:20px;max-width:600px">
           <h3>שלום ${p.name},</h3>
           <p>להלן התורנויות שלך לחודש <strong>${monthName}</strong>:</p>
-          <table style="width:100%;border-collapse:collapse;margin:16px 0">
-            <thead><tr style="background:#f0f0f0">
-              <th style="padding:8px;text-align:right">תאריך</th>
-              <th style="padding:8px;text-align:right">יום</th>
-              <th style="padding:8px;text-align:right">סוג</th>
-              <th style="padding:8px;text-align:right">תפקיד</th>
+          <table style="width:100%;border-collapse:collapse;margin:16px 0;border:1px solid #ddd">
+            <thead><tr style="background:#2d4a3e;color:white">
+              <th style="padding:8px;text-align:right;border:1px solid #ddd">תאריך</th>
+              <th style="padding:8px;text-align:right;border:1px solid #ddd">יום</th>
+              <th style="padding:8px;text-align:right;border:1px solid #ddd">סוג</th>
+              <th style="padding:8px;text-align:right;border:1px solid #ddd">תפקיד</th>
             </tr></thead>
             <tbody>${rows_html}</tbody>
           </table>
@@ -2681,6 +2681,7 @@ function actionSendCredentialsOne(req) {
     '<p>להלן פרטי הכניסה שלך למערכת:</p>' +
     '<div style="background:#f5f5f5;border-right:4px solid #2d4a3e;padding:16px;border-radius:4px;margin:16px 0">' +
     '<p><strong>שם משתמש:</strong> ' + username + '</p>' +
+    '<p><strong>סיסמה:</strong> ' + password + '</p>' +
     '</div>' +
     '<a href="https://itairosenblum-hash.github.io/matlam/" style="background:#2d4a3e;color:#fff;padding:10px 20px;text-decoration:none;border-radius:6px;display:inline-block;margin-top:8px">כניסה למערכת</a>' +
     '<p style="color:#999;font-size:11px;margin-top:24px">מפקד תורן מטל"מ</p></div>';
