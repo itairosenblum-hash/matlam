@@ -732,7 +732,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
             <div class="section-title">👥 ניהול תורנים</div>
             <div class="section-subtitle">כל תורן הוא גם משתמש — פרטי כניסה + פרטי תורנות</div>
           </div>
-          <button class="btn btn-primary" onclick="openAddTorani()">+ הוסף תורן</button>
+          ${currentUser.role !== 'viewer' ? '<button class="btn btn-primary" onclick="openAddTorani()">+ הוסף תורן</button>' : ''}
         </div>
         <div id="tornim-alert"></div>
         <div id="tornim-content"></div>
@@ -748,16 +748,17 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
             <div class="month-picker">
               <select id="admin-schedule-month" onchange="debounceLoad(loadAdminSchedule)"></select>
             </div>
+            <span id="viewer-hide-btns">
             <button class="btn btn-secondary" onclick="openGenerateModal()">⚡ הפק שיבוץ</button>
-
-            <button class="btn btn-secondary btn-sm" onclick="exportToPDF()" title="ייצוא PDF">📄 PDF</button>
             <button class="btn btn-secondary btn-sm" onclick="openSendScheduleModal()" title="שלח לוח למייל">📧 שלח</button>
             <button class="btn btn-danger btn-sm" onclick="resetSchedule()" title="איפוס לוח החודש">🗑️ אפס לוח</button>
+            </span>
+            <button class="btn btn-secondary btn-sm" onclick="exportToPDF()" title="ייצוא PDF">📄 PDF</button>
           </div>
         </div>
         <div id="admin-schedule-alert"></div>
         <div style="margin-bottom:8px">
-          <button class="btn btn-secondary btn-sm" onclick="openAdminMessageModal()" title="שלח הודעה לכל התורנים">📣 שלח הודעה לתורנים</button>
+          <span id="viewer-hide-msg"><button class="btn btn-secondary btn-sm" onclick="openAdminMessageModal()" title="שלח הודעה לכל התורנים">📣 שלח הודעה לתורנים</button></span>
         </div>
         <div id="init-month-banner" style="display:none;background:rgba(56,139,253,0.08);border:1px solid rgba(56,139,253,0.3);border-radius:10px;padding:14px 18px;margin-bottom:16px">
           <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
@@ -1557,7 +1558,7 @@ async function doBootstrap() {
 async function initApp() {
   showPage('main-page');
   document.getElementById('nav-user-name').textContent = currentUser.name;
-  document.getElementById('nav-role-badge').textContent = currentUser.role === 'admin' ? 'מנהל' : 'תורן';
+  document.getElementById('nav-role-badge').textContent = currentUser.role === 'admin' ? 'מנהל' : currentUser.role === 'viewer' ? 'צפייה' : 'תורן';
   buildNavTabs();
   populateMonthSelects();
   if (currentUser.role === 'admin') {
@@ -1580,6 +1581,17 @@ async function initApp() {
       const bw = document.getElementById('bell-wrapper');
       if (bw) bw.style.display = 'block';
     }, 1000);
+  } else if (currentUser.role === 'viewer') {
+    // Hide all edit/action buttons for viewer
+    ['viewer-hide-btns','viewer-hide-msg'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+    switchTab('admin-schedule');
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}`;
+    document.getElementById('admin-schedule-month').value = currentMonth;
+    loadAdminSchedule();
   } else {
     switchTab('full-schedule');
     // Auto-load current month for constraints
@@ -1604,6 +1616,8 @@ function buildNavTabs() {
   }
   const tabs = currentUser.role === 'admin'
     ? [['admin-schedule','📅 לוח תורנויות'],['admin-constraints','🚫 אילוצים'],['admin-scores','📊 ניקוד'],['admin-users','👥 תורנים'],['admin-swaps','🔄 החלפות'],['guide','📖 מדריך']]
+    : currentUser.role === 'viewer'
+    ? [['admin-schedule','📅 לוח תורנויות'],['admin-users','👥 תורנים']]
     : [['full-schedule','📅 לוח מלא'],['constraints','🚫 אילוצים'],['scores','📊 ניקוד'],['swap','🔄 החלפה'],['profile','👤 פרופיל'],['guide','📖 מדריך']];
   container.innerHTML = tabs.map(([id,label])=>
     `<button class="nav-tab" id="navtab-${id}" onclick="switchTabAndClose('${id}')">${label}<span class="notif-badge" id="badge-${id}" style="display:none"></span></button>`
@@ -1987,8 +2001,8 @@ async function loadUsers() { // keep name for tab switching
           <td>
             <div class="flex gap-8">
               <button class="btn btn-secondary btn-sm" onclick='openEditTorani(${JSON.stringify(t)})'>✏️</button>
-              <button class="btn btn-secondary btn-sm" onclick="resetPassword('${t.username}','${t.name}')">🔑</button>
-              <button class="btn btn-secondary btn-sm" onclick="sendLoginDetails('${t.username}','${t.name}')" title="שלח פרטי כניסה למייל">📧</button>
+              ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="resetPassword('${t.username}','${t.name}')">🔑</button>` : ''}
+              ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="sendLoginDetails('${t.username}','${t.name}')" title="שלח פרטי כניסה למייל">📧</button>` : ''}
               <button class="btn btn-secondary btn-sm" onclick="toggleTorani('${t.username}')">${t.active?'🔒':'🔓'}</button>
             </div>
           </td>
@@ -2487,7 +2501,7 @@ function renderScheduleList(schedule, month, who) {
     const isToday = dateStr === todayStr;
     const isWE = dow === 5 || dow === 6;
     const isThu = dow === 4;
-    const isMe = currentUser && currentUser.role !== 'viewer' && (e.v===currentUser.name||e.a===currentUser.name||e.b===currentUser.name||e.v2===currentUser.name);
+    const isMe = currentUser && (e.v===currentUser.name||e.a===currentUser.name||e.b===currentUser.name);
     let cls = 'sched-row';
     if (isToday) cls += ' sl-today';
     else if (isMe) cls += ' sl-mine';
@@ -2501,14 +2515,13 @@ function renderScheduleList(schedule, month, who) {
       window._calEntries[entryKey] = e.date ? e : {date:dateStr,v:'',a:'',b:'',v2:'',a2:'',b2:'',notes:'',dayType:'',dutyType:''};
     }
 
-    const editBtn = isAdmin ? `<div class="sl-edit"><button onclick="openCalEntry('${entryKey}','${month}')" title="עריכה">✏️</button></div>` : '';
+    const editBtn = isAdmin && currentUser.role !== 'viewer' ? `<div class="sl-edit"><button onclick="openCalEntry('${entryKey}','${month}')" title="עריכה">✏️</button></div>` : '';
 
     html += `<div class="${cls}">
       <div class="sl-date"><div class="sl-date-num">${d}</div><div class="sl-date-name">${dayName}</div></div>
       <div class="sl-cell"><div class="sl-lbl">מבצע</div><div class="sl-name sl-v${e.v ? '' : ' empty'}">${e.v || '—'}</div></div>
       <div class="sl-cell"><div class="sl-lbl">עתודה א'</div><div class="sl-name sl-a${e.a ? '' : ' empty'}">${e.a || '—'}</div></div>
       <div class="sl-cell"><div class="sl-lbl">עתודה ב'</div><div class="sl-name sl-b${e.b ? '' : ' empty'}">${e.b || '—'}</div></div>
-      ${e.v2 ? `<div class="sl-cell"><div class="sl-lbl">מבצע שני</div><div class="sl-name sl-v" style="opacity:0.75;font-size:12px">${e.v2}</div></div>` : ''}
       ${editBtn}
     </div>`;
   }
@@ -3027,7 +3040,7 @@ function renderUserSchedule(schedule, month) {
   schedule.forEach(e => {
     const d = parseInt(e.date.split('-')[2] || e.date.split('/')[0]);
     const isToday = e.date === todayStr;
-    const isMe = currentUser.role !== 'viewer' && (e.v===currentUser.name||e.a===currentUser.name||e.b===currentUser.name||e.v2===currentUser.name);
+    const isMe = e.v===currentUser.name||e.a===currentUser.name||e.b===currentUser.name||e.v2===currentUser.name;
     let cls = 'cal-day';
     if (isToday) cls += ' today';
     if (e.dayType==='סוף שבוע'||e.dayType==='סוף שבוע מלא') cls += ' cal-weekend';
@@ -3040,7 +3053,6 @@ function renderUserSchedule(schedule, month) {
       ${e.v?`<div class="cal-person cal-v" title="מבצע">✓ ${e.v}</div>`:''}
       ${e.a?`<div class="cal-person cal-a" title="עתודה א׳">א ${e.a}</div>`:''}
       ${e.b?`<div class="cal-person cal-b" title="עתודה ב׳">ב ${e.b}</div>`:''}
-      ${e.v2?`<div class="cal-person cal-v" style="font-size:9px;opacity:0.75" title="מבצע שני">✓2 ${e.v2}</div>`:''}
     </div>`;
   });
 
