@@ -1965,7 +1965,16 @@ async function loadUsers() { // keep name for tab switching
         <th>פעולות</th>
       </tr></thead>
       <tbody>
-        ${res.tornim.slice().sort((a,b) => { if (a.active !== b.active) return (b.active?1:0) - (a.active?1:0); return a.name.localeCompare(b.name, "he"); }).map(t => `<tr>
+        ${res.tornim.slice().sort((a,b) => {
+          const groupOf = t => {
+            if (!t.active) return 2;
+            if (t.dutyCategory === 'טרם הוסמך') return 1;
+            return 0;
+          };
+          const ga = groupOf(a), gb = groupOf(b);
+          if (ga !== gb) return ga - gb;
+          return a.name.localeCompare(b.name, 'he');
+        }).map(t => `<tr>
           <td class="fw-bold">${t.name}</td>
           <td class="text-muted">${t.username}</td>
           <td>${t.role==='admin'?'<span class="nav-badge">מנהל</span>':'תורן'}</td>
