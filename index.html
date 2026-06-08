@@ -2487,7 +2487,7 @@ function renderScheduleList(schedule, month, who) {
     const isToday = dateStr === todayStr;
     const isWE = dow === 5 || dow === 6;
     const isThu = dow === 4;
-    const isMe = currentUser && (e.v===currentUser.name||e.a===currentUser.name||e.b===currentUser.name);
+    const isMe = currentUser && currentUser.role !== 'viewer' && (e.v===currentUser.name||e.a===currentUser.name||e.b===currentUser.name||e.v2===currentUser.name);
     let cls = 'sched-row';
     if (isToday) cls += ' sl-today';
     else if (isMe) cls += ' sl-mine';
@@ -2508,6 +2508,7 @@ function renderScheduleList(schedule, month, who) {
       <div class="sl-cell"><div class="sl-lbl">מבצע</div><div class="sl-name sl-v${e.v ? '' : ' empty'}">${e.v || '—'}</div></div>
       <div class="sl-cell"><div class="sl-lbl">עתודה א'</div><div class="sl-name sl-a${e.a ? '' : ' empty'}">${e.a || '—'}</div></div>
       <div class="sl-cell"><div class="sl-lbl">עתודה ב'</div><div class="sl-name sl-b${e.b ? '' : ' empty'}">${e.b || '—'}</div></div>
+      ${e.v2 ? `<div class="sl-cell"><div class="sl-lbl">מבצע שני</div><div class="sl-name sl-v" style="opacity:0.75;font-size:12px">${e.v2}</div></div>` : ''}
       ${editBtn}
     </div>`;
   }
@@ -3026,7 +3027,7 @@ function renderUserSchedule(schedule, month) {
   schedule.forEach(e => {
     const d = parseInt(e.date.split('-')[2] || e.date.split('/')[0]);
     const isToday = e.date === todayStr;
-    const isMe = e.v===currentUser.name||e.a===currentUser.name||e.b===currentUser.name||e.v2===currentUser.name;
+    const isMe = currentUser.role !== 'viewer' && (e.v===currentUser.name||e.a===currentUser.name||e.b===currentUser.name||e.v2===currentUser.name);
     let cls = 'cal-day';
     if (isToday) cls += ' today';
     if (e.dayType==='סוף שבוע'||e.dayType==='סוף שבוע מלא') cls += ' cal-weekend';
@@ -3039,6 +3040,7 @@ function renderUserSchedule(schedule, month) {
       ${e.v?`<div class="cal-person cal-v" title="מבצע">✓ ${e.v}</div>`:''}
       ${e.a?`<div class="cal-person cal-a" title="עתודה א׳">א ${e.a}</div>`:''}
       ${e.b?`<div class="cal-person cal-b" title="עתודה ב׳">ב ${e.b}</div>`:''}
+      ${e.v2?`<div class="cal-person cal-v" style="font-size:9px;opacity:0.75" title="מבצע שני">✓2 ${e.v2}</div>`:''}
     </div>`;
   });
 
