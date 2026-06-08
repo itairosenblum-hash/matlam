@@ -1956,6 +1956,9 @@ async function loadMySchedule() {
 let editingTorani = null;
 
 async function loadUsers() { // keep name for tab switching
+  // Hide add button for viewer
+  const addBtn = document.getElementById('btn-add-torani');
+  if (addBtn) addBtn.style.display = currentUser.role === 'viewer' ? 'none' : '';
   showLoading(true);
   const res = await api({action:'getAllTornim'});
   showLoading(false);
