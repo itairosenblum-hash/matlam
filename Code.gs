@@ -2681,7 +2681,6 @@ function actionSendCredentialsOne(req) {
     '<p>להלן פרטי הכניסה שלך למערכת:</p>' +
     '<div style="background:#f5f5f5;border-right:4px solid #2d4a3e;padding:16px;border-radius:4px;margin:16px 0">' +
     '<p><strong>שם משתמש:</strong> ' + username + '</p>' +
-    '<p><strong>סיסמה:</strong> ' + password + '</p>' +
     '</div>' +
     '<a href="https://itairosenblum-hash.github.io/matlam/" style="background:#2d4a3e;color:#fff;padding:10px 20px;text-decoration:none;border-radius:6px;display:inline-block;margin-top:8px">כניסה למערכת</a>' +
     '<p style="color:#999;font-size:11px;margin-top:24px">מפקד תורן מטל"מ</p></div>';
