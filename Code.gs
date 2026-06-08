@@ -93,7 +93,14 @@ function route(req) {
   if (action === 'getSchedule') return actionGetSchedule(req, user);
   if (action === 'changePassword') return actionChangePassword(req, user);
 
-  // Available to all authenticated users
+  // Available to viewer + all authenticated users
+  if (action === 'getSchedule') return actionGetSchedule(req, user);
+  if (action === 'getAllTornim') return actionGetAllTornim();
+
+  // Viewer role: read-only access to schedule and tornim only
+  if (user.role === 'viewer') return {success: false, error: 'אין הרשאה לפעולה זו', code: 403};
+
+  // Available to all authenticated users (non-viewer)
   if (action === 'getPeople') return actionGetPeople();
   if (action === 'submitSwap') return actionSubmitSwap(req, user);
   if (action === 'getSwaps') return actionGetSwaps(req, user);
