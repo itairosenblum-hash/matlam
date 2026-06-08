@@ -1967,8 +1967,9 @@ async function loadUsers() { // keep name for tab switching
       <tbody>
         ${res.tornim.slice().sort((a,b) => {
           const groupOf = t => {
+            if (t.role === 'admin') return 3;
             if (!t.active) return 2;
-            if (t.dutyCategory === 'טרם הוסמך') return 1;
+            if ((t.dutyCategory||'') === 'טרם הוסמך') return 1;
             return 0;
           };
           const ga = groupOf(a), gb = groupOf(b);
