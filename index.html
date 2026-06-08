@@ -1583,7 +1583,7 @@ async function initApp() {
     }, 1000);
   } else if (currentUser.role === 'viewer') {
     // Hide all edit/action buttons for viewer
-    ['viewer-hide-btns','viewer-hide-msg'].forEach(id => {
+    ['viewer-hide-btns','viewer-hide-msg','btn-add-torani'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
     });
@@ -2000,10 +2000,10 @@ async function loadUsers() { // keep name for tab switching
           <td><span class="status-badge ${t.active?'status-active':'status-inactive'}">${t.active?'פעיל':'מושבת'}</span></td>
           <td>
             <div class="flex gap-8">
-              <button class="btn btn-secondary btn-sm" onclick='openEditTorani(${JSON.stringify(t)})'>✏️</button>
+              ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick='openEditTorani(${JSON.stringify(t)})'>✏️</button>` : ''}
               ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="resetPassword('${t.username}','${t.name}')">🔑</button>` : ''}
               ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="sendLoginDetails('${t.username}','${t.name}')" title="שלח פרטי כניסה למייל">📧</button>` : ''}
-              <button class="btn btn-secondary btn-sm" onclick="toggleTorani('${t.username}')">${t.active?'🔒':'🔓'}</button>
+              ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="toggleTorani('${t.username}')">${t.active?'🔒':'🔓'}</button>` : ''}
             </div>
           </td>
         </tr>`).join('')}
