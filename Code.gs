@@ -99,13 +99,10 @@ function route(req) {
   if (action === 'getSwaps') return actionGetSwaps(req, user);
   if (action === 'getScores') return actionGetScores(); // all users can see scores
   if (action === 'getNotifications') return actionGetNotificationsPersonal(req, user);
-  if (action === 'clearNotification') return actionClearNotification(req, user);
-  if (action === 'clearAllNotifications') return actionClearAllNotifications(req, user);
   // duty_agent.py sync (token-based, no login required)
   if (action === 'writeSchedule') return writeScheduleFromAgent(req);
   if (action === 'updateSwap') return actionUpdateSwap(req);  // users approve/reject their own swaps
   if (action === 'deleteSwap' && user.role === 'admin') return actionDeleteSwap(req);
-  if (action === 'requestProfileChange') return actionRequestProfileChange(req, user);
 
   // Admin only
   if (user.role !== 'admin') return {success: false, error: 'אין הרשאת מנהל', code: 403};
@@ -127,6 +124,7 @@ function route(req) {
   if (action === 'fixV2Score') return actionFixV2Score(req);
   if (action === 'sendSchedule') return actionSendSchedule(req);
   if (action === 'sendAdminMessage') return actionSendAdminMessage(req);
+  if (action === 'sendCredentialsOne') return actionSendCredentialsOne(req);
   if (action === 'debugSwap') return actionDebugSwap(req);
   if (action === 'resetPassword' && user.role === 'admin') return actionResetPassword(req);
   if (action === 'getAllTornim') return actionGetAllTornim();
@@ -134,13 +132,6 @@ function route(req) {
   if (action === 'updateTorani') return actionUpdateTorani(req);
   if (action === 'toggleTorani') return actionToggleTorani(req);
   if (action === 'deleteTorani') return actionDeleteTorani(req);
-  if (action === 'getProfileChangeRequests') return actionGetProfileChangeRequests(req, user);
-  if (action === 'approveProfileChange') return actionApproveProfileChange(req, user);
-  if (action === 'rejectProfileChange') return actionRejectProfileChange(req, user);
-
-
-  if (action === 'sendCredentialsAll') return actionSendCredentialsAll(req);
-  if (action === 'sendCredentialsOne') return actionSendCredentialsOne(req);
   if (action === 'updateScheduleEntry') return actionUpdateScheduleEntry(req);
   if (action === 'initSheets') return actionInitSheets();
 
@@ -426,6 +417,7 @@ function updateScoreForMonth(name, monthIdx, dutyType, score) {
 // ===== CONSTRAINTS =====
 function actionGetConstraints(req, user) {
   const month = String(req.month || '');
+  // viewAs: admin can view another user's constraints
   const viewAs = req.viewAs;
   const lookupName = viewAs ? getNameByUsername(viewAs) : user.name;
 
@@ -433,9 +425,6 @@ function actionGetConstraints(req, user) {
   const sheet = ss.getSheetByName('Constraints_' + month);
   if (!sheet) return {success: true, constraints: new Array(31).fill(''), notes: ''};
   const rows = sheet.getDataRange().getValues();
-  // Find notes column from header
-  const headers = rows[0];
-  const notesColIdx = headers.indexOf('הערות'); // 0-based
   for (let i = 1; i < rows.length; i++) {
     if (rows[i][0] === lookupName) {
       return {
@@ -445,7 +434,7 @@ function actionGetConstraints(req, user) {
           if (c === 'X' || c === 'x' || c === true) return 'X';
           return '';
         }),
-        notes: notesColIdx >= 0 ? String(rows[i][notesColIdx] || '') : ''
+        notes: rows[i][32] || ''
       };
     }
   }
@@ -460,59 +449,37 @@ function getNameByUsername(username) {
   return username;
 }
 
-function getNotesCol(sheet) {
-  // Find the 'הערות' column, or use col 33 as default
-  const lastCol = Math.max(sheet.getLastColumn(), 33);
-  const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
-  const idx = headers.indexOf('הערות');
-  if (idx >= 0) return idx + 1; // 1-based
-  // Not found — set it at col 33
-  sheet.getRange(1, 33).setValue('הערות');
-  return 33;
-}
-
 function actionSaveConstraints(req, user) {
   const month = String(req.month || '');
   const {constraints, notes} = req;
+  // viewAs: save for the target user, not the logged-in admin
   const saveName = req.viewAs ? getNameByUsername(req.viewAs) : user.name;
   
+  // Check lock status (admin can always save)
   if (user.role !== 'admin') {
     const lockRes = actionGetLockStatus({month});
     if (lockRes.locked) {
       return {success: false, error: 'הגשת אילוצים לחודש זה נעולה. פנה למנהל.'};
     }
   }
-
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName('Constraints_' + month);
   if (!sheet) sheet = createConstraintSheet(month, ss);
-
-  const notesCol = getNotesCol(sheet); // find הערות column dynamically
-
-  const dayValues = new Array(31).fill('').map((_, i) => {
-    const c = (constraints || [])[i];
+  const rows = sheet.getDataRange().getValues();
+  const rowData = [saveName, ...constraints.map(c => {
     if (c === 'V' || c === 'v') return 'V';
     if (c === 'X' || c === 'x' || c === true) return 'X';
     return '';
-  });
-
-  // Find existing row for this person
-  const lastRow = sheet.getLastRow();
-  const nameCol = lastRow > 1 ? sheet.getRange(2, 1, lastRow - 1, 1).getValues() : [];
-  let targetRow = -1;
-  for (let i = 0; i < nameCol.length; i++) {
-    if (String(nameCol[i][0]).trim() === String(saveName).trim()) {
-      targetRow = i + 2;
+  }), notes || ''];
+  let found = false;
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][0] === saveName) {
+      sheet.getRange(i + 1, 1, 1, rowData.length).setValues([rowData]);
+      found = true;
       break;
     }
   }
-  if (targetRow === -1) targetRow = lastRow + 1;
-
-  // Write name + 31 days
-  sheet.getRange(targetRow, 1, 1, 32).setValues([[saveName, ...dayValues]]);
-  // Write notes to the correct column
-  sheet.getRange(targetRow, notesCol).setValue(notes || '');
-
+  if (!found) sheet.appendRow(rowData);
   return {success: true};
 }
 
@@ -522,8 +489,6 @@ function actionGetAllConstraints(req) {
   const sheet = ss.getSheetByName('Constraints_' + month);
   if (!sheet) return {success: true, constraints: {}, month};
   const rows = sheet.getDataRange().getValues();
-  const headers = rows[0];
-  const notesColIdx = headers.indexOf('הערות'); // 0-based
   const result = {};
   for (let i = 1; i < rows.length; i++) {
     if (!rows[i][0]) continue;
@@ -533,7 +498,7 @@ function actionGetAllConstraints(req) {
         if (c === 'X' || c === 'x' || c === true) return 'X';
         return '';
       }),
-      notes: notesColIdx >= 0 ? String(rows[i][notesColIdx] || '') : ''
+      notes: rows[i][32] || ''
     };
   }
   return {success: true, constraints: result, month};
@@ -545,7 +510,7 @@ function createConstraintSheet(month, ss) {
   sheet.setRightToLeft(true);
   const headers = ['שם'];
   for (let d = 1; d <= 31; d++) headers.push(d);
-  headers.push('הערות'); // col 33
+  headers.push('הערות');
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   const people = actionGetPeople().people.filter(p => p.activity !== '0');
   people.forEach((p, idx) => sheet.getRange(idx + 2, 1).setValue(p.name));
@@ -699,15 +664,8 @@ function actionUpdateScheduleEntry(req) {
 
 // ===== SCHEDULE GENERATION =====
 function getDutyTypesMap() {
-  // Hardcoded fallback scores (always available even if not in DutyTypes sheet)
-  const fallback = {
-    'חול':10, 'חול הקפצה':12, 'חמישי':12, 'חמישי הקפצה':15,
-    'חול 24 שעות':15, 'חמישי 24 שעות':16, 'הדממה':18, 'חמישי הדממה':19,
-    'סוף שבוע':20, 'סוף שבוע הקפצה':30, 'סוף שבוע מלא':40,
-    'ערב חג':25, 'חג':25, 'יומיים חג':50, 'פטור':10, 'דולג':0
-  };
   const rows = getSheet(SH.DUTY_TYPES).getDataRange().getValues();
-  const map = Object.assign({}, fallback);
+  const map = {};
   for (let i = 1; i < rows.length; i++) {
     if (rows[i][0]) map[String(rows[i][0])] = Number(rows[i][1]) || 0;
   }
@@ -716,14 +674,8 @@ function getDutyTypesMap() {
 
 function actionGenerateSchedule(req) {
   const month = String(req.month || '');
-  let dayCategories = req.dayCategories;
+  const dayCategories = req.dayCategories;
   if (!dayCategories) return {success: false, error: 'dayCategories חסר'};
-  // Handle case where dayCategories arrives as a JSON string
-  if (typeof dayCategories === 'string') {
-    try { dayCategories = JSON.parse(dayCategories); } catch(e) {
-      return {success: false, error: 'dayCategories פגום: ' + e.toString()};
-    }
-  }
 
   const year = parseInt(month.substring(0, 4));
   const mon  = parseInt(month.substring(4, 6));
@@ -762,8 +714,8 @@ function actionGenerateSchedule(req) {
   }
 
   function canDoType(person, cat) {
-    // בהליך הסמכה / פטור - לא משובצים
-    if (person.dutyCategory === 'בהליך הסמכה' || person.dutyCategory === 'פטור') {
+    // לא מוסמך / פטור - לא משובצים
+    if (person.dutyCategory === 'לא מוסמך' || person.dutyCategory === 'פטור') {
       return false;
     }
     // משרת אב - only חמישי types
@@ -827,39 +779,17 @@ function actionGenerateSchedule(req) {
   }
 
   // Returns list sorted by score (lowest first), respecting hard constraints
-  // V preference always beats mesharet av (unless av also marked V)
+  // Bonus: people who prefer this day are sorted higher (lower in list = preferred)
   function getEligible(day, cat) {
-    // Check who was assigned yesterday (to avoid consecutive days)
-    const prevAssignment = assignment[day - 1];
-    const prevV = prevAssignment ? prevAssignment.V : '';
-    const prevA = prevAssignment ? prevAssignment.A : '';
-    const prevB = prevAssignment ? prevAssignment.B : '';
-
     return activePeople
-      .filter(p => {
-        if (!canDoType(p, cat)) return false;
-        if (isHardBlocked(p.name, day)) return false;
-        // No consecutive days (unless they marked V for this day)
-        if (!prefersDay(p.name, day) && (p.name === prevV || p.name === prevA || p.name === prevB)) return false;
-        return true;
-      })
+      .filter(p => !isHardBlocked(p.name, day) && canDoType(p, cat))
       .sort((a, b) => {
-        const aV = prefersDay(a.name, day);
-        const bV = prefersDay(b.name, day);
-        const aIsAv = a.dutyCategory === 'אב';
-        const bIsAv = b.dutyCategory === 'אב';
-
-        // V always wins
-        if (aV && !bV) return -1;
-        if (!aV && bV) return 1;
-
-        // Neither has V: av gets priority on Thursday
-        if (!aV && !bV) {
-          if (aIsAv && !bIsAv) return -1;
-          if (!aIsAv && bIsAv) return 1;
-        }
-
-        return (workingScores[a.name] || 0) - (workingScores[b.name] || 0);
+        const scoreDiff = (workingScores[a.name] || 0) - (workingScores[b.name] || 0);
+        if (scoreDiff !== 0) return scoreDiff;
+        // Tiebreak: prefer those who marked V for this day
+        const aV = prefersDay(a.name, day) ? -1 : 0;
+        const bV = prefersDay(b.name, day) ? -1 : 0;
+        return aV - bV;
       });
   }
 
@@ -891,11 +821,11 @@ function actionGenerateSchedule(req) {
       const elFull = activePeople
         .filter(p => p.weekendType !== 'בנפרד' &&
           !isHardBlocked(p.name, day) && !isHardBlocked(p.name, day+1))
-        .map(p => ({name:p.name, full:true, score:(workingScores[p.name]||0) - (prefersDay(p.name,day)||prefersDay(p.name,day+1)?50:0)}));
+        .map(p => ({name:p.name, full:true, score:workingScores[p.name]||0}));
 
       const elSep = activePeople
         .filter(p => p.weekendType === 'בנפרד' && !isHardBlocked(p.name, day))
-        .map(p => ({name:p.name, full:false, score:(workingScores[p.name]||0) - (prefersDay(p.name,day)?50:0)}));
+        .map(p => ({name:p.name, full:false, score:workingScores[p.name]||0}));
 
       // Merge and sort by score (lowest first)
       const all = [...elFull, ...elSep].sort((a,b) => a.score - b.score);
@@ -921,8 +851,7 @@ function actionGenerateSchedule(req) {
     }
 
     // All other days (incl. Saturday if not full-weekend): pure score
-    const scoreMap = {'חול':10,'חול הקפצה':12,'חמישי':12,'חמישי הקפצה':15,'סוף שבוע':20,'סוף שבוע הקפצה':30,'סוף שבוע מלא':40,'חג':25,'ערב חג':25,'חג + חול':35,'חג + חמישי':37,'חג + סוף שבוע':45,'חול 24 שעות':15,'חמישי 24 שעות':17,'הדממה':15,'יומיים חג':50,'ערב חג + חמישי':30};
-    const score = dutyTypes[cat] || scoreMap[cat] || 10;
+    const score = dutyTypes[cat] || 10;
     const el = getEligible(day, cat);
     const v = el[0]?.name || '', a = el[1]?.name || '', b = el[2]?.name || '';
     assignment[day] = {V:v, A:a, B:b, type:cat, score, hebrewDay, cat};
@@ -955,14 +884,14 @@ function actionGenerateSchedule(req) {
     });
     sched.getRange(2,1,schedRows.length,headers.length).setValues(schedRows);
   } else {
-    // Existing sheet - update V/A/B/score AND dayType (user override wins)
+    // Existing sheet - batch update V/A/B/score only (preserve dayType + notes/holidays)
     const existingData = sched.getDataRange().getValues();
     const numRows = existingData.length - 1;
     if (numRows <= 0) return {success:false, error:'הלוח ריק'};
 
-    const vabUpdates = [];
-    const scoreUpdates = [];
-    const dayTypeUpdates = [];
+    // Build batch arrays for cols 4,5,6 (V,A,B) and col 9 (score)
+    const vabUpdates = [];  // [V, A, B] per row
+    const scoreUpdates = []; // [score] per row
 
     for (let i = 1; i <= numRows; i++) {
       const rowDate = existingData[i][0];
@@ -971,17 +900,12 @@ function actionGenerateSchedule(req) {
       const ag = (dayNum && assignment[dayNum]) || {V:'',A:'',B:'',score:0};
       vabUpdates.push([ag.V||'', ag.A||'', ag.B||'']);
       scoreUpdates.push([ag.score||0]);
-      // Use the cat from assignment (which came from user's dayCategories) — overrides old value
-      const newCat = (dayNum && assignment[dayNum]) ? (assignment[dayNum].cat || assignment[dayNum].type || '') : (existingData[i][2] || '');
-      dayTypeUpdates.push([newCat]);
     }
 
     // Single batch write for V/A/B (cols 4-6)
     sched.getRange(2, 4, numRows, 3).setValues(vabUpdates);
     // Single batch write for score (col 9)
     sched.getRange(2, 9, numRows, 1).setValues(scoreUpdates);
-    // Update dayType (col 3) — user override wins
-    sched.getRange(2, 3, numRows, 1).setValues(dayTypeUpdates);
   }
 
   // ── Build response ────────────────────────────────
@@ -1305,392 +1229,6 @@ function actionDeleteTorani(req) {
   return actionToggleTorani({...req});
 }
 
-// ===== REBUILD SCORES FROM ALL SCHEDULE SHEETS =====
-function actionRebuildScores(req, user) {
-  if (user.role !== 'admin') return {success: false, error: 'אין הרשאה'};
-
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var scoreSheet = ss.getSheetByName('Scores');
-  if (!scoreSheet) return {success: false, error: 'גיליון Scores לא נמצא'};
-
-  var scoreRows = scoreSheet.getDataRange().getValues();
-  if (scoreRows.length < 2) return {success: false, error: 'גיליון Scores ריק — הוסף תורנים קודם'};
-
-  // Build name→row index map
-  var nameToRow = {};
-  for (var i = 1; i < scoreRows.length; i++) {
-    var nm = String(scoreRows[i][0]||'').trim();
-    if (nm) nameToRow[nm] = i + 1; // 1-based row
-  }
-
-  // Find Schedule sheets with actual assignments only
-  var sheets = ss.getSheets();
-  var schedSheets = sheets.filter(function(s){
-    if (!/^Schedule_\d{6}$/.test(s.getName())) return false;
-    var lastRow = s.getLastRow();
-    if (lastRow < 2) return false;
-    var data = s.getRange(2, 4, Math.min(lastRow-1, 5), 1).getValues();
-    return data.some(function(r){ return String(r[0]||'').trim() !== ''; });
-  });
-  schedSheets.sort(function(a,b){ return a.getName().localeCompare(b.getName()); });
-
-  // Clear all monthly columns (col E onwards = col 5+)
-  var lastRow = scoreSheet.getLastRow();
-  if (lastRow > 1) {
-    scoreSheet.getRange(2, 5, lastRow - 1, 24).clearContent(); // 12 months × 2 cols = 24
-    scoreSheet.getRange(2, 4, lastRow - 1, 1).clearContent();  // clear acc2026
-  }
-
-  // Accumulate scores per person
-  var acc = {};
-  Object.keys(nameToRow).forEach(function(n){ acc[n] = 0; });
-
-  schedSheets.forEach(function(sh) {
-    var shName = sh.getName(); // Schedule_202605
-    var year = parseInt(shName.substring(9, 13));
-    var mon  = parseInt(shName.substring(13, 15));
-    if (year !== 2026) return; // only 2026 for now
-
-    var monColType  = 5 + (mon - 1) * 2; // 1-based: col E=5 for Jan
-    var monColScore = monColType + 1;
-
-    var rows = sh.getDataRange().getValues();
-    // rows[0] = headers, rows[i] = [date, day, dayType, V, A, B, notes, dutyType, score, ...]
-    var monthScores = {}; // name → {type, score}
-
-    for (var ri = 1; ri < rows.length; ri++) {
-      var v    = String(rows[ri][3]||'').trim();
-      var dtype= String(rows[ri][7]||rows[ri][2]||'').trim();
-      var sc   = Number(rows[ri][8]||0);
-      if (v && sc > 0) {
-        if (!monthScores[v] || sc > monthScores[v].score) {
-          monthScores[v] = {type: dtype, score: sc};
-        }
-      }
-    }
-
-    // Load people for פטור check
-    var peopleSheet = ss.getSheetByName('People');
-    var pRows = peopleSheet ? peopleSheet.getDataRange().getValues() : [];
-    var exempt = {};
-    for (var pi = 1; pi < pRows.length; pi++) {
-      var pn = String(pRows[pi][0]||'').trim();
-      var act = String(pRows[pi][1]||'1').trim();
-      if (pn && act === '0') exempt[pn] = true;
-    }
-
-    // Write to Scores sheet
-    Object.keys(nameToRow).forEach(function(n) {
-      var rowNum = nameToRow[n];
-      if (monthScores[n]) {
-        scoreSheet.getRange(rowNum, monColType).setValue(monthScores[n].type);
-        scoreSheet.getRange(rowNum, monColScore).setValue(monthScores[n].score);
-        acc[n] = (acc[n]||0) + monthScores[n].score;
-      } else if (exempt[n]) {
-        scoreSheet.getRange(rowNum, monColType).setValue('פטור');
-        scoreSheet.getRange(rowNum, monColScore).setValue(10);
-        acc[n] = (acc[n]||0) + 10;
-      }
-    });
-  });
-
-  // Write accumulated 2026 score (col D = 4)
-  Object.keys(nameToRow).forEach(function(n) {
-    scoreSheet.getRange(nameToRow[n], 4).setValue(acc[n]||0);
-  });
-
-  return {success: true, message: 'ניקוד עודכן מ-' + schedSheets.length + ' לוחות'};
-}
-
-
-// ===== PROFILE CHANGE REQUESTS =====
-var PROFILE_CHANGES_SHEET = 'ProfileChangeRequests';
-
-function actionRequestProfileChange(req, user) {
-  var field = req.field, oldValue = req.oldValue, newValue = req.newValue;
-  // Support impersonate: use targetName/targetUsername if provided
-  var targetUsername = req.targetUsername || user.username;
-  var targetName = req.targetName || user.name;
-  if (!field || !newValue) return {success: false, error: 'חסרים פרטים'};
-
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName(PROFILE_CHANGES_SHEET);
-  if (!sh) {
-    sh = ss.insertSheet(PROFILE_CHANGES_SHEET);
-  }
-  // Always ensure header exists in row 1
-  var firstRow = sh.getLastRow() > 0 ? sh.getRange(1,1,1,8).getValues()[0] : [];
-  if (String(firstRow[0]).trim() !== 'ID') {
-    // No header — insert it at row 1
-    if (sh.getLastRow() === 0) {
-      sh.getRange(1,1,1,8).setValues([['ID','שם משתמש','שם','שדה','ערך ישן','ערך חדש','תאריך','סטטוס']]);
-    } else {
-      sh.insertRowBefore(1);
-      sh.getRange(1,1,1,8).setValues([['ID','שם משתמש','שם','שדה','ערך ישן','ערך חדש','תאריך','סטטוס']]);
-    }
-  }
-
-  var id = Utilities.getUuid().substring(0,8);
-  var now = new Date().toISOString();
-  sh.appendRow([id, targetUsername, targetName, field, oldValue||'', newValue, now, 'ממתין']);
-
-  var fieldHeb = field === 'weekendType' ? 'סוג סוף שבוע' : 'קטגוריה';
-  var siteUrl = 'https://itairosenblum-hash.github.io/matlam/';
-  var displayName = targetName !== user.name ? targetName + ' (ע"י ' + user.name + ')' : targetName;
-
-  // Notification to ADMIN (in Notifications sheet for bell icon)
-  var notifSheet = ss.getSheetByName('Notifications');
-  if (notifSheet) {
-    var adminTornim = actionGetAllTornim().tornim || [];
-    var adminT = adminTornim.find(function(x){ return x.role === 'admin'; });
-    var adminName = adminT ? adminT.name : 'מנהל מערכת';
-    notifSheet.appendRow([Utilities.getUuid().substring(0,8), adminName,
-      '📋 ' + user.name + ' מבקש לשנות ' + fieldHeb + ' ל-"' + newValue + '"',
-      now]);
-  }
-
-  // Mail to admin
-  if (ADMIN_EMAIL) {
-    try {
-      MailApp.sendEmail({
-        to: ADMIN_EMAIL,
-        subject: '📋 בקשת שינוי פרופיל — ' + displayName,
-        htmlBody: '<div dir="rtl" style="font-family:Arial">' +
-          '<h2>📋 בקשת שינוי פרופיל</h2>' +
-          '<p><strong>' + user.name + '</strong> מבקש לשנות:</p>' +
-          '<table style="border-collapse:collapse;width:100%">' +
-          '<tr><td style="padding:8px;background:#f5f5f5;border:1px solid #ddd"><strong>שדה</strong></td><td style="padding:8px;border:1px solid #ddd">' + fieldHeb + '</td></tr>' +
-          '<tr><td style="padding:8px;background:#f5f5f5;border:1px solid #ddd"><strong>ערך נוכחי</strong></td><td style="padding:8px;border:1px solid #ddd">' + (oldValue||'—') + '</td></tr>' +
-          '<tr><td style="padding:8px;background:#f5f5f5;border:1px solid #ddd"><strong>ערך חדש</strong></td><td style="padding:8px;border:1px solid #ddd"><strong style="color:#2ea043">' + newValue + '</strong></td></tr>' +
-          '</table><br><a href="' + siteUrl + '" style="background:#2ea043;color:#fff;padding:10px 20px;text-decoration:none;border-radius:6px">כניסה לאישור</a></div>'
-      });
-    } catch(e) { Logger.log('Admin mail error: ' + e); }
-  }
-
-  // Mail to user (confirmation that request was sent)
-  var tornim2 = actionGetAllTornim().tornim || [];
-  var t2 = tornim2.find(function(x){ return x.username === user.username; });
-  if (t2 && t2.email) {
-    try {
-      MailApp.sendEmail({
-        to: t2.email,
-        subject: '📋 בקשתך נשלחה לאישור',
-        htmlBody: '<div dir="rtl" style="font-family:Arial"><h2>📋 בקשתך נשלחה</h2>' +
-          '<p>שלום <strong>' + user.name + '</strong>,</p>' +
-          '<p>בקשתך לשינוי <strong>' + fieldHeb + '</strong> ל-<strong>' + newValue + '</strong> נשלחה למנהל לאישור.</p>' +
-          '<p>תקבל/י עדכון לאחר שהמנהל יטפל בבקשה.</p></div>'
-      });
-    } catch(e) { Logger.log('User mail error: ' + e); }
-  }
-
-  return {success: true};
-}
-
-function actionGetProfileChangeRequests(req, user) {
-  if (user.role !== 'admin') return {success: false, error: 'אין הרשאה'};
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName(PROFILE_CHANGES_SHEET);
-  if (!sh || sh.getLastRow() < 2) return {success: true, requests: []};
-  var rows = sh.getDataRange().getValues();
-  Logger.log('ProfileChangeRequests rows: ' + rows.length);
-  var requests = [];
-  // Start from row 0 if no proper header (check if first row looks like data)
-  var startRow = 1;
-  if (rows.length > 0 && rows[0][0] !== 'ID' && String(rows[0][7]||'').trim().includes('ממתין')) {
-    startRow = 0; // No header row, data starts at row 0
-  }
-  for (var i = startRow; i < rows.length; i++) {
-    Logger.log('Row ' + i + ' status: "' + rows[i][7] + '"');
-    if (String(rows[i][7]||'').trim().includes('ממתין')) {
-      requests.push({id:rows[i][0], username:rows[i][1], name:rows[i][2], field:rows[i][3], oldValue:rows[i][4], newValue:rows[i][5], date:rows[i][6]});
-    }
-  }
-  return {success: true, requests};
-}
-
-function actionApproveProfileChange(req, user) {
-  if (user.role !== 'admin') return {success: false, error: 'אין הרשאה'};
-  return _handleProfileChange(req, 'אושר');
-}
-
-function actionRejectProfileChange(req, user) {
-  if (user.role !== 'admin') return {success: false, error: 'אין הרשאה'};
-  return _handleProfileChange(req, 'נדחה');
-}
-
-function _handleProfileChange(req, status) {
-  var id = req.id;
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName(PROFILE_CHANGES_SHEET);
-  if (!sh) return {success: false, error: 'גיליון לא נמצא'};
-  var rows = sh.getDataRange().getValues();
-  // Handle case where there's no header row
-  var startRow = (rows.length > 0 && rows[0][0] === 'ID') ? 1 : 0;
-  for (var i = startRow; i < rows.length; i++) {
-    if (String(rows[i][0]) !== String(id)) continue;
-    var username = rows[i][1], name = rows[i][2], field = rows[i][3], oldValue = rows[i][4], newValue = rows[i][5];
-    // Update status
-    sh.getRange(i+1, 8).setValue(status);
-    var fieldHeb = field === 'weekendType' ? 'סוג סוף שבוע' : 'קטגוריה';
-
-    if (status === 'אושר') {
-      // Apply change to People sheet — no header row, start from index 0
-      var peopleSheet = ss.getSheetByName('People');
-      var pRows = peopleSheet.getDataRange().getValues();
-      var found = false;
-      for (var pi = 0; pi < pRows.length; pi++) {
-        if (String(pRows[pi][0]).trim() === String(name).trim()) {
-          if (field === 'weekendType') peopleSheet.getRange(pi+1, 5).setValue(newValue);
-          if (field === 'dutyCategory') peopleSheet.getRange(pi+1, 3).setValue(newValue);
-          Logger.log('Updated People row ' + (pi+1) + ' to: ' + newValue);
-          found = true;
-          break;
-        }
-      }
-      Logger.log('People update found: ' + found);
-
-      // Also update in Users sheet (col 7 = weekendType, col 6 = dutyCategory)
-      var usersSheet3 = ss.getSheetByName('Users');
-      if (usersSheet3) {
-        var uRows3 = usersSheet3.getDataRange().getValues();
-        for (var ui3 = 1; ui3 < uRows3.length; ui3++) {
-          if (String(uRows3[ui3][2]).trim() === String(username).trim()) {
-            if (field === 'weekendType') usersSheet3.getRange(ui3+1, 7).setValue(newValue);
-            if (field === 'dutyCategory') usersSheet3.getRange(ui3+1, 6).setValue(newValue);
-            Logger.log('Updated Users row ' + (ui3+1) + ' to: ' + newValue);
-            break;
-          }
-        }
-      }
-      // Also check Users sheet for the username-based name
-      if (!found) {
-        var usersSheet = ss.getSheetByName('Users');
-        var uRows = usersSheet.getDataRange().getValues();
-        for (var ui = 1; ui < uRows.length; ui++) {
-          if (String(uRows[ui][2]).trim() === String(username).trim()) {
-            var realName = String(uRows[ui][1]).trim();
-            for (var pi2 = 1; pi2 < pRows.length; pi2++) {
-              if (String(pRows[pi2][0]).trim() === realName) {
-                if (field === 'weekendType') peopleSheet.getRange(pi2+1, 5).setValue(newValue);
-                if (field === 'dutyCategory') peopleSheet.getRange(pi2+1, 3).setValue(newValue);
-                break;
-              }
-            }
-            break;
-          }
-        }
-      }
-
-      // Add notification for the user
-      var notifSheet = ss.getSheetByName('Notifications');
-      if (notifSheet) {
-        var notifId = Utilities.getUuid().substring(0,8);
-        var notifMsg = 'בקשתך לשינוי ' + fieldHeb + ' ל-"' + newValue + '" אושרה ✅';
-        notifSheet.appendRow([notifId, name, notifMsg, new Date().toISOString()]);
-      }
-    } else {
-      // Rejected — add notification
-      var notifSheet2 = ss.getSheetByName('Notifications');
-      if (notifSheet2) {
-        var notifId2 = Utilities.getUuid().substring(0,8);
-        var notifMsg2 = 'בקשתך לשינוי ' + fieldHeb + ' ל-"' + newValue + '" נדחתה ❌';
-        notifSheet2.appendRow([notifId2, name, notifMsg2, new Date().toISOString()]);
-      }
-    }
-
-    // Find user email from Users sheet
-    var userEmail = '';
-    var usersSheet2 = ss.getSheetByName('Users');
-    if (usersSheet2) {
-      var uRows2 = usersSheet2.getDataRange().getValues();
-      // Check Users sheet col 8 (email if exists) or from People
-      var tornim = actionGetAllTornim().tornim || [];
-      var t = tornim.find(function(x){ return x.username === username; });
-      if (t && t.email) userEmail = t.email;
-    }
-
-    if (userEmail) {
-      var icon = status === 'אושר' ? '✅' : '❌';
-      var msg = status === 'אושר'
-        ? 'בקשתך אושרה! הפרופיל עודכן ל-<strong>' + newValue + '</strong>.'
-        : 'בקשתך נדחתה על ידי המנהל. הפרופיל נשאר: <strong>' + (oldValue||'—') + '</strong>.';
-      try {
-        MailApp.sendEmail({
-          to: userEmail,
-          subject: icon + ' בקשת שינוי פרופיל — ' + (status === 'אושר' ? 'אושרה' : 'נדחתה'),
-          htmlBody: '<div dir="rtl" style="font-family:Arial"><h2>' + icon + ' עדכון בקשתך</h2>' +
-            '<p>שלום <strong>' + name + '</strong>,</p>' +
-            '<p>' + msg + '</p>' +
-            '<p>שדה: <strong>' + fieldHeb + '</strong></p></div>'
-        });
-      } catch(e) { Logger.log('Mail error: ' + e); }
-    } else {
-      Logger.log('No email found for user: ' + username);
-    }
-    return {success: true};
-  }
-  return {success: false, error: 'בקשה לא נמצאה'};
-}
-
-function actionSendCredentialsAll(req) {
-  // Return immediately and send emails in background
-  const tornim = actionGetAllTornim().tornim;
-  const siteUrl = 'https://itairosenblum-hash.github.io/matlam/';
-  let sent = 0, skipped = 0;
-
-  tornim.filter(t => t.active && t.email).forEach(function(t) {
-    var html = '<div dir="rtl" style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto">' +
-      '<h2 style="color:#2d4a3e">🔐 פרטי כניסה — מפקד תורן מטל"מ</h2>' +
-      '<p>שלום <strong>' + t.name + '</strong>,</p>' +
-      '<p>להלן פרטי הכניסה שלך למערכת:</p>' +
-      '<table style="border-collapse:collapse;width:100%;margin:16px 0">' +
-      '<tr><td style="padding:10px;background:#f5f5f5;border:1px solid #ddd;font-weight:bold">👤 שם משתמש</td>' +
-      '<td style="padding:10px;border:1px solid #ddd;font-size:18px"><strong>' + t.username + '</strong></td></tr>' +
-      '</table>' +
-      '<a href="' + siteUrl + '" style="display:inline-block;background:#2ea043;color:#fff;padding:12px 24px;text-decoration:none;border-radius:8px">כניסה למערכת</a>' +
-      '</div>';
-    try {
-      MailApp.sendEmail({to: t.email, subject: '🔐 פרטי כניסה — מפקד תורן מטל"מ', htmlBody: html});
-      sent++;
-    } catch(e) { Logger.log('Failed: ' + t.email + ' — ' + e); skipped++; }
-  });
-
-  return {success: true, message: 'נשלח ל-' + sent + ' תורנים' + (skipped > 0 ? ' (' + skipped + ' נכשלו)' : '')};
-}
-
-// ===== שלח פרטי כניסה לתורן בודד =====
-function actionSendCredentialsOne(req) {
-  const {username} = req;
-  if (!username) return {success: false, error: 'חסר שם משתמש'};
-
-  const tornim = actionGetAllTornim().tornim;
-  const t = tornim.find(function(x) { return x.username === username; });
-  if (!t) return {success: false, error: 'תורן לא נמצא'};
-  if (!t.email) return {success: false, error: 'אין כתובת מייל לתורן זה'};
-
-  const siteUrl = 'https://itairosenblum-hash.github.io/matlam/';
-  var html = '<div dir="rtl" style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto">' +
-    '<h2 style="color:#2d4a3e">🔐 פרטי כניסה — מפקד תורן מטל"מ</h2>' +
-    '<p>שלום <strong>' + t.name + '</strong>,</p>' +
-    '<p>להלן פרטי הכניסה שלך למערכת:</p>' +
-    '<table style="border-collapse:collapse;width:100%;margin:16px 0">' +
-    '<tr><td style="padding:10px;background:#f5f5f5;border:1px solid #ddd;font-weight:bold">👤 שם משתמש</td>' +
-    '<td style="padding:10px;border:1px solid #ddd;font-size:18px;letter-spacing:1px"><strong>' + t.username + '</strong></td></tr>' +
-    '<tr><td style="padding:10px;background:#f5f5f5;border:1px solid #ddd;font-weight:bold">🔑 סיסמה</td>' +
-    '<td style="padding:10px;border:1px solid #ddd">הסיסמה שלך (אם שינית) או הסיסמה שקיבלת בעת ההרשמה</td></tr>' +
-    '</table>' +
-    '<a href="' + siteUrl + '" style="display:inline-block;background:#2ea043;color:#fff;padding:12px 24px;text-decoration:none;border-radius:8px;font-size:15px;font-weight:bold">כניסה למערכת</a>' +
-    '<p style="margin-top:20px;color:#666;font-size:12px">אם שכחת את הסיסמה, פנה למנהל המערכת.</p>' +
-    '<p style="color:#999;font-size:11px">מפקד תורן מטל"מ</p></div>';
-
-  try {
-    MailApp.sendEmail({to: t.email, subject: '🔐 פרטי כניסה — מפקד תורן מטל"מ', htmlBody: html});
-    return {success: true};
-  } catch(e) {
-    return {success: false, error: e.toString()};
-  }
-}
-
 // ===== אתחול כל התורנים - הרץ פעם אחת מעורך Apps Script =====
 function initAllTornim() {
   const tornim = [
@@ -1699,9 +1237,9 @@ function initAllTornim() {
     ['איתי גרטל',    'itai.gartel',          'Tornut2026',  'user','1',   '',             'בנפרד', '544996678'],
     ['אלון אשורוב',  'alon.ashurov',         'Tornut2026',  'user','1',   '',             'בנפרד', '543295450'],
     ['בן דקל',       'ben.dekel',            'Tornut2026',  'user','1',   '',             'מלא',   '542029111'],
-    ['בר סרגיינקו',  'bar.sergienko',        'Tornut2026',  'user','0',   'בהליך הסמכה',   'מלא',   '0507232244'],
+    ['בר סרגיינקו',  'bar.sergienko',        'Tornut2026',  'user','0',   'טרם הוסמך',   'מלא',   '0507232244'],
     ['גיא מונט',     'guy.mont',             'Tornut2026',  'user','1',   '',             'מלא',   '503994399'],
-    ['גל איזנברגר',  'gal.eizenberger',      'Tornut2026',  'user','0',   'בהליך הסמכה',   'מלא',   '0523055642'],
+    ['גל איזנברגר',  'gal.eizenberger',      'Tornut2026',  'user','0',   'טרם הוסמך',   'מלא',   '0523055642'],
     ['גל סטי',       'gal.sti',              'Tornut2026',  'user','1',   '',             'בנפרד', '506575389'],
     ['דניאל הרשקוביץ','daniel.hershkovitz',  'Tornut2026',  'user','1',   '',             'בנפרד', '0509669933'],
     ['דניאל מלול',   'daniel.malul',         'Tornut2026',  'user','1',   '',             'בנפרד', '545499791'],
@@ -2892,7 +2430,7 @@ function syncAllScores() {
 // ===== מערכת אימיילים =====
 
 // כתובת מייל של מנהל
-var ADMIN_EMAIL = 'itai.rose@outlook.com';
+var ADMIN_EMAIL = 'itai.rosenblum@example.com'; // שנה לכתובת המייל שלך
 
 // קבל מייל של תורן לפי שם
 function getEmailByName(name) {
@@ -3113,6 +2651,49 @@ function debugLogin() {
   Logger.log('Hash of Tornut2026: '+hashPass('Tornut2026'));
 }
 
+// ===== שליחת פרטי כניסה לתורן =====
+function actionSendCredentialsOne(req) {
+  var username = String(req.username || '').trim();
+  if (!username) return {success: false, error: 'חסר שם משתמש'};
+
+  var usersSheet = getSheet(SH.USERS);
+  var usersRows = usersSheet.getDataRange().getValues();
+  var userRow = null;
+  for (var i = 1; i < usersRows.length; i++) {
+    if (String(usersRows[i][2]).trim() === username) { userRow = usersRows[i]; break; }
+  }
+  if (!userRow) return {success: false, error: 'משתמש לא נמצא'};
+
+  var name     = String(userRow[1] || '');
+  var password = String(userRow[3] || '');
+
+  // Get email from People sheet
+  var peopleRows = getSheet(SH.PEOPLE).getDataRange().getValues();
+  var email = '';
+  for (var j = 0; j < peopleRows.length; j++) {
+    if (String(peopleRows[j][0]).trim() === name) { email = String(peopleRows[j][5] || '').trim(); break; }
+  }
+  if (!email) return {success: false, error: 'לא נמצאה כתובת מייל עבור ' + name};
+
+  var html = '<div dir="rtl" style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:20px">' +
+    '<h2 style="color:#2d4a3e">🔐 פרטי כניסה למערכת תורן מטל"מ</h2>' +
+    '<p>שלום ' + name + ',</p>' +
+    '<p>להלן פרטי הכניסה שלך למערכת:</p>' +
+    '<div style="background:#f5f5f5;border-right:4px solid #2d4a3e;padding:16px;border-radius:4px;margin:16px 0">' +
+    '<p><strong>שם משתמש:</strong> ' + username + '</p>' +
+    '<p><strong>סיסמה:</strong> ' + password + '</p>' +
+    '</div>' +
+    '<a href="https://itairosenblum-hash.github.io/matlam/" style="background:#2d4a3e;color:#fff;padding:10px 20px;text-decoration:none;border-radius:6px;display:inline-block;margin-top:8px">כניסה למערכת</a>' +
+    '<p style="color:#999;font-size:11px;margin-top:24px">מפקד תורן מטל"מ</p></div>';
+
+  try {
+    MailApp.sendEmail({to: email, subject: '🔐 פרטי כניסה למערכת תורן מטל"מ', htmlBody: html});
+    return {success: true, ok: true};
+  } catch(e) {
+    return {success: false, error: 'שגיאה בשליחה: ' + e.message};
+  }
+}
+
 // ===== איפוס סיסמה ידני (מנהל בלבד) =====
 function actionResetPassword(req) {
   var {targetUsername, newPassword} = req;
@@ -3196,38 +2777,6 @@ function actionGetNotificationsPersonal(req, user) {
   return {success: true, notifications: notifs};
 }
 
-function actionClearNotification(req, user) {
-  var notifId = String(req.notifId || '').trim();
-  try {
-    var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Notifications');
-    if (!sh || sh.getLastRow() <= 1) return {success: true};
-    var rows = sh.getRange(1, 1, sh.getLastRow(), 4).getValues();
-    for (var i = rows.length - 1; i >= 1; i--) {
-      if (String(rows[i][0]).trim() === notifId) {
-        sh.deleteRow(i + 1);
-        return {success: true};
-      }
-    }
-  } catch(e) { Logger.log('clearNotification error: ' + e); }
-  return {success: true};
-}
-
-function actionClearAllNotifications(req, user) {
-  var myName = String(user.name || '').trim();
-  try {
-    var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Notifications');
-    if (!sh || sh.getLastRow() <= 1) return {success: true};
-    var rows = sh.getRange(1, 1, sh.getLastRow(), 4).getValues();
-    // Delete from bottom up to preserve row indices
-    for (var i = rows.length - 1; i >= 1; i--) {
-      if (String(rows[i][1]||'').trim() === myName) {
-        sh.deleteRow(i + 1);
-      }
-    }
-  } catch(e) { Logger.log('clearAllNotifications error: ' + e); }
-  return {success: true};
-}
-
 // ===== איפוס סיסמת ADMIN =====
 function resetAdminPassword() {
   var sheet = getSheet(SH.USERS);
@@ -3306,7 +2855,7 @@ function writeScheduleFromAgent(data) {
 // ===================================================================
 
 var DUTY_SCORES_MAP = {
-  'חול':10, 'חול הקפצה':12, 'חמישי':12, 'חמישי הקפצה':15, 'סוף שבוע':20, 'סוף שבוע הקפצה':30,
+  'חול':10, 'חמישי':12, 'סוף שבוע':20,
   'סוף שבוע מלא':40, 'ערב חג':30, 'חג':30,
   'חג + סוף שבוע':50, 'דולג':0, 'פטור':10,
   'חול 24 שעות':15, 'חמישי 24 שעות':16, 'הדממה':18
@@ -3415,37 +2964,10 @@ function actionGenerateScheduleV2(req) {
     var dn = dateCell instanceof Date ? dateCell.getDate() : parseInt(String(dateCell).split('/')[0]);
     if (!dn) continue;
     var cat = String(schedRows[si2][2]||'חול').trim();
+    // Normalize
     if (cat === 'שישי' || cat === 'שבת') cat = 'סוף שבוע';
     DAY_CAT[dn] = cat;
   }
-
-  // Override with user-specified dayCategories from the request (user override always wins)
-  var userCats = req.dayCategories;
-  if (typeof userCats === 'string') { try { userCats = JSON.parse(userCats); } catch(e) { userCats = null; } }
-  if (userCats && typeof userCats === 'object') {
-    Object.keys(userCats).forEach(function(dk) {
-      var dn2 = parseInt(dk);
-      if (dn2 && userCats[dk]) DAY_CAT[dn2] = String(userCats[dk]).trim();
-    });
-  }
-
-  // Conflict priorities: admin chose who gets priority on conflict days
-  var conflictPriorities = req.conflictPriorities;
-  if (typeof conflictPriorities === 'string') { try { conflictPriorities = JSON.parse(conflictPriorities); } catch(e) { conflictPriorities = {}; } }
-  conflictPriorities = conflictPriorities || {};
-  // Inject admin-chosen priorities as forced_v (overrides existing)
-  Object.keys(conflictPriorities).forEach(function(dk) {
-    var dn = parseInt(dk);
-    var chosenName = String(conflictPriorities[dk]).trim();
-    if (!dn || !chosenName) return;
-    // Ensure this person has forced_v on this day, and clear others
-    if (!calInfo[chosenName]) calInfo[chosenName] = {constraints:{}, forced_v:{}, preference:''};
-    calInfo[chosenName].forced_v[dn] = true;
-    // Remove forced_v from others for this day
-    Object.keys(calInfo).forEach(function(n) {
-      if (n !== chosenName && calInfo[n].forced_v) delete calInfo[n].forced_v[dn];
-    });
-  });
   
   // Find weekend pairs (consecutive סוף שבוע days that are Fri+Sat)
   // Also find holiday pairs (consecutive חג days) - treated same as full weekends
@@ -3490,7 +3012,7 @@ function actionGenerateScheduleV2(req) {
     var cat = DAY_CAT[day] || 'חול';
     if ((calInfo[name]||{}).constraints && calInfo[name].constraints[day]) return false;
     if (p.activity === '0') return false;
-    if (p.dutyCategory === 'פטור' || p.dutyCategory === 'בהליך הסמכה') return false;
+    if (p.dutyCategory === 'פטור' || p.dutyCategory === 'לא מוסמך') return false;
     if (p.activity === '0.5' && cat !== 'חמישי' && cat !== 'ערב חג') return false;
     // מלא gets FULL weekend pair or holiday pair (both days together)
     // נפרד can do any single day including weekend/holiday - no restrictions here
@@ -3538,9 +3060,6 @@ function actionGenerateScheduleV2(req) {
       }
       var ok = days.every(function(day){return canDoDay(n, day, isFW);});
       if (!ok) continue;
-      // Skip if conflict-priority reserved for a different day
-      var reservedDay2 = conflictPriorities ? Object.keys(conflictPriorities).find(function(dk){ return conflictPriorities[dk] === n; }) : null;
-      if (reservedDay2 && days.indexOf(parseInt(reservedDay2)) === -1) continue;
       var noSkipFlag = p.no_skip ? 0 : 1;
       var prefFlag   = prefMatches(p, slotType) ? 0 : 1;
       candidates.push([noSkipFlag, prefFlag, scores[n], n]);
@@ -3556,7 +3075,7 @@ function actionGenerateScheduleV2(req) {
   // Order: Holiday pairs → single holidays → weekends → thursday → regular
   // Lowest score wins regardless of מלא/נפרד type
 
-  // Paternity (0.5) always gets Thursday first — but NOT if someone else has forced_v on that day
+  // Paternity (0.5) always gets Thursday first
   var thuDays = [];
   for (var d3=1;d3<=daysInMonth2;d3++){
     if (DAY_CAT[d3]==='חמישי'||DAY_CAT[d3]==='ערב חג') thuDays.push(d3);
@@ -3567,11 +3086,6 @@ function actionGenerateScheduleV2(req) {
       var thu=thuDays[ti];
       if(dayToV[thu]) continue;
       if(!canDoDay(pat,thu,false)) continue;
-      // Skip this day if someone else has forced_v (V request) on it
-      var hasForcedV = activeNames.some(function(n){
-        return n !== pat && (calInfo[n]||{}).forced_v && calInfo[n].forced_v[thu] && canDoDay(n, thu, false);
-      });
-      if (hasForcedV) continue;
       usedV[pat]=true; dayToV[thu]=pat;
       var cat=DAY_CAT[thu];
       slotPrimary[thu]=[pat,cat,DUTY_SCORES_MAP[cat]||12];
@@ -3600,24 +3114,15 @@ function actionGenerateScheduleV2(req) {
       }
       var ok = days.every(function(day){return canDoDay(n, day, days.length>1);});
       if (!ok) continue;
-      // Skip if this person is conflict-priority reserved for a different day
-      var reservedDay = conflictPriorities ? Object.keys(conflictPriorities).find(function(dk){ return conflictPriorities[dk] === n; }) : null;
-      if (reservedDay && days.indexOf(parseInt(reservedDay)) === -1) continue;
-      // Skip if person has forced_v on a day NOT in current slot (save them for that day)
-      var fv = (calInfo[n]||{}).forced_v || {};
-      var fvDays = Object.keys(fv).map(Number).filter(function(fd){ return fv[fd] && canDoDay(n, fd, false); });
-      if (fvDays.length > 0 && !fvDays.some(function(fd){ return days.indexOf(fd) !== -1; })) continue;
       var noSkipFlag = p.no_skip ? 0 : 1;
       var prefFlag   = prefMatches(p, slotType) ? 0 : 1;
-      // forced_v: person marked V on ANY day in this slot → gets priority
-      var forcedVFlag = days.some(function(day){ return (calInfo[n]||{}).forced_v && calInfo[n].forced_v[day]; }) ? 0 : 1;
-      candidates.push([forcedVFlag, noSkipFlag, prefFlag, scores[n], n]);
+      candidates.push([noSkipFlag, prefFlag, scores[n], n]);
     }
     if (!candidates.length) return null;
     candidates.sort(function(a,b){
-      for(var k=0;k<4;k++){if(a[k]!==b[k])return a[k]-b[k];}return 0;
+      for(var k=0;k<3;k++){if(a[k]!==b[k])return a[k]-b[k];}return 0;
     });
-    return candidates[0][4];
+    return candidates[0][3];
   }
 
   // PRIORITY 1: Holiday pairs (ערב חג + חג, or חג + חג)
@@ -3935,153 +3440,4 @@ function actionGenerateScheduleV2(req) {
 
   Logger.log('generateScheduleV2: ' + month + ' done, ' + Object.keys(result).length + ' days scheduled');
   return {success:true, message:'השיבוץ הופק בהצלחה (' + Object.keys(result).length + ' ימים)'};
-}
-
-// ===== הרצה ישירה לבנייה מחדש של הניקוד =====
-function rebuildScoresDirectly() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var scoreSheet = ss.getSheetByName('Scores');
-  if (!scoreSheet) { Logger.log('ERROR: Scores sheet not found'); return; }
-
-  var scoreRows = scoreSheet.getDataRange().getValues();
-  Logger.log('Scores rows: ' + scoreRows.length);
-  if (scoreRows.length < 2) { Logger.log('ERROR: Scores sheet has no data rows'); return; }
-
-  // name → {rowNum, acc2025}
-  var nameToRow = {};
-  var acc2025 = {};
-  for (var i = 1; i < scoreRows.length; i++) {
-    var nm = String(scoreRows[i][0]||'').trim();
-    if (!nm) continue;
-    nameToRow[nm] = i + 1; // 1-based
-    acc2025[nm] = Number(scoreRows[i][2]||0); // col C = מצטבר 2025
-  }
-  Logger.log('Names: ' + Object.keys(nameToRow).length);
-
-  // Find Schedule sheets — only ones with actual assignments (not empty)
-  var sheets = ss.getSheets();
-  var schedSheets = sheets.filter(function(s){
-    if (!/^Schedule_\d{6}$/.test(s.getName())) return false;
-    var lastRow = s.getLastRow();
-    if (lastRow < 2) return false; // empty sheet
-    // Check that at least one row has a V assignment (col D)
-    var data = s.getRange(2, 4, Math.min(lastRow-1, 5), 1).getValues();
-    return data.some(function(r){ return String(r[0]||'').trim() !== ''; });
-  });
-  schedSheets.sort(function(a,b){ return a.getName().localeCompare(b.getName()); });
-  Logger.log('Schedule sheets: ' + schedSheets.map(function(s){return s.getName();}).join(', '));
-
-  // Clear monthly cols (E onwards = col 5+, 12 months × 2 = 24 cols) but NOT col C (2025)
-  var lastRow = scoreSheet.getLastRow();
-  if (lastRow > 1) {
-    scoreSheet.getRange(2, 5, lastRow-1, 24).clearContent(); // monthly cols only
-    scoreSheet.getRange(2, 4, lastRow-1, 1).clearContent();  // col D (acc2026)
-  }
-
-  // Load exempt people
-  var peopleSheet = ss.getSheetByName('People');
-  var exempt = {};
-  if (peopleSheet) {
-    var pRows = peopleSheet.getDataRange().getValues();
-    for (var pi = 1; pi < pRows.length; pi++) {
-      if (String(pRows[pi][1]||'').trim() === '0') exempt[String(pRows[pi][0]||'').trim()] = true;
-    }
-  }
-
-  // Accumulate 2026 scores per person
-  var acc2026 = {};
-  Object.keys(nameToRow).forEach(function(n){ acc2026[n] = 0; });
-
-  schedSheets.forEach(function(sh) {
-    var shName = sh.getName();
-    var mon = parseInt(shName.substring(13, 15));
-    var monColType  = 5 + (mon-1)*2;  // 1-based col in Scores sheet
-    var monColScore = monColType + 1;
-    var rows = sh.getDataRange().getValues();
-    Logger.log(shName + ' headers: ' + JSON.stringify(rows[0]));
-    Logger.log(shName + ' row1: ' + JSON.stringify(rows[1]));
-    var monthScores = {};
-
-    for (var ri = 1; ri < rows.length; ri++) {
-      var v     = String(rows[ri][3]||'').trim();
-      var v2    = String(rows[ri][9]||'').trim();
-      var dtype = String(rows[ri][7]||rows[ri][2]||'').trim();
-      var sc    = Number(rows[ri][8]||0);
-      var isWeekend = (dtype.indexOf('סוף שבוע') !== -1);
-
-      if (v && sc > 0) {
-        if (!monthScores[v]) monthScores[v] = {types: [], score: 0, weekendDays: 0};
-        monthScores[v].score += sc;
-        if (isWeekend) monthScores[v].weekendDays++;
-        else if (dtype && monthScores[v].types.indexOf(dtype) === -1) monthScores[v].types.push(dtype);
-      }
-      if (v2 && sc > 0) {
-        if (!monthScores[v2]) monthScores[v2] = {types: [], score: 0, weekendDays: 0};
-        monthScores[v2].score += sc;
-        if (isWeekend) monthScores[v2].weekendDays++;
-        else if (dtype && monthScores[v2].types.indexOf(dtype) === -1) monthScores[v2].types.push(dtype);
-      }
-    }
-    Logger.log(shName + ' monthScores names: ' + Object.keys(monthScores).join(', '));
-
-    Object.keys(nameToRow).forEach(function(n) {
-      var row = nameToRow[n];
-      if (monthScores[n]) {
-        var types = monthScores[n].types.slice();
-        // Determine weekend type based on count of weekend days assigned
-        if (monthScores[n].weekendDays >= 2) {
-          types.unshift('סוף שבוע מלא');
-        } else if (monthScores[n].weekendDays === 1) {
-          types.unshift('סוף שבוע');
-        }
-        scoreSheet.getRange(row, monColType).setValue(types.join(' + '));
-        scoreSheet.getRange(row, monColScore).setValue(monthScores[n].score);
-        acc2026[n] += monthScores[n].score;
-      } else if (exempt[n]) {
-        scoreSheet.getRange(row, monColType).setValue('פטור');
-        scoreSheet.getRange(row, monColScore).setValue(10);
-        acc2026[n] += 10;
-      } else {
-        scoreSheet.getRange(row, monColType).setValue('דולג');
-        scoreSheet.getRange(row, monColScore).setValue(0);
-      }
-    });
-    Logger.log(shName + ': ' + JSON.stringify(monthScores).substring(0,150));
-  });
-
-  // Write col D = מצטבר 2025 + מצטבר 2026
-  Object.keys(nameToRow).forEach(function(n) {
-    var total = (acc2025[n]||0) + (acc2026[n]||0);
-    scoreSheet.getRange(nameToRow[n], 4).setValue(total);
-  });
-
-  Logger.log('Done! acc2026: ' + JSON.stringify(acc2026).substring(0,300));
-}
-
-function testPeopleUpdate() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName('People');
-  var rows = sh.getDataRange().getValues();
-  for (var i = 1; i < rows.length; i++) {
-    Logger.log('Row ' + i + ': "' + rows[i][0] + '" col5: ' + rows[i][4]);
-    if (String(rows[i][0]).trim() === 'מנהל מערכת') {
-      Logger.log('Found! Current weekendType: ' + rows[i][4]);
-      break;
-    }
-  }
-}
-
-function fixPeopleWeekend() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName('People');
-  var rows = sh.getDataRange().getValues();
-  for (var i = 1; i < rows.length; i++) {
-    if (String(rows[i][0]).trim() === 'מנהל מערכת') {
-      Logger.log('Found at row ' + (i+1) + ', current E: ' + rows[i][4]);
-      sh.getRange(i+1, 5).setValue('בנפרד');
-      Logger.log('Set to בנפרד. New value: ' + sh.getRange(i+1, 5).getValue());
-      return;
-    }
-  }
-  Logger.log('Not found!');
 }
