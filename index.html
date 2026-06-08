@@ -1156,6 +1156,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
         <label>תפקיד במערכת</label>
         <select id="t-role">
           <option value="user">תורן</option>
+          <option value="viewer">צפייה</option>
           <option value="admin">מנהל</option>
         </select>
       </div>
@@ -1557,7 +1558,7 @@ async function doBootstrap() {
 async function initApp() {
   showPage('main-page');
   document.getElementById('nav-user-name').textContent = currentUser.name;
-  document.getElementById('nav-role-badge').textContent = currentUser.role === 'admin' ? 'מנהל' : 'תורן';
+  document.getElementById('nav-role-badge').textContent = currentUser.role === 'admin' ? 'מנהל' : currentUser.role === 'viewer' ? 'צפייה' : 'תורן';
   buildNavTabs();
   populateMonthSelects();
   if (currentUser.role === 'admin') {
@@ -1580,6 +1581,11 @@ async function initApp() {
       const bw = document.getElementById('bell-wrapper');
       if (bw) bw.style.display = 'block';
     }, 1000);
+  } else if (currentUser.role === 'viewer') {
+    switchTab('full-schedule');
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}`;
+    document.getElementById('admin-schedule-month') && (document.getElementById('admin-schedule-month').value = currentMonth);
   } else {
     switchTab('full-schedule');
     // Auto-load current month for constraints
@@ -1604,6 +1610,8 @@ function buildNavTabs() {
   }
   const tabs = currentUser.role === 'admin'
     ? [['admin-schedule','📅 לוח תורנויות'],['admin-constraints','🚫 אילוצים'],['admin-scores','📊 ניקוד'],['admin-users','👥 תורנים'],['admin-swaps','🔄 החלפות'],['guide','📖 מדריך']]
+    : currentUser.role === 'viewer'
+    ? [['full-schedule','📅 לוח מלא'],['admin-users','👥 תורנים']]
     : [['full-schedule','📅 לוח מלא'],['constraints','🚫 אילוצים'],['scores','📊 ניקוד'],['swap','🔄 החלפה'],['profile','👤 פרופיל'],['guide','📖 מדריך']];
   container.innerHTML = tabs.map(([id,label])=>
     `<button class="nav-tab" id="navtab-${id}" onclick="switchTabAndClose('${id}')">${label}<span class="notif-badge" id="badge-${id}" style="display:none"></span></button>`
