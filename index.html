@@ -732,7 +732,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
             <div class="section-title">👥 ניהול תורנים</div>
             <div class="section-subtitle">כל תורן הוא גם משתמש — פרטי כניסה + פרטי תורנות</div>
           </div>
-          ${currentUser.role !== 'viewer' ? '<button class="btn btn-primary" onclick="openAddTorani()">+ הוסף תורן</button>' : ''}
+          <button class="btn btn-primary" id="btn-add-torani" onclick="openAddTorani()">+ הוסף תורן</button>
         </div>
         <div id="tornim-alert"></div>
         <div id="tornim-content"></div>
