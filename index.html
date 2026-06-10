@@ -2576,6 +2576,24 @@ async function loadAdminConstraints() {
   window._constraintEditState = editState;
   window._constraintMonth = month;
 
+  // Fetch schedule to get holiday types per day
+  const HAG_TYPES_C = new Set(['חג','ערב חג','חג + סוף שבוע']);
+  const dayTypes = {};
+  const schedRes = await api({action:'getSchedule', month});
+  if (schedRes.success && schedRes.schedule) {
+    schedRes.schedule.forEach(e => {
+      const d = new Date(e.date.split('/').reverse().join('-')).getDate();
+      if (e.dayType) dayTypes[d] = e.dayType;
+    });
+  }
+  // fill missing days by weekday
+  for (let d = 1; d <= days; d++) {
+    if (!dayTypes[d]) {
+      const dow = new Date(year, mon-1, d).getDay();
+      dayTypes[d] = dow===4 ? 'חמישי' : (dow===5||dow===6) ? 'סוף שבוע' : 'חול';
+    }
+  }
+
   let html = `<div class="stats-grid">
     <div class="stat-card"><div class="stat-val">${activeNames.length}</div><div class="stat-label">הגישו אילוצים</div></div>
     <div class="stat-card"><div class="stat-val">${days}</div><div class="stat-label">ימים בחודש</div></div>
@@ -2592,7 +2610,22 @@ async function loadAdminConstraints() {
       <thead>
         <tr style="position:static">
           <th style="position:sticky;right:0;z-index:2;background:var(--surface3);min-width:140px;border:1px solid var(--border2)">שם</th>
-          ${Array.from({length:days},(_,i)=>`<th style="font-size:11px;padding:6px 4px;min-width:30px;text-align:center;position:static;border:1px solid var(--border2)">${i+1}</th>`).join('')}
+          ${Array.from({length:days},(_,i)=>{
+            const date = new Date(year, mon-1, i+1);
+            const dow = date.getDay();
+            const dayName = ['א','ב','ג','ד','ה','ו','ש'][dow];
+            const isWE = dow===5||dow===6;
+            const isThu = dow===4;
+            const isHag = HAG_TYPES_C.has(dayTypes[i+1]);
+            const bg = isHag ? 'background:rgba(234,179,8,0.18);color:var(--warn)'
+                     : isWE  ? 'background:rgba(139,92,246,0.15);color:#a78bfa'
+                     : isThu ? 'background:rgba(210,153,34,0.12);color:var(--warn)'
+                     : 'background:var(--surface3)';
+            return `<th style="font-size:11px;padding:4px 2px;min-width:30px;text-align:center;position:static;border:1px solid var(--border2);${bg}" title="${dayName}'">
+              <div style="font-weight:700">${i+1}</div>
+              <div style="font-size:9px;opacity:0.8">${dayName}'</div>
+            </th>`;
+          }).join('')}
           <th style="position:static;border:1px solid var(--border2);min-width:160px">הערות</th>
           <th style="position:static;border:1px solid var(--border2);min-width:70px">שמור</th>
         </tr>
