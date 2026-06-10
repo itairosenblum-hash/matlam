@@ -560,7 +560,10 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
       </div>
       <div class="form-group">
         <label>סיסמה</label>
-        <input id="login-pass" type="password" placeholder="הכנס סיסמה" autocomplete="current-password">
+        <div style="position:relative">
+          <input id="login-pass" type="password" placeholder="הכנס סיסמה" autocomplete="current-password" style="padding-left:42px">
+          <button type="button" id="toggle-pass-btn" onclick="toggleLoginPass()" title="הצג/הסתר סיסמה" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text2);font-size:17px;padding:0;line-height:1">👁</button>
+        </div>
       </div>
       <button class="btn btn-primary btn-full" id="login-btn" onclick="doLogin()">
         <span>התחבר</span>
@@ -1489,6 +1492,19 @@ function exitImpersonate() {
 // =====================================================
 // AUTH
 // =====================================================
+
+function toggleLoginPass() {
+  const inp = document.getElementById('login-pass');
+  const btn = document.getElementById('toggle-pass-btn');
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    btn.textContent = '🙈';
+  } else {
+    inp.type = 'password';
+    btn.textContent = '👁';
+  }
+}
+
 async function doLogin() {
   const username = document.getElementById('login-user').value.trim();
   const password = document.getElementById('login-pass').value;
