@@ -973,6 +973,7 @@ function actionGenerateSchedule(req) {
     const cat = String(dayCategories[String(d)] || (dow === 4 ? 'חמישי' : (dow === 5 || dow === 6) ? 'סוף שבוע' : 'חול'));
     days.push({day: d, dow, cat, hebrewDay: HEBREW_DAYS[dow]});
   }
+  function isHoliday(cat) { return cat === 'חג' || cat === 'ערב חג' || cat === 'יומיים חג' || (typeof cat === 'string' && cat.includes('חג')); }
   function isWeekend(cat) { return cat === 'סוף שבוע' || isHoliday(cat); }
 
   // Who can serve as V on this day type
