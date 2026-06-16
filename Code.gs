@@ -904,13 +904,27 @@ function actionGenerateSchedule(req) {
   function isWeekend(cat) { return cat === 'סוף שבוע' || isHoliday(cat); }
 
   // Who can serve as V on this day type
-  function eligibleV(cat, excludeNames) {
+  function eligibleV(cat, excludeNames, standalone) {
+    // standalone=true: שישי/שבת בודד → only בנפרד
+    // standalone=false: שישי+שבת pair → only מלא
+    // standalone=undefined: other days
     return activePeople.filter(p => {
       if (excludeNames && excludeNames.has(p.name)) return false;
       if (p.dutyCategory === 'אב') return cat === 'חמישי' || cat.includes('חמישי');
       if (isWeekend(cat)) {
-        if (p.weekendType !== 'בנפרד' && didWeekendInLastMonths(p.name, 6)) return false;
-        if (p.weekendType === 'בנפרד' && didWeekendInLastMonths(p.name, 3)) return false;
+        if (standalone === true) {
+          // שישי/שבת בודד: only בנפרד, gap 3 months
+          if (p.weekendType !== 'בנפרד') return false;
+          if (didWeekendInLastMonths(p.name, 3)) return false;
+        } else if (standalone === false) {
+          // שישי+שבת: only מלא, gap 6 months
+          if (p.weekendType === 'בנפרד') return false;
+          if (didWeekendInLastMonths(p.name, 6)) return false;
+        } else {
+          // holiday or other weekend: both types allowed
+          if (p.weekendType !== 'בנפרד' && didWeekendInLastMonths(p.name, 6)) return false;
+          if (p.weekendType === 'בנפרד' && didWeekendInLastMonths(p.name, 3)) return false;
+        }
       }
       return true;
     });
@@ -966,9 +980,9 @@ function actionGenerateSchedule(req) {
     const isFriWithSat = dow === 5 && isWeekend(cat) && nextDay && isWeekend(nextDay.cat);
 
     if (isFriWithSat) {
-      // Try מלא first
-      const malaPool = eligibleV(cat, usedV).filter(p =>
-        p.weekendType !== 'בנפרד' && !isHardBlocked(p.name, day+1)
+      // Try מלא first (standalone=false = full weekend pair)
+      const malaPool = eligibleV(cat, usedV, false).filter(p =>
+        !isHardBlocked(p.name, day+1)
       );
       const malaChosen = pick(malaPool, day, null);
 
@@ -980,8 +994,8 @@ function actionGenerateSchedule(req) {
         vSlot[day+1] = {name: malaChosen.name, type: 'סוף שבוע מלא', score: 0, cat: nextDay.cat};
         fullPairs[day] = day+1;
       } else {
-        // בנפרד for friday
-        const sepPool = eligibleV(cat, usedV).filter(p => p.weekendType === 'בנפרד');
+        // No מלא available → בנפרד for friday (standalone=true)
+        const sepPool = eligibleV(cat, usedV, true);
         const frChosen = pick(sepPool, day, null);
         if (frChosen) {
           usedV.add(frChosen.name);
@@ -989,24 +1003,24 @@ function actionGenerateSchedule(req) {
           workingScores[frChosen.name] = (workingScores[frChosen.name]||0) + score;
           vSlot[day] = {name: frChosen.name, type: 'סוף שבוע', score, cat};
         }
-        // separate V for saturday
-        const satPool = eligibleV(nextDay.cat, usedV).filter(p =>
+        // בנפרד for saturday (standalone=true)
+        const satPool = eligibleV(nextDay.cat, usedV, true).filter(p =>
           p.name !== (frChosen?.name||'')
         );
         const satChosen = pick(satPool, day+1, null);
         if (satChosen) {
           usedV.add(satChosen.name);
-          const isMala = satChosen.weekendType !== 'בנפרד';
-          const score = isMala ? (dutyTypes['סוף שבוע מלא']||40) : (dutyTypes['סוף שבוע']||20);
+          const score = dutyTypes['סוף שבוע']||20;
           workingScores[satChosen.name] = (workingScores[satChosen.name]||0) + score;
-          vSlot[day+1] = {name: satChosen.name, type: isMala ? 'סוף שבוע מלא' : 'סוף שבוע', score, cat: nextDay.cat};
+          vSlot[day+1] = {name: satChosen.name, type: 'סוף שבוע', score, cat: nextDay.cat};
         }
       }
       return;
     }
 
-    // All other days
-    const pool = eligibleV(cat, usedV);
+    // All other days (standalone sat, holidays, thu, חול)
+    const isStandaloneWeekend = isWeekend(cat) && !isFriWithSat;
+    const pool = eligibleV(cat, usedV, isStandaloneWeekend ? true : undefined);
     const chosen = pick(pool, day, null);
     if (chosen) {
       usedV.add(chosen.name);
