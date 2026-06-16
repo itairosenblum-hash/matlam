@@ -1064,13 +1064,13 @@ function actionGenerateSchedule(req) {
 
       const elFull = sortByScore(activePeople.filter(p =>
         !usedA.has(p.name) && p.name !== vName &&
-        p.weekendType !== 'בנפרד' &&
+        p.weekendType !== 'בנפרד' && p.dutyCategory !== 'אב' &&
         !isHardBlocked(p.name, day) && !isHardBlocked(p.name, sat)
       ), day);
 
       const elSepFri = sortByScore(activePeople.filter(p =>
         !usedA.has(p.name) && p.name !== vName &&
-        p.weekendType === 'בנפרד' &&
+        p.weekendType === 'בנפרד' && p.dutyCategory !== 'אב' &&
         !isHardBlocked(p.name, day)
       ), day);
 
@@ -1083,13 +1083,13 @@ function actionGenerateSchedule(req) {
 
       const elFullB = sortByScore(activePeople.filter(p =>
         !usedB.has(p.name) && p.name !== vName && p.name !== (chosenA?.name||'') &&
-        p.weekendType !== 'בנפרד' &&
+        p.weekendType !== 'בנפרד' && p.dutyCategory !== 'אב' &&
         !isHardBlocked(p.name, day) && !isHardBlocked(p.name, sat)
       ), day);
 
       const elSepSat = sortByScore(activePeople.filter(p =>
         !usedB.has(p.name) && p.name !== vName && p.name !== (chosenA?.name||'') &&
-        p.weekendType === 'בנפרד' &&
+        p.weekendType === 'בנפרד' && p.dutyCategory !== 'אב' &&
         !isHardBlocked(p.name, sat||day)
       ), sat||day);
 
@@ -1102,10 +1102,11 @@ function actionGenerateSchedule(req) {
       return;
     }
 
-    // Regular day A - no canDoType restriction (reserves can back up any day type)
+    // Regular day A - אב restricted to חמישי only, others free
     const elA = sortByScore(activePeople.filter(p =>
       !usedA.has(p.name) && p.name !== vName &&
-      !isHardBlocked(p.name, day)
+      !isHardBlocked(p.name, day) &&
+      (p.dutyCategory !== 'אב' || canDoType(p, cat))
     ), day);
     const chosenA = elA[0];
     if (chosenA) { usedA.add(chosenA.name); aSlot[day] = chosenA.name; }
@@ -1113,7 +1114,8 @@ function actionGenerateSchedule(req) {
     // Regular day B
     const elB = sortByScore(activePeople.filter(p =>
       !usedB.has(p.name) && p.name !== vName && p.name !== (chosenA?.name||'') &&
-      !isHardBlocked(p.name, day)
+      !isHardBlocked(p.name, day) &&
+      (p.dutyCategory !== 'אב' || canDoType(p, cat))
     ), day);
     const chosenB = elB[0];
     if (chosenB) { usedB.add(chosenB.name); bSlot[day] = chosenB.name; }
