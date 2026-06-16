@@ -389,9 +389,10 @@ function actionGetScores() {
 
   // Build result
   const scores = people.filter(p => {
-    // Skip admin and אב from scores
     if (p.name === 'מנהל מערכת' || p.dutyCategory === 'מנהל מערכת' || p.dutyCategory === 'אב') return false;
     if (p.role === 'admin') return false;
+    if (p.dutyCategory === 'טרם הוסמך' || p.dutyCategory === 'פטור') return false;
+    if (p.activity === '0') return false;
     return true;
   }).map(p => {
     const base = baseScores[p.name] || {};
