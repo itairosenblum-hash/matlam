@@ -114,6 +114,7 @@ function route(req) {
   // Admin only
   if (user.role !== 'admin') return {success: false, error: 'אין הרשאת מנהל', code: 403};
   if (action === 'getUsers') return actionGetUsers();
+  if (action === 'debugUsers') return actionDebugUsers();
   if (action === 'addUser') return actionAddUser(req);
   if (action === 'updateUser') return actionUpdateUser(req);
   if (action === 'toggleUser') return actionToggleUser(req);
@@ -258,6 +259,24 @@ function actionUpdateUser(req) {
   }
   return {success: false, error: 'משתמש לא נמצא'};
 }
+
+function actionDebugUsers() {
+  const rows = getSheet(SH.USERS).getDataRange().getValues();
+  const result = [];
+  for (let i = 1; i < rows.length; i++) {
+    const [id, uName, uUsername, , uRole, uActive] = rows[i];
+    result.push({
+      row: i+1,
+      name: String(uName),
+      username: String(uUsername),
+      active: uActive,
+      activeType: typeof uActive,
+      activeStr: String(uActive)
+    });
+  }
+  return {success: true, users: result};
+}
+
 
 function actionToggleUser(req) {
   const sheet = getSheet(SH.USERS);
