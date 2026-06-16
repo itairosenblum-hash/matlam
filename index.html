@@ -2718,9 +2718,19 @@ async function loadAdminConstraints() {
     }
   }
 
+  // Count total X and V across all people
+  let totalX = 0, totalV = 0;
+  activeNames.forEach(name => {
+    const c = res.constraints[name];
+    totalX += c.constraints.filter(v => v === 'X').length;
+    totalV += c.constraints.filter(v => v === 'V').length;
+  });
+
   let html = `<div class="stats-grid">
     <div class="stat-card"><div class="stat-val">${activeNames.length}</div><div class="stat-label">הגישו אילוצים</div></div>
     <div class="stat-card"><div class="stat-val">${days}</div><div class="stat-label">ימים בחודש</div></div>
+    <div class="stat-card"><div class="stat-val" id="total-x-count" style="color:var(--danger)">${totalX}</div><div class="stat-label">סה"כ ✕ חסומים</div></div>
+    <div class="stat-card"><div class="stat-val" id="total-v-count" style="color:var(--accent)">${totalV}</div><div class="stat-label">סה"כ ✓ מועדפים</div></div>
   </div>
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:12px;color:var(--text2)">
     <span>💡 לחץ על תא לעריכה:</span>
@@ -2821,12 +2831,23 @@ function adminToggleConstraintCell(td) {
     td.style.color = '';
     td.querySelector('span').textContent = '';
   }
-  // Update counters
+  // Update per-row counters
   const row = td.closest('tr');
   const xCount = state.constraints.filter(v => v === 'X').length;
   const vCount = state.constraints.filter(v => v === 'V').length;
   row.querySelector('.xc').textContent = xCount;
   row.querySelector('.vc').textContent = vCount;
+  // Update global totals
+  const allState = window._constraintEditState;
+  let totalX = 0, totalV = 0;
+  Object.values(allState).forEach(s => {
+    totalX += s.constraints.filter(v => v === 'X').length;
+    totalV += s.constraints.filter(v => v === 'V').length;
+  });
+  const txEl = document.getElementById('total-x-count');
+  const tvEl = document.getElementById('total-v-count');
+  if (txEl) txEl.textContent = totalX;
+  if (tvEl) tvEl.textContent = totalV;
   adminMarkDirty(name);
 }
 
