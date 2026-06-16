@@ -1121,7 +1121,20 @@ function actionGenerateSchedule(req) {
 
     // All other days (standalone sat, holidays, thu, חול)
     const isStandaloneWeekend = isWeekend(cat) && !isFriWithSat;
-    const pool = eligibleV(cat, usedV, isStandaloneWeekend ? true : undefined);
+    let pool = eligibleV(cat, usedV, isStandaloneWeekend ? true : undefined);
+    // Fallback 1: ignore gap rules (for weekends)
+    if (pool.length === 0 && isStandaloneWeekend) {
+      pool = activePeople.filter(p =>
+        !usedV.has(p.name) && p.weekendType === 'בנפרד' && p.dutyCategory !== 'אב' &&
+        !isHardBlocked(p.name, day)
+      );
+    }
+    // Fallback 2: allow anyone not hard-blocked (for חול/חמישי when all V slots used)
+    if (pool.length === 0 && !isStandaloneWeekend) {
+      pool = activePeople.filter(p =>
+        !isHardBlocked(p.name, day) && p.dutyCategory !== 'אב' || p.dutyCategory === 'אב' && (cat === 'חמישי' || cat.includes('חמישי'))
+      );
+    }
     const chosen = pick(pool, day, null);
     if (chosen) {
       usedV.add(chosen.name);
