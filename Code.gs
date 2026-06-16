@@ -961,6 +961,34 @@ function actionGenerateSchedule(req) {
       return;
     }
 
+    // Standalone Saturday (Friday was not סוף שבוע, or בנפרד did Friday alone)
+    // מלא person who did the Friday (if any) should cover Saturday too
+    const isSaturday = dow === 6 && cat === 'סוף שבוע';
+    if (isSaturday) {
+      const prevDay = day - 1;
+      const fridayV = vSlot[prevDay];
+      // If Friday V was מלא → they cover Saturday too (no new V needed)
+      if (fridayV && fridayV.type === 'סוף שבוע מלא') {
+        vSlot[day] = {name: fridayV.name, type: 'סוף שבוע מלא', score: 0, cat};
+        weekendPairs[prevDay] = day;
+        return;
+      }
+      // Otherwise assign a new מלא person for Saturday
+      const elSat = sortByScore(activePeople.filter(p =>
+        !usedV.has(p.name) && p.weekendType !== 'בנפרד' &&
+        !isHardBlocked(p.name, day) &&
+        !didWeekendInLastMonths(p.name, 6)
+      ), day);
+      const chosenSat = elSat[0];
+      if (chosenSat) {
+        usedV.add(chosenSat.name);
+        const score = dutyTypes['סוף שבוע']||20;
+        workingScores[chosenSat.name] = (workingScores[chosenSat.name]||0) + score;
+        vSlot[day] = {name: chosenSat.name, type: 'סוף שבוע', score, cat};
+      }
+      return;
+    }
+
     // Regular/Saturday/Holiday/Thursday/חול day
     const el = sortByScore(activePeople.filter(p =>
       !usedV.has(p.name) &&
