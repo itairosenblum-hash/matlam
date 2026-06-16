@@ -387,12 +387,24 @@ function actionGetScores() {
     }
   });
 
+  // Build set of active user names from Users sheet
+  const usersSheet = getSheet(SH.USERS);
+  const usersRows = usersSheet.getDataRange().getValues();
+  const activeUserSet = new Set();
+  for (let i = 1; i < usersRows.length; i++) {
+    const [, uName, , , , uActive] = usersRows[i];
+    const isActive = uActive !== false && uActive !== 0 && uActive !== '0' &&
+                     String(uActive).toUpperCase() !== 'FALSE' && uActive !== '';
+    if (uName && isActive) activeUserSet.add(String(uName));
+  }
+
   // Build result
   const scores = people.filter(p => {
     if (p.name === 'מנהל מערכת' || p.dutyCategory === 'מנהל מערכת' || p.dutyCategory === 'אב') return false;
     if (p.role === 'admin') return false;
     if (p.dutyCategory === 'טרם הוסמך' || p.dutyCategory === 'פטור') return false;
     if (p.activity === '0') return false;
+    if (!activeUserSet.has(p.name)) return false; // מושבת ב-Users
     return true;
   }).map(p => {
     const base = baseScores[p.name] || {};
