@@ -1984,52 +1984,74 @@ async function loadUsers() { // keep name for tab switching
   const ACT = {'1':'פעיל','0.5':'חלקי','0':'לא פעיל'};
 
   const container = document.getElementById('tornim-content');
-  container.innerHTML = `<div class="card" style="padding:0;overflow:hidden;overflow-x:auto">
-    <table class="users-table" style="min-width:700px">
-      <thead><tr>
-        <th>שם</th>
-        <th>שם משתמש</th>
-        <th>תפקיד</th>
-        <th>קטגוריה</th>
-        <th>סוף שבוע</th>
-        <th>טלפון</th>
-        <th>אימייל</th>
-        <th>סטטוס</th>
-        <th>פעולות</th>
-      </tr></thead>
-      <tbody>
-        ${res.tornim.slice().sort((a,b) => {
-          const groupOf = t => {
-            if (t.role === 'admin') return 3;
-            if (!t.active) return 2;
-            if ((t.dutyCategory||'') === 'טרם הוסמך') return 1;
-            return 0;
-          };
-          const ga = groupOf(a), gb = groupOf(b);
-          if (ga !== gb) return ga - gb;
-          return a.name.localeCompare(b.name, 'he');
-        }).map(t => `<tr>
-          <td class="fw-bold">${t.name}</td>
-          <td class="text-muted">${t.username}</td>
-          <td>${t.role==='admin'?'<span class="nav-badge">מנהל</span>':'תורן'}</td>
-          <td class="text-sm text-muted">${t.dutyCategory||'רגיל'}</td>
-          <td class="text-sm text-muted">${WEEKEND[t.weekendType]||t.weekendType}</td>
-          <td class="text-sm text-muted">${formatPhoneDisplay(t.phone)||'—'}</td>
-          <td class="text-sm text-muted">${t.email||'—'}</td>
-          <td><span class="status-badge ${t.active?'status-active':'status-inactive'}">${t.active?'פעיל':'מושבת'}</span></td>
-          <td>
-            <div class="flex gap-8">
-              ${t.phone ? `<a href="tel:${t.phone.replace(/[^0-9+]/g,'')}" class="btn btn-secondary btn-sm" title="התקשר">📞</a>` : ''}
-              ${t.phone ? `<a href="https://wa.me/972${t.phone.replace(/[^0-9]/g,'').replace(/^0/,'')}" target="_blank" class="btn btn-secondary btn-sm" title="WhatsApp">💬</a>` : ''}
-              ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick='openEditTorani(${JSON.stringify(t)})'>✏️</button>` : ''}
-              ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="resetPassword('${t.username}','${t.name}')">🔑</button>` : ''}
-              ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="sendLoginDetails('${t.username}','${t.name}')" title="שלח פרטי כניסה למייל">📧</button>` : ''}
-              ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="toggleTorani('${t.username}')">${t.active?'🔒':'🔓'}</button>` : ''}
-            </div>
-          </td>
-        </tr>`).join('')}
-      </tbody>
-    </table></div>`;
+
+  const sorted = res.tornim.slice().sort((a,b) => {
+    const groupOf = t => {
+      if (t.role === 'admin') return 3;
+      if (!t.active) return 2;
+      if ((t.dutyCategory||'') === 'טרם הוסמך') return 1;
+      return 0;
+    };
+    const ga = groupOf(a), gb = groupOf(b);
+    if (ga !== gb) return ga - gb;
+    return a.name.localeCompare(b.name, 'he');
+  });
+
+  const catColor = cat => {
+    if (!cat || cat === 'רגיל') return 'var(--accent)';
+    if (cat === 'אב') return '#f59e0b';
+    if (cat === 'טרם הוסמך') return 'var(--text3)';
+    if (cat === 'פטור') return 'var(--danger)';
+    return 'var(--text2)';
+  };
+
+  const cards = sorted.map(t => {
+    const phone = t.phone ? t.phone.replace(/[^0-9+]/g,'') : '';
+    const waPhone = t.phone ? t.phone.replace(/[^0-9]/g,'').replace(/^0/,'') : '';
+    const cat = t.dutyCategory || 'רגיל';
+    const wkd = WEEKEND[t.weekendType] || t.weekendType || '—';
+    const isActive = t.active;
+
+    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;
+      opacity:${isActive ? '1' : '0.6'};transition:box-shadow 0.2s"
+      onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.12)'"
+      onmouseout="this.style.boxShadow='none'">
+
+      <!-- Header row: name + status -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:38px;height:38px;border-radius:50%;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:var(--accent)">
+            ${t.name.charAt(0)}
+          </div>
+          <div>
+            <div style="font-weight:700;font-size:15px">${t.name}</div>
+            <div style="font-size:11px;color:var(--text3)">${t.username}</div>
+          </div>
+        </div>
+        <span class="status-badge ${isActive ? 'status-active' : 'status-inactive'}">${isActive ? 'פעיל' : 'מושבת'}</span>
+      </div>
+
+      <!-- Info pills -->
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
+        <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:${catColor(cat)};font-weight:600">${cat}</span>
+        <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">${wkd}</span>
+        ${t.role === 'admin' ? '<span style="background:rgba(56,139,253,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600">מנהל</span>' : ''}
+        ${t.phone ? `<span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">📱 ${formatPhoneDisplay(t.phone)}</span>` : ''}
+      </div>
+
+      <!-- Action buttons -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${phone ? `<a href="tel:${phone}" class="btn btn-secondary btn-sm" title="התקשר" style="flex:1;min-width:40px;text-align:center">📞</a>` : ''}
+        ${waPhone ? `<a href="https://wa.me/972${waPhone}" target="_blank" class="btn btn-secondary btn-sm" title="WhatsApp" style="flex:1;min-width:40px;text-align:center">💬</a>` : ''}
+        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick='openEditTorani(${JSON.stringify(t)})' title="ערוך" style="flex:1;min-width:40px">✏️</button>` : ''}
+        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="resetPassword('${t.username}','${t.name}')" title="איפוס סיסמה" style="flex:1;min-width:40px">🔑</button>` : ''}
+        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="sendLoginDetails('${t.username}','${t.name}')" title="שלח פרטי כניסה" style="flex:1;min-width:40px">📧</button>` : ''}
+        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="toggleTorani('${t.username}')" title="${isActive ? 'השבת' : 'הפעל'}" style="flex:1;min-width:40px">${isActive ? '🔒' : '🔓'}</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  container.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">${cards}</div>`;
 }
 
 function openAddTorani() {
