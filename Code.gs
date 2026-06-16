@@ -725,6 +725,9 @@ function actionGenerateSchedule(req) {
     p.activity !== '0' &&
     p.dutyCategory !== 'פטור' &&
     p.dutyCategory !== 'טרם הוסמך' &&
+    p.name !== 'מנהל מערכת' &&
+    p.name !== 'בדיקה בדיקה' &&
+    p.name !== 'מטלמ' &&
     activeUserNames.has(p.name)
   );
 
@@ -851,6 +854,8 @@ function actionGenerateSchedule(req) {
       .filter(p => {
         if (isHardBlocked(p.name, day)) return false;
         if (!canDoType(p, cat)) return false;
+        // Max 1 assignment per month per person (as V/primary)
+        if ((monthAssignmentCount[p.name] || 0) >= 1) return false;
         // 6-month gap for מלא people on weekend/holiday days
         if (isWeekendOrHoliday && p.weekendType !== 'בנפרד' && didWeekendInLastMonths(p.name, 6)) return false;
         // 3-month gap for בנפרד people on weekend/holiday days
@@ -895,12 +900,14 @@ function actionGenerateSchedule(req) {
       const elFull = activePeople
         .filter(p => p.weekendType !== 'בנפרד' &&
           !isHardBlocked(p.name, day) && !isHardBlocked(p.name, day+1) &&
-          !didWeekendInLastMonths(p.name, 6))  // 6-month gap rule for מלא
+          (monthAssignmentCount[p.name] || 0) < 1 &&
+          !didWeekendInLastMonths(p.name, 6))
         .map(p => ({name:p.name, full:true, score:workingScores[p.name]||0}));
 
       const elSep = activePeople
         .filter(p => p.weekendType === 'בנפרד' && !isHardBlocked(p.name, day) &&
-          !didWeekendInLastMonths(p.name, 3))  // 3-month gap rule for בנפרד
+          (monthAssignmentCount[p.name] || 0) < 1 &&
+          !didWeekendInLastMonths(p.name, 3))
         .map(p => ({name:p.name, full:false, score:workingScores[p.name]||0}));
 
       // Merge and sort by score (lowest first)
