@@ -989,11 +989,23 @@ function actionGenerateSchedule(req) {
       return;
     }
 
-    // Regular/Saturday/Holiday/Thursday/חול day
+    // Regular/Holiday/Thursday/חול day
+    // Count remaining unassigned weekend/saturday days that need מלא people
+    const remainingWeekendDays = daysSorted.filter(d =>
+      d.day > day && isWeekendCat(d.cat) && !vSlot[d.day]
+    ).length;
+    const availableMala = activePeople.filter(p =>
+      !usedV.has(p.name) && p.weekendType !== 'בנפרד' && canDoType(p, 'סוף שבוע') &&
+      !didWeekendInLastMonths(p.name, 6)
+    ).length;
+    // Reserve מלא people if there are more remaining weekend days than available מלא people
+    const reserveMala = !isWeekendCat(cat) && remainingWeekendDays > 0 && availableMala <= remainingWeekendDays;
+
     const el = sortByScore(activePeople.filter(p =>
       !usedV.has(p.name) &&
       !isHardBlocked(p.name, day) &&
       canDoType(p, cat) &&
+      !(reserveMala && p.weekendType !== 'בנפרד') && // reserve מלא if needed
       !(isWeekendCat(cat) && p.weekendType !== 'בנפרד' && didWeekendInLastMonths(p.name, 6)) &&
       !(isWeekendCat(cat) && p.weekendType === 'בנפרד' && didWeekendInLastMonths(p.name, 3))
     ), day);
