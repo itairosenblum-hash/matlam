@@ -2481,12 +2481,14 @@ async function loadScores() {
     var mHeaders = activeMon.map(function(m){ return '<th style="'+thS+';font-size:11px">'+m.l+'</th>'; }).join('');
     var rows = all.map(function(s,i){
       var p = pMap[s.name]||{};
+      var dutyCat = s.dutyCategory || p.dutyCategory || 'רגיל';
+      var wkdType = s.weekendType || p.weekendType || '';
       var pct = n>1 ? Math.round(((n-i)/(n-1))*100) : 100; var barColor = i < topT ? 'var(--accent)' : i < midT ? '#f97316' : '#ef4444';
-      var wl = p.weekendType==='מלא'?'🗓️ מלא':p.weekendType==='בנפרד'?'📅 בנפרד':p.weekendType||'—';
+      var wl = wkdType==='מלא'?'מלא':wkdType==='בנפרד'?'בנפרד':wkdType||'—';
       var mCells = activeMon.map(function(m){ var sc=(s[m.k]||{}).score; return '<td style="text-align:center;color:var(--text2);font-size:12px">'+(sc||'—')+'</td>'; }).join('');
       return '<tr><td style="font-weight:700;padding:8px 12px;white-space:nowrap">'+s.name+'</td>'
-        +'<td style="font-size:12px;padding:8px 12px">'+( p.dutyCategory||'רגיל')+'</td>'
-        +'<td style="font-size:12px;padding:8px 12px">'+wl+'</td>'
+        +'<td style="font-size:12px;padding:8px 12px;color:var(--text2)">'+dutyCat+'</td>'
+        +'<td style="font-size:12px;padding:8px 12px;color:var(--text2)">'+wl+'</td>'
         +'<td style="padding:8px 12px;color:var(--text2)">'+( s.acc2025||0)+'</td>'
         +'<td style="padding:8px 12px"><span style="color:var(--accent);font-weight:700">'+s._total+'</span>'
         +'<div class="score-bar" style="width:60px;margin-top:4px"><div class="score-fill" style="width:'+pct+'%;background:'+barColor+'"></div></div></td>'
