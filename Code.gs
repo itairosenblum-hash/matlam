@@ -82,6 +82,7 @@ function route(req) {
   if (action === 'login') return actionLogin(req);
   if (action === 'bootstrap') return actionBootstrap();
   if (action === 'getLockStatus') return actionGetLockStatus(req);
+  if (action === 'debugUsers') return actionDebugUsers();
 
   const user = validateToken(req.token);
   if (!user) return {success: false, error: 'אין הרשאה', code: 401};
