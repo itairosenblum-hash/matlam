@@ -1046,55 +1046,68 @@ function actionGenerateSchedule(req) {
     const isFriWithSat = dow === 5 && isWeekend(cat) && nextDay && isWeekend(nextDay.cat);
 
     if (isFriWithSat) {
-      // Try מלא first (standalone=false = full weekend pair), with fallback ignoring gap
-      let malaPool = eligibleV(cat, usedV, false).filter(p => !isHardBlocked(p.name, day+1));
-      if (malaPool.length === 0) {
-        // Fallback: ignore gap rule, still only מלא type
-        malaPool = activePeople.filter(p =>
-          !usedV.has(p.name) && p.weekendType !== 'בנפרד' && p.dutyCategory !== 'אב' &&
-          !isHardBlocked(p.name, day) && !isHardBlocked(p.name, day+1)
-        );
-      }
-      const malaChosen = pick(malaPool, day, null);
+      // Build eligible pools for both מלא and נפרד, with fallback ignoring gap
+      let malaPool = activePeople.filter(p =>
+        !usedV.has(p.name) && p.weekendType !== 'בנפרד' && p.dutyCategory !== 'אב' &&
+        !isHardBlocked(p.name, day) && !isHardBlocked(p.name, day+1) &&
+        (!didWeekendInLastMonths(p.name, 6) || true) // always include, sort by score
+      );
+      // Apply gap first, fallback to all if empty
+      const malaWithGap = malaPool.filter(p => !didWeekendInLastMonths(p.name, 6));
+      if (malaWithGap.length > 0) malaPool = malaWithGap;
 
-      if (malaChosen) {
-        usedV.add(malaChosen.name);
-        const score = dutyTypes['סוף שבוע מלא']||40;
-        workingScores[malaChosen.name] = (workingScores[malaChosen.name]||0) + score;
-        vSlot[day]   = {name: malaChosen.name, type: 'סוף שבוע מלא', score, cat};
-        vSlot[day+1] = {name: malaChosen.name, type: 'סוף שבוע מלא', score: 0, cat: nextDay.cat};
+      let sepPool = activePeople.filter(p =>
+        !usedV.has(p.name) && p.weekendType === 'בנפרד' && p.dutyCategory !== 'אב' &&
+        !isHardBlocked(p.name, day)
+      );
+      const sepWithGap = sepPool.filter(p => !didWeekendInLastMonths(p.name, 3));
+      if (sepWithGap.length > 0) sepPool = sepWithGap;
+
+      // Pick best from each by score
+      const bestMala = byScore(malaPool, day)[0] || null;
+      const bestSep  = byScore(sepPool, day)[0] || null;
+
+      // Compare scores: lowest wins regardless of type
+      const malaScore = bestMala ? (workingScores[bestMala.name] || 0) : Infinity;
+      const sepScore  = bestSep  ? (workingScores[bestSep.name]  || 0) : Infinity;
+
+      if (bestMala && malaScore <= sepScore) {
+        // מלא wins: covers both fri+sat
+        usedV.add(bestMala.name);
+        const score = dutyTypes['סוף שבוע מלא'] || 40;
+        workingScores[bestMala.name] = (workingScores[bestMala.name] || 0) + score;
+        vSlot[day]   = {name: bestMala.name, type: 'סוף שבוע מלא', score, cat};
+        vSlot[day+1] = {name: bestMala.name, type: 'סוף שבוע מלא', score: 0, cat: nextDay.cat};
         fullPairs[day] = day+1;
-      } else {
-        // No מלא available -> בנפרד for friday (standalone=true), with fallback ignoring gap
-        let sepPoolFri = eligibleV(cat, usedV, true);
-        if (sepPoolFri.length === 0) {
-          sepPoolFri = activePeople.filter(p =>
-            !usedV.has(p.name) && p.weekendType === 'בנפרד' && p.dutyCategory !== 'אב' &&
-            !isHardBlocked(p.name, day)
-          );
-        }
-        const frChosen = pick(sepPoolFri, day, null);
-        if (frChosen) {
-          usedV.add(frChosen.name);
-          const score = dutyTypes['סוף שבוע']||20;
-          workingScores[frChosen.name] = (workingScores[frChosen.name]||0) + score;
-          vSlot[day] = {name: frChosen.name, type: 'סוף שבוע', score, cat};
-        }
-        // בנפרד for saturday (standalone=true), with fallback ignoring gap
-        let sepPoolSat = eligibleV(nextDay.cat, usedV, true).filter(p => p.name !== (frChosen ? frChosen.name : ''));
-        if (sepPoolSat.length === 0) {
-          sepPoolSat = activePeople.filter(p =>
-            !usedV.has(p.name) && p.weekendType === 'בנפרד' && p.dutyCategory !== 'אב' &&
-            !isHardBlocked(p.name, day+1) && p.name !== (frChosen ? frChosen.name : '')
-          );
-        }
-        const satChosen = pick(sepPoolSat, day+1, null);
+      } else if (bestSep) {
+        // נפרד wins friday; find separate person for saturday
+        usedV.add(bestSep.name);
+        const frScore = dutyTypes['סוף שבוע'] || 20;
+        workingScores[bestSep.name] = (workingScores[bestSep.name] || 0) + frScore;
+        vSlot[day] = {name: bestSep.name, type: 'סוף שבוע', score: frScore, cat};
+
+        // Saturday: pick best נפרד (excluding friday person)
+        let satPool = activePeople.filter(p =>
+          !usedV.has(p.name) && p.weekendType === 'בנפרד' && p.dutyCategory !== 'אב' &&
+          !isHardBlocked(p.name, day+1) && p.name !== bestSep.name
+        );
+        const satWithGap = satPool.filter(p => !didWeekendInLastMonths(p.name, 3));
+        if (satWithGap.length > 0) satPool = satWithGap;
+        const satChosen = byScore(satPool, day+1)[0] || null;
         if (satChosen) {
           usedV.add(satChosen.name);
-          const score = dutyTypes['סוף שבוע']||20;
-          workingScores[satChosen.name] = (workingScores[satChosen.name]||0) + score;
-          vSlot[day+1] = {name: satChosen.name, type: 'סוף שבוע', score, cat: nextDay.cat};
+          const satScore = dutyTypes['סוף שבוע'] || 20;
+          workingScores[satChosen.name] = (workingScores[satChosen.name] || 0) + satScore;
+          vSlot[day+1] = {name: satChosen.name, type: 'סוף שבוע', score: satScore, cat: nextDay.cat};
         }
+      } else if (bestMala) {
+        // Only מלא available (no נפרד at all)
+        usedV.add(bestMala.name);
+        const score = dutyTypes['סוף שבוע מלא'] || 40;
+        workingScores[bestMala.name] = (workingScores[bestMala.name] || 0) + score;
+        vSlot[day]   = {name: bestMala.name, type: 'סוף שבוע מלא', score, cat};
+        vSlot[day+1] = {name: bestMala.name, type: 'סוף שבוע מלא', score: 0, cat: nextDay.cat};
+        fullPairs[day] = day+1;
       }
       return;
     }
