@@ -837,7 +837,9 @@ function actionGenerateSchedule(req) {
   }
 
   // Check current month assignments count
-  var monthAssignmentCount = {}; // name → count this month
+  var monthAssignmentCount = {}; // name → count as V this month
+  var monthACount = {};          // name → count as A this month
+  var monthBCount = {};          // name → count as B this month
 
   // Check if person did weekend/חג in last N months (using Scores sheet)
   function didWeekendInLastMonths(name, months) {
@@ -847,15 +849,17 @@ function actionGenerateSchedule(req) {
   }
 
   // Returns list sorted by score (lowest first), respecting hard constraints
-  // Bonus: people who prefer this day are sorted higher (lower in list = preferred)
-  function getEligible(day, cat) {
+  // slot: 'V', 'A', or 'B'
+  function getEligible(day, cat, slot) {
     const isWeekendOrHoliday = cat === 'סוף שבוע' || cat.includes('חג');
     return activePeople
       .filter(p => {
         if (isHardBlocked(p.name, day)) return false;
         if (!canDoType(p, cat)) return false;
-        // Max 1 assignment per month per person (as V/primary)
-        if ((monthAssignmentCount[p.name] || 0) >= 1) return false;
+        // Max 1 per slot per month
+        if (slot === 'V' && (monthAssignmentCount[p.name] || 0) >= 1) return false;
+        if (slot === 'A' && (monthACount[p.name] || 0) >= 1) return false;
+        if (slot === 'B' && (monthBCount[p.name] || 0) >= 1) return false;
         // 6-month gap for מלא people on weekend/holiday days
         if (isWeekendOrHoliday && p.weekendType !== 'בנפרד' && didWeekendInLastMonths(p.name, 6)) return false;
         // 3-month gap for בנפרד people on weekend/holiday days
@@ -865,7 +869,6 @@ function actionGenerateSchedule(req) {
       .sort((a, b) => {
         const scoreDiff = (workingScores[a.name] || 0) - (workingScores[b.name] || 0);
         if (scoreDiff !== 0) return scoreDiff;
-        // Tiebreak: prefer those who marked V for this day
         const aV = prefersDay(a.name, day) ? -1 : 0;
         const bV = prefersDay(b.name, day) ? -1 : 0;
         return aV - bV;
@@ -918,30 +921,37 @@ function actionGenerateSchedule(req) {
       const v = vP?.name || '', a = aP?.name || '', b = bP?.name || '';
 
       if (vP?.full) {
-        // V does full weekend: same trio for both Fri+Sat, score 40
         const score = dutyTypes['סוף שבוע מלא'] || 40;
         assignment[day]   = {V:v, A:a, B:b, type:'סוף שבוע מלא', score, hebrewDay:HEBREW_DAYS[5], cat};
         assignment[day+1] = {V:v, A:a, B:b, type:'סוף שבוע מלא', score:0, hebrewDay:HEBREW_DAYS[6], cat:'סוף שבוע'};
-        if (v) workingScores[v] = (workingScores[v]||0) + score;
+        if (v) { workingScores[v] = (workingScores[v]||0) + score; monthAssignmentCount[v] = (monthAssignmentCount[v]||0) + 1; }
+        if (a) monthACount[a] = (monthACount[a]||0) + 1;
+        if (b) monthBCount[b] = (monthBCount[b]||0) + 1;
       } else {
-        // V is בנפרד — does Friday only, score 20
         const score = dutyTypes['סוף שבוע'] || 20;
         assignment[day] = {V:v, A:a, B:b, type:'סוף שבוע', score, hebrewDay:HEBREW_DAYS[5], cat};
-        if (v) workingScores[v] = (workingScores[v]||0) + score;
-        // Saturday left unassigned — will be picked up in the next iteration
+        if (v) { workingScores[v] = (workingScores[v]||0) + score; monthAssignmentCount[v] = (monthAssignmentCount[v]||0) + 1; }
+        if (a) monthACount[a] = (monthACount[a]||0) + 1;
+        if (b) monthBCount[b] = (monthBCount[b]||0) + 1;
       }
       return;
     }
 
     // All other days (incl. Saturday if not full-weekend): pure score
     const score = dutyTypes[cat] || 10;
-    const el = getEligible(day, cat);
-    const v = el[0]?.name || '', a = el[1]?.name || '', b = el[2]?.name || '';
+    const elV = getEligible(day, cat, 'V');
+    const v = elV[0]?.name || '';
+    const elA = getEligible(day, cat, 'A').filter(p => p.name !== v);
+    const a = elA[0]?.name || '';
+    const elB = getEligible(day, cat, 'B').filter(p => p.name !== v && p.name !== a);
+    const b = elB[0]?.name || '';
     assignment[day] = {V:v, A:a, B:b, type:cat, score, hebrewDay, cat};
     if (v) {
       workingScores[v] = (workingScores[v]||0) + score;
       monthAssignmentCount[v] = (monthAssignmentCount[v]||0) + 1;
     }
+    if (a) monthACount[a] = (monthACount[a]||0) + 1;
+    if (b) monthBCount[b] = (monthBCount[b]||0) + 1;
   });
 
   // ── Save to Sheet (preserve holidays/notes from existing sheet) ──────
