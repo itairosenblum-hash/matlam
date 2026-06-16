@@ -2427,7 +2427,7 @@ async function loadScores() {
 
   var all = res.scores.filter(function(s){
     return s.name !== 'מנהל מערכת' && s.role !== 'admin' &&
-           s.dutyCategory !== 'מנהל מערכת' && s.dutyCategory !== 'אב' &&
+           s.dutyCategory !== 'מנהל מערכת' &&
            s.dutyCategory !== 'טרם הוסמך' && s.dutyCategory !== 'פטור' &&
            s.active !== false && s.active !== '0' && s.active !== 0;
   });
@@ -2570,7 +2570,7 @@ async function printScores() {
 
   const all = res.scores.filter(s =>
     s.name !== 'מנהל מערכת' && s.role !== 'admin' &&
-    s.dutyCategory !== 'מנהל מערכת' && s.dutyCategory !== 'אב' &&
+    s.dutyCategory !== 'מנהל מערכת' &&
     s.dutyCategory !== 'טרם הוסמך' && s.dutyCategory !== 'פטור' &&
     s.active !== false && s.active !== '0' && s.active !== 0
   );
@@ -3240,7 +3240,7 @@ async function loadUserScores() {
 
   var all = (res.scores||[]).filter(function(s){
     return s && s.name && s.name !== 'מנהל מערכת' && s.role !== 'admin' &&
-           s.dutyCategory !== 'מנהל מערכת' && s.dutyCategory !== 'אב';
+           s.dutyCategory !== 'מנהל מערכת';
   });
 
   all.forEach(function(s){
