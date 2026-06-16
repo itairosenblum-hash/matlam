@@ -909,21 +909,31 @@ function actionGenerateSchedule(req) {
     const numRows = existingData.length - 1;
     if (numRows <= 0) return {success:false, error:'הלוח ריק'};
 
-    // Build batch arrays for cols 4,5,6 (V,A,B) and col 9 (score)
-    const vabUpdates = [];  // [V, A, B] per row
-    const scoreUpdates = []; // [score] per row
+    // Build batch arrays for cols 3 (dayType), 4,5,6 (V,A,B), 8 (dutyType), 9 (score)
+    const dayTypeUpdates = []; // [dayType] per row
+    const vabUpdates = [];     // [V, A, B] per row
+    const dutyTypeUpdates = []; // [dutyType] per row
+    const scoreUpdates = [];   // [score] per row
 
     for (let i = 1; i <= numRows; i++) {
       const rowDate = existingData[i][0];
       const dayNum = rowDate instanceof Date ? rowDate.getDate() :
         parseInt(String(rowDate).split('/')[0]);
       const ag = (dayNum && assignment[dayNum]) || {V:'',A:'',B:'',score:0};
+      const dayInfo = days.find(d => d.day === dayNum);
+      const cat = dayInfo ? dayInfo.cat : (existingData[i][2] || '');
+      dayTypeUpdates.push([cat]);
       vabUpdates.push([ag.V||'', ag.A||'', ag.B||'']);
+      dutyTypeUpdates.push([ag.type || cat]);
       scoreUpdates.push([ag.score||0]);
     }
 
+    // Write dayType (col 3)
+    sched.getRange(2, 3, numRows, 1).setValues(dayTypeUpdates);
     // Single batch write for V/A/B (cols 4-6)
     sched.getRange(2, 4, numRows, 3).setValues(vabUpdates);
+    // Write dutyType (col 8)
+    sched.getRange(2, 8, numRows, 1).setValues(dutyTypeUpdates);
     // Single batch write for score (col 9)
     sched.getRange(2, 9, numRows, 1).setValues(scoreUpdates);
   }
