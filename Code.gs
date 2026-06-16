@@ -801,8 +801,15 @@ function actionGenerateSchedule(req) {
   // Returns list sorted by score (lowest first), respecting hard constraints
   // Bonus: people who prefer this day are sorted higher (lower in list = preferred)
   function getEligible(day, cat) {
+    const isWeekendOrHoliday = cat === 'סוף שבוע' || cat.includes('חג');
     return activePeople
-      .filter(p => !isHardBlocked(p.name, day) && canDoType(p, cat))
+      .filter(p => {
+        if (isHardBlocked(p.name, day)) return false;
+        if (!canDoType(p, cat)) return false;
+        // 6-month gap for מלא people on weekend/holiday days
+        if (isWeekendOrHoliday && p.weekendType !== 'בנפרד' && didWeekendInLastMonths(p.name, 6)) return false;
+        return true;
+      })
       .sort((a, b) => {
         const scoreDiff = (workingScores[a.name] || 0) - (workingScores[b.name] || 0);
         if (scoreDiff !== 0) return scoreDiff;
@@ -840,7 +847,8 @@ function actionGenerateSchedule(req) {
       // Build combined pool: מלא (eligible for full weekend) + בנפרד (Friday only)
       const elFull = activePeople
         .filter(p => p.weekendType !== 'בנפרד' &&
-          !isHardBlocked(p.name, day) && !isHardBlocked(p.name, day+1))
+          !isHardBlocked(p.name, day) && !isHardBlocked(p.name, day+1) &&
+          !didWeekendInLastMonths(p.name, 6))  // 6-month gap rule for מלא
         .map(p => ({name:p.name, full:true, score:workingScores[p.name]||0}));
 
       const elSep = activePeople
