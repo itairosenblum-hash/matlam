@@ -815,26 +815,32 @@ function actionGenerateSchedule(req) {
   // Load accumulated scores as working copy
   const scoresData = actionGetScores().scores;
   const workingScores = {};
-  // Also build lastWeekendMonth map from Scores sheet monthly columns
-  // Scores sheet: cols jan(idx4/5), feb(6/7), ... type at even, score at odd (0-indexed)
-  // Month index: col = 4 + (monthNum-1)*2 for type
-  const lastWeekendMonth = {}; // name → last month number that had סוף שבוע/חג
-  const scoreSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Scores');
-  if (scoreSheet) {
-    const scoreRows = scoreSheet.getDataRange().getValues();
-    for (let si = 1; si < scoreRows.length; si++) {
-      const sname = String(scoreRows[si][0]||'').trim();
-      if (!sname) continue;
-      // Search backwards from current month
-      for (let back = 1; back <= 12; back++) {
-        const mNum = mon - back;
-        if (mNum < 1) break;
-        const colIdx = 4 + (mNum - 1) * 2; // 0-indexed
-        const dtype = String(scoreRows[si][colIdx]||'').trim();
-        if (dtype && (dtype.includes('סוף שבוע') || dtype.includes('חג') || dtype === 'שבת')) {
-          lastWeekendMonth[sname] = mNum;
-          break;
-        }
+  // Build lastWeekendMonth by scanning actual Schedule sheets (more accurate than Scores columns)
+  // lastWeekendMonth[name] = months ago (1-12) of last weekend/חג duty
+  const lastWeekendMonth = {};
+  {
+    const ss2 = SpreadsheetApp.getActiveSpreadsheet();
+    for (let back = 1; back <= 6; back++) {
+      let prevMon = mon - back, prevYear = year;
+      while (prevMon < 1) { prevMon += 12; prevYear--; }
+      const shName = 'Schedule_' + prevYear + String(prevMon).padStart(2,'0');
+      const sh = ss2.getSheetByName(shName);
+      if (!sh) continue;
+      const rows = sh.getDataRange().getValues();
+      for (let i = 1; i < rows.length; i++) {
+        const dtype = String(rows[i][7]||'').trim(); // col H = סוג תורנות
+        const isWkd = dtype.includes('סוף שבוע') || dtype.includes('חג') || dtype === 'שבת';
+        if (!isWkd) continue;
+        const names = [
+          String(rows[i][3]||'').trim(), // V
+          String(rows[i][4]||'').trim(), // A
+          String(rows[i][5]||'').trim()  // B
+        ];
+        names.forEach(n => {
+          if (n && lastWeekendMonth[n] === undefined) {
+            lastWeekendMonth[n] = back; // months ago
+          }
+        });
       }
     }
   }
@@ -924,9 +930,9 @@ function actionGenerateSchedule(req) {
 
   // Check if person did weekend/חג in last N months (using Scores sheet)
   function didWeekendInLastMonths(name, months) {
-    const last = lastWeekendMonth[name];
-    if (last === undefined) return false;
-    return (mon - last) <= months;
+    const monthsAgo = lastWeekendMonth[name]; // how many months ago (1-6), or undefined
+    if (monthsAgo === undefined) return false;
+    return monthsAgo <= months;
   }
 
   // Returns list sorted by score (lowest first), respecting hard constraints
