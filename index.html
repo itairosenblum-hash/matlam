@@ -2435,7 +2435,7 @@ async function loadScores() {
     MONTHS2.forEach(function(m){ tot += ((s[m.k]||{}).score||0); });
     s._total = tot;
   });
-  all.sort(function(a,b){ return b._total - a._total; });
+  all.sort(function(a,b){ var aAv=a.dutyCategory==='אב'?1:0, bAv=b.dutyCategory==='אב'?1:0; if(aAv!==bAv) return aAv-bAv; return b._total - a._total; });
 
   if (!all.length) {
     container.innerHTML = '<div style="padding:20px">אין נתונים</div>';
@@ -2577,7 +2577,7 @@ async function printScores() {
     MONTHS2.forEach(m => tot += ((s[m.k]||{}).score||0));
     s._total = tot;
   });
-  all.sort((a,b) => b._total - a._total);
+  all.sort((a,b) => { const aAv=a.dutyCategory==='אב'?1:0, bAv=b.dutyCategory==='אב'?1:0; if(aAv!==bAv) return aAv-bAv; return b._total - a._total; });
 
   const activeMon = MONTHS2.filter(m => all.some(s => (s[m.k]||{}).score > 0));
 
@@ -3246,7 +3246,7 @@ async function loadUserScores() {
     MONTHS2.forEach(function(m){ tot += ((s[m.k]||{}).score||0); });
     s._total = tot;
   });
-  all.sort(function(a,b){ return b._total - a._total; });
+  all.sort(function(a,b){ var aAv=a.dutyCategory==='אב'?1:0, bAv=b.dutyCategory==='אב'?1:0; if(aAv!==bAv) return aAv-bAv; return b._total - a._total; });
 
   if (!all.length) {
     container.innerHTML = '<div class="empty-state"><div class="icon">📊</div><p>אין נתוני ניקוד</p></div>';
