@@ -1065,14 +1065,13 @@ function actionGenerateSchedule(req) {
       const elFull = sortByScore(activePeople.filter(p =>
         !usedA.has(p.name) && p.name !== vName &&
         p.weekendType !== 'בנפרד' &&
-        !isHardBlocked(p.name, day) && !isHardBlocked(p.name, sat) &&
-        canDoType(p, 'סוף שבוע')
+        !isHardBlocked(p.name, day) && !isHardBlocked(p.name, sat)
       ), day);
 
       const elSepFri = sortByScore(activePeople.filter(p =>
         !usedA.has(p.name) && p.name !== vName &&
         p.weekendType === 'בנפרד' &&
-        !isHardBlocked(p.name, day) && canDoType(p, 'סוף שבוע')
+        !isHardBlocked(p.name, day)
       ), day);
 
       const chosenA = elFull[0] || elSepFri[0];
@@ -1085,14 +1084,13 @@ function actionGenerateSchedule(req) {
       const elFullB = sortByScore(activePeople.filter(p =>
         !usedB.has(p.name) && p.name !== vName && p.name !== (chosenA?.name||'') &&
         p.weekendType !== 'בנפרד' &&
-        !isHardBlocked(p.name, day) && !isHardBlocked(p.name, sat) &&
-        canDoType(p, 'סוף שבוע')
+        !isHardBlocked(p.name, day) && !isHardBlocked(p.name, sat)
       ), day);
 
       const elSepSat = sortByScore(activePeople.filter(p =>
         !usedB.has(p.name) && p.name !== vName && p.name !== (chosenA?.name||'') &&
         p.weekendType === 'בנפרד' &&
-        !isHardBlocked(p.name, sat||day) && canDoType(p, 'סוף שבוע')
+        !isHardBlocked(p.name, sat||day)
       ), sat||day);
 
       const chosenB = elFullB[0] || elSepSat[0];
@@ -1104,10 +1102,10 @@ function actionGenerateSchedule(req) {
       return;
     }
 
-    // Regular day A
+    // Regular day A - no canDoType restriction (reserves can back up any day type)
     const elA = sortByScore(activePeople.filter(p =>
       !usedA.has(p.name) && p.name !== vName &&
-      !isHardBlocked(p.name, day) && canDoType(p, cat)
+      !isHardBlocked(p.name, day)
     ), day);
     const chosenA = elA[0];
     if (chosenA) { usedA.add(chosenA.name); aSlot[day] = chosenA.name; }
@@ -1115,7 +1113,7 @@ function actionGenerateSchedule(req) {
     // Regular day B
     const elB = sortByScore(activePeople.filter(p =>
       !usedB.has(p.name) && p.name !== vName && p.name !== (chosenA?.name||'') &&
-      !isHardBlocked(p.name, day) && canDoType(p, cat)
+      !isHardBlocked(p.name, day)
     ), day);
     const chosenB = elB[0];
     if (chosenB) { usedB.add(chosenB.name); bSlot[day] = chosenB.name; }
