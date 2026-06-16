@@ -398,9 +398,11 @@ function actionGetScores() {
     if (uName && isActive) activeUserSet.add(String(uName));
   }
 
-  // Build result
+  // Build result - exclude inactive, admin, non-duty categories
+  // אב category: include but move to bottom of list
   const scores = people.filter(p => {
-    if (p.name === 'מנהל מערכת' || p.dutyCategory === 'מנהל מערכת' || p.dutyCategory === 'אב') return false;
+    if (p.name === 'מנהל מערכת' || p.name === 'בדיקה בדיקה' || p.name === 'מטלמ') return false;
+    if (p.dutyCategory === 'מנהל מערכת') return false;
     if (p.role === 'admin') return false;
     if (p.dutyCategory === 'טרם הוסמך' || p.dutyCategory === 'פטור') return false;
     if (p.activity === '0') return false;
