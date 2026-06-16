@@ -994,6 +994,10 @@ function actionGenerateSchedule(req) {
       .filter(p => !usedA.has(p.name) && p.name !== vName &&
         !isHardBlocked(p.name, day) && canDoType(p, cat))
       .sort((a, b) => {
+        // Prefer V (wants this day)
+        const aV = prefersDay(a.name, day) ? -2 : 0;
+        const bV = prefersDay(b.name, day) ? -2 : 0;
+        if (aV !== bV) return aV - bV;
         // Prefer type match: חול person on חול day
         const aMatch = !isWeekendCat(cat) && !isWeekendCat(a.weekendType||'') ? -1 : 0;
         const bMatch = !isWeekendCat(cat) && !isWeekendCat(b.weekendType||'') ? -1 : 0;
@@ -1018,7 +1022,12 @@ function actionGenerateSchedule(req) {
     const el = activePeople
       .filter(p => !usedB.has(p.name) && p.name !== vName && p.name !== aName &&
         !isHardBlocked(p.name, day) && canDoType(p, cat))
-      .sort((a, b) => (workingScores[a.name]||0) - (workingScores[b.name]||0));
+      .sort((a, b) => {
+        const aV = prefersDay(a.name, day) ? -2 : 0;
+        const bV = prefersDay(b.name, day) ? -2 : 0;
+        if (aV !== bV) return aV - bV;
+        return (workingScores[a.name]||0) - (workingScores[b.name]||0);
+      });
 
     const chosen = el[0];
     if (chosen) {
@@ -1043,6 +1052,31 @@ function actionGenerateSchedule(req) {
       .sort((a, b) => (workingScores[a.name]||0) - (workingScores[b.name]||0));
     const chosenB = elB[0];
     if (chosenB) { usedB.add(chosenB.name); bSlot[fri] = chosenB.name; bSlot[sat] = chosenB.name; }
+  });
+
+  // PASS 1b: Fill remaining empty V slots (allow reuse, lowest score first)
+  days.forEach(({day, dow, cat, hebrewDay}) => {
+    if (vSlot[day]) return; // already assigned
+    const satOfPair = Object.values(weekendPairs).includes(day);
+    if (satOfPair) return;
+
+    const el = activePeople
+      .filter(p => !isHardBlocked(p.name, day) && canDoType(p, cat) &&
+        !(isWeekendCat(cat) && p.weekendType !== 'בנפרד' && didWeekendInLastMonths(p.name, 6)) &&
+        !(isWeekendCat(cat) && p.weekendType === 'בנפרד' && didWeekendInLastMonths(p.name, 3)))
+      .sort((a, b) => {
+        const aV = prefersDay(a.name, day) ? -1 : 0;
+        const bV = prefersDay(b.name, day) ? -1 : 0;
+        if (aV !== bV) return aV - bV;
+        return (workingScores[a.name]||0) - (workingScores[b.name]||0);
+      });
+
+    const chosen = el[0];
+    if (chosen) {
+      const score = isWeekendCat(cat) ? (cat.includes('מלא') ? 40 : 20) : (dutyTypes[cat]||10);
+      workingScores[chosen.name] = (workingScores[chosen.name]||0) + score;
+      vSlot[day] = {name: chosen.name, type: cat, score, cat};
+    }
   });
 
   // Build final assignment map
