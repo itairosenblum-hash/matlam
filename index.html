@@ -783,6 +783,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
             <div class="section-subtitle">ניקוד מצטבר לכל תורן</div>
           </div>
           <button class="btn btn-secondary btn-sm" onclick="loadScores()">🔄 רענן</button>
+          <button class="btn btn-secondary btn-sm" onclick="printScores()">🖨️ הדפס PDF</button>
         </div>
         <div id="scores-content"></div>
       </div>
@@ -2547,7 +2548,84 @@ function renderScheduleList(schedule, month, who) {
   return html;
 }
 
-async function loadAdminConstraints() {
+async function printScores() {
+  const res = await api({action:'getScores'});
+  const pRes = await api({action:'getPeople'});
+  if (!res || !res.success) { alert('שגיאה בטעינת ניקוד'); return; }
+
+  const pMap = {};
+  if (pRes && pRes.success) pRes.people.forEach(p => pMap[p.name] = p);
+
+  const MONTHS2 = [
+    {k:'jan',l:'ינ'},{k:'feb',l:'פב'},{k:'mar',l:'מר'},{k:'apr',l:'אפ'},
+    {k:'may',l:'מי'},{k:'jun',l:'יו'},{k:'jul',l:'יל'},{k:'aug',l:'אג'},
+    {k:'sep',l:'ספ'},{k:'oct',l:'אק'},{k:'nov',l:'נו'},{k:'dec',l:'דצ'}
+  ];
+
+  const all = res.scores.filter(s =>
+    s.name !== 'מנהל מערכת' && s.role !== 'admin' &&
+    s.dutyCategory !== 'מנהל מערכת' && s.dutyCategory !== 'אב'
+  );
+  all.forEach(s => {
+    let tot = s.acc2025 || 0;
+    MONTHS2.forEach(m => tot += ((s[m.k]||{}).score||0));
+    s._total = tot;
+  });
+  all.sort((a,b) => b._total - a._total);
+
+  const activeMon = MONTHS2.filter(m => all.some(s => (s[m.k]||{}).score > 0));
+
+  let rows = '';
+  all.forEach((s, i) => {
+    const p = pMap[s.name] || {};
+    const monthCells = activeMon.map(m => {
+      const sc = (s[m.k]||{}).score;
+      return `<td style="text-align:center">${sc || ''}</td>`;
+    }).join('');
+    const bg = i % 2 === 0 ? '#f9f9f9' : '#fff';
+    rows += `<tr style="background:${bg}">
+      <td style="font-weight:700;padding:3px 6px">${i+1}</td>
+      <td style="padding:3px 6px;white-space:nowrap">${s.name}</td>
+      <td style="text-align:center;padding:3px 6px">${s.acc2025||0}</td>
+      ${monthCells}
+      <td style="text-align:center;font-weight:700;background:#e8f5e9;padding:3px 6px">${s._total}</td>
+    </tr>`;
+  });
+
+  const monthHeaders = activeMon.map(m => `<th>${m.l}</th>`).join('');
+
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html dir="rtl"><head>
+    <meta charset="utf-8">
+    <title>טבלת ניקוד</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { font-family: Arial, sans-serif; font-size: 10px; margin: 10px; direction: rtl; }
+      h2 { text-align: center; font-size: 14px; margin: 0 0 8px; }
+      table { width: 100%; border-collapse: collapse; }
+      th { background: #2d3748; color: #fff; padding: 4px 6px; text-align: center; font-size: 10px; }
+      td { border: 1px solid #ddd; font-size: 10px; }
+      @media print {
+        body { margin: 0; }
+        @page { size: A4 landscape; margin: 8mm; }
+      }
+    </style>
+  </head><body>
+    <h2>📊 טבלת ניקוד תורנויות 2026</h2>
+    <table>
+      <thead><tr>
+        <th>#</th><th>שם</th><th>2025</th>
+        ${monthHeaders}
+        <th>סה"כ</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <script>window.onload = () => { window.print(); }</script>
+  </body></html>`);
+  win.document.close();
+}
+
+
   const {year, mon, days, s: month} = parseMonth(document.getElementById('admin-constraint-month').value);
   showLoading(true);
   const res = await api({action:'getAllConstraints', month});
