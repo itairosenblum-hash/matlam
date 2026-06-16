@@ -894,27 +894,39 @@ function actionGenerateSchedule(req) {
   const days = [];
   for (let d = 1; d <= daysInMonth; d++) {
     const date = new Date(year, mon - 1, d);
-    const dow = date.getDay();
+    const dow = date.getDay(); // 0=sun,1=mon,...,5=fri,6=sat
     const cat = String(dayCategories[String(d)] || (dow === 4 ? 'חמישי' : (dow === 5 || dow === 6) ? 'סוף שבוע' : 'חול'));
-    days.push({day: d, date, dow, cat, hebrewDay: HEBREW_DAYS[dow]});
+    days.push({day: d, dow, cat, hebrewDay: HEBREW_DAYS[dow]});
   }
 
   // ── HELPERS ───────────────────────────────────────
-  function isWeekendCat(cat) {
-    return cat === 'סוף שבוע' || cat.includes('חג');
+  function isHoliday(cat) { return cat.includes('חג') || cat.includes('ערב חג'); }
+  function isWeekend(cat) { return cat === 'סוף שבוע' || isHoliday(cat); }
+
+  // Who can serve as V on this day type
+  function eligibleV(cat, excludeNames) {
+    return activePeople.filter(p => {
+      if (excludeNames && excludeNames.has(p.name)) return false;
+      if (p.dutyCategory === 'אב') return cat === 'חמישי' || cat.includes('חמישי');
+      if (isWeekend(cat)) {
+        if (p.weekendType !== 'בנפרד' && didWeekendInLastMonths(p.name, 6)) return false;
+        if (p.weekendType === 'בנפרד' && didWeekendInLastMonths(p.name, 3)) return false;
+      }
+      return true;
+    });
   }
 
-  function catPriority(cat) {
-    if (cat.includes('חג')) return 0;
-    if (cat === 'סוף שבוע') return 1;
-    if (cat.includes('24')) return 2;
-    if (cat === 'חמישי') return 3;
-    return 4; // חול
+  // Who can serve as A/B (אב only on חמישי, others unrestricted by gap)
+  function eligibleAB(cat, excludeNames) {
+    return activePeople.filter(p => {
+      if (excludeNames && excludeNames.has(p.name)) return false;
+      if (p.dutyCategory === 'אב') return cat === 'חמישי' || cat.includes('חמישי');
+      return true;
+    });
   }
 
-  // Sort people by score ascending (lowest first), with constraint preference boost
-  function sortByScore(arr, day) {
-    return arr.sort((a, b) => {
+  function byScore(arr, day) {
+    return arr.slice().sort((a, b) => {
       const aP = prefersDay(a.name, day) ? -5 : 0;
       const bP = prefersDay(b.name, day) ? -5 : 0;
       if (aP !== bP) return aP - bP;
@@ -922,203 +934,138 @@ function actionGenerateSchedule(req) {
     });
   }
 
+  function pick(pool, day, blockedNames) {
+    const filtered = pool.filter(p =>
+      !isHardBlocked(p.name, day) && (!blockedNames || !blockedNames.has(p.name))
+    );
+    return byScore(filtered, day)[0] || null;
+  }
+
   // ── STEP 1: Sort days by priority ────────────────
-  // Process חגים first, then סוף שבוע, then 24hr, then חמישי, then חול
-  const daysSorted = [...days].sort((a, b) => catPriority(a.cat) - catPriority(b.cat));
+  function dayPriority({day, dow, cat}) {
+    if (isHoliday(cat)) return 0;
+    const nextDay = days.find(d => d.day === day + 1);
+    const prevDay = days.find(d => d.day === day - 1);
+    if (dow === 5 && nextDay && isWeekend(nextDay.cat)) return 1;
+    if (dow === 6 && prevDay && isWeekend(prevDay.cat)) return 2;
+    if (cat === 'סוף שבוע') return 3;
+    if (cat === 'חמישי') return 4;
+    return 5;
+  }
+  const daysSorted = [...days].sort((a, b) => dayPriority(a) - dayPriority(b));
 
-  // Track assignments
-  const vSlot = {};   // day → {name, type, score}
-  const aSlot = {};   // day → name (or {fri: name, sat: name} for full weekend)
-  const bSlot = {};   // day → name
-  const usedV = new Set();  // names assigned as V
-  const usedA = new Set();  // names assigned as A
-  const usedB = new Set();  // names assigned as B
-  const weekendPairs = {};  // fri day → sat day (for full weekends)
+  // ── STEP 2: Assign V ──────────────────────────────
+  const vSlot = {};
+  const usedV = new Set();
+  const fullPairs = {};
 
-  // ── STEP 2: Assign V (one per person, one per day) ──
   daysSorted.forEach(({day, dow, cat}) => {
-    if (vSlot[day]) return; // already assigned (e.g. sat of full weekend)
+    if (vSlot[day]) return;
 
     const nextDay = days.find(d => d.day === day + 1);
-    const isFriday = dow === 5 && cat === 'סוף שבוע' && nextDay && nextDay.cat === 'סוף שבוע';
+    const isFriWithSat = dow === 5 && isWeekend(cat) && nextDay && isWeekend(nextDay.cat);
 
-    if (isFriday) {
-      const nextCat = nextDay.cat; // should be 'סוף שבוע'
+    if (isFriWithSat) {
+      // Try מלא first
+      const malaPool = eligibleV(cat, usedV).filter(p =>
+        p.weekendType !== 'בנפרד' && !isHardBlocked(p.name, day+1)
+      );
+      const malaChosen = pick(malaPool, day, null);
 
-      // Try מלא first (full weekend - covers both fri+sat)
-      const elFull = sortByScore(activePeople.filter(p =>
-        !usedV.has(p.name) && p.weekendType !== 'בנפרד' &&
-        !isHardBlocked(p.name, day) && !isHardBlocked(p.name, day+1) &&
-        !didWeekendInLastMonths(p.name, 6)
-      ), day);
-
-      // בנפרד for Friday
-      const elSepFri = sortByScore(activePeople.filter(p =>
-        !usedV.has(p.name) && p.weekendType === 'בנפרד' &&
-        !isHardBlocked(p.name, day) &&
-        !didWeekendInLastMonths(p.name, 3)
-      ), day);
-
-      // Pick lowest score between מלא and בנפרד-for-friday
-      const allFri = [
-        ...elFull.map(p => ({...p, _full: true})),
-        ...elSepFri.map(p => ({...p, _full: false}))
-      ].sort((a, b) => (workingScores[a.name]||0) - (workingScores[b.name]||0));
-
-      const chosenFri = allFri[0];
-      if (chosenFri) {
-        usedV.add(chosenFri.name);
-        if (chosenFri._full) {
-          // מלא: covers both fri+sat
-          const score = dutyTypes['סוף שבוע מלא']||40;
-          workingScores[chosenFri.name] = (workingScores[chosenFri.name]||0) + score;
-          vSlot[day]   = {name: chosenFri.name, type: 'סוף שבוע מלא', score, cat};
-          vSlot[day+1] = {name: chosenFri.name, type: 'סוף שבוע מלא', score: 0, cat: nextCat};
-          weekendPairs[day] = day+1;
-        } else {
-          // בנפרד: covers Friday only — need separate V for Saturday
-          const scoreFri = dutyTypes['סוף שבוע']||20;
-          workingScores[chosenFri.name] = (workingScores[chosenFri.name]||0) + scoreFri;
-          vSlot[day] = {name: chosenFri.name, type: 'סוף שבוע', score: scoreFri, cat};
-
-          // Now assign Saturday V: prefer מלא, fallback to another בנפרד
-          const elSat = sortByScore(activePeople.filter(p =>
-            !usedV.has(p.name) && p.name !== chosenFri.name &&
-            !isHardBlocked(p.name, day+1) &&
-            canDoType(p, nextCat) &&
-            !(p.weekendType !== 'בנפרד' && didWeekendInLastMonths(p.name, 6)) &&
-            !(p.weekendType === 'בנפרד' && didWeekendInLastMonths(p.name, 3))
-          ), day+1);
-          const chosenSat = elSat[0];
-          if (chosenSat) {
-            usedV.add(chosenSat.name);
-            const scoreSat = dutyTypes['סוף שבוע']||20;
-            workingScores[chosenSat.name] = (workingScores[chosenSat.name]||0) + scoreSat;
-            vSlot[day+1] = {name: chosenSat.name, type: 'סוף שבוע', score: scoreSat, cat: nextCat};
-          }
+      if (malaChosen) {
+        usedV.add(malaChosen.name);
+        const score = dutyTypes['סוף שבוע מלא']||40;
+        workingScores[malaChosen.name] = (workingScores[malaChosen.name]||0) + score;
+        vSlot[day]   = {name: malaChosen.name, type: 'סוף שבוע מלא', score, cat};
+        vSlot[day+1] = {name: malaChosen.name, type: 'סוף שבוע מלא', score: 0, cat: nextDay.cat};
+        fullPairs[day] = day+1;
+      } else {
+        // בנפרד for friday
+        const sepPool = eligibleV(cat, usedV).filter(p => p.weekendType === 'בנפרד');
+        const frChosen = pick(sepPool, day, null);
+        if (frChosen) {
+          usedV.add(frChosen.name);
+          const score = dutyTypes['סוף שבוע']||20;
+          workingScores[frChosen.name] = (workingScores[frChosen.name]||0) + score;
+          vSlot[day] = {name: frChosen.name, type: 'סוף שבוע', score, cat};
+        }
+        // separate V for saturday
+        const satPool = eligibleV(nextDay.cat, usedV).filter(p =>
+          p.name !== (frChosen?.name||'')
+        );
+        const satChosen = pick(satPool, day+1, null);
+        if (satChosen) {
+          usedV.add(satChosen.name);
+          const isMala = satChosen.weekendType !== 'בנפרד';
+          const score = isMala ? (dutyTypes['סוף שבוע מלא']||40) : (dutyTypes['סוף שבוע']||20);
+          workingScores[satChosen.name] = (workingScores[satChosen.name]||0) + score;
+          vSlot[day+1] = {name: satChosen.name, type: isMala ? 'סוף שבוע מלא' : 'סוף שבוע', score, cat: nextDay.cat};
         }
       }
       return;
     }
 
-    // Standalone Saturday (no Friday before it, or already handled above)
-    const isSaturday = dow === 6 && cat === 'סוף שבוע';
-    if (isSaturday && !vSlot[day]) {
-      const elSat = sortByScore(activePeople.filter(p =>
-        !usedV.has(p.name) &&
-        !isHardBlocked(p.name, day) &&
-        canDoType(p, cat) &&
-        !(p.weekendType !== 'בנפרד' && didWeekendInLastMonths(p.name, 6)) &&
-        !(p.weekendType === 'בנפרד' && didWeekendInLastMonths(p.name, 3))
-      ), day);
-      const chosenSat = elSat[0];
-      if (chosenSat) {
-        usedV.add(chosenSat.name);
-        const score = dutyTypes['סוף שבוע']||20;
-        workingScores[chosenSat.name] = (workingScores[chosenSat.name]||0) + score;
-        vSlot[day] = {name: chosenSat.name, type: 'סוף שבוע', score, cat};
-      }
-      return;
-    }
-
-    // Regular/Holiday/Thursday/חול day
-    const el = sortByScore(activePeople.filter(p =>
-      !usedV.has(p.name) &&
-      !isHardBlocked(p.name, day) &&
-      canDoType(p, cat) &&
-      !(isWeekendCat(cat) && p.weekendType !== 'בנפרד' && didWeekendInLastMonths(p.name, 6)) &&
-      !(isWeekendCat(cat) && p.weekendType === 'בנפרד' && didWeekendInLastMonths(p.name, 3))
-    ), day);
-
-    const chosen = el[0];
+    // All other days
+    const pool = eligibleV(cat, usedV);
+    const chosen = pick(pool, day, null);
     if (chosen) {
       usedV.add(chosen.name);
-      const score = dutyTypes[cat] || 10;
+      const isWkd = isWeekend(cat);
+      const score = isWkd
+        ? (chosen.weekendType !== 'בנפרד' ? (dutyTypes['סוף שבוע מלא']||40) : (dutyTypes['סוף שבוע']||20))
+        : (dutyTypes[cat] || 10);
       workingScores[chosen.name] = (workingScores[chosen.name]||0) + score;
       vSlot[day] = {name: chosen.name, type: cat, score, cat};
     }
-    // If no one available → day stays empty (person skipped this month)
   });
 
-  // ── STEP 3: Assign A and B for each day ──────────
-  // Only days that have a V get A and B
-  // A and B are assigned from people who have usedV (everyone got V) or remaining
-  // Each person gets at most 1 A and 1 B across the month
-  // Preference: same day type as V
+  // ── STEP 3: Assign A and B ────────────────────────
+  const aSlot = {};
+  const bSlot = {};
+  const usedA = new Set();
+  const usedB = new Set();
 
-  // Process days in same priority order for A/B
   daysSorted.forEach(({day, cat}) => {
-    if (!vSlot[day]) return; // no V → no A/B
-    const satOfPair = Object.values(weekendPairs).map(Number).includes(day);
-    if (satOfPair) return; // saturday of full weekend: A/B set with friday
+    if (!vSlot[day]) return;
+    if (Object.values(fullPairs).map(Number).includes(day)) return;
 
     const vName = vSlot[day].name;
-    const isFriWithSat = weekendPairs[day] !== undefined;
-    const sat = isFriWithSat ? weekendPairs[day] : null;
+    const isFriPair = fullPairs[day] !== undefined;
+    const sat = isFriPair ? fullPairs[day] : null;
 
-    if (isFriWithSat) {
-      // Full weekend: A and B cover both fri+sat
-      // Option 1: another מלא person for both days
-      // Option 2: one בנפרד for fri + one for sat
-      // We assign: A = מלא (preferred) or בנפרד for fri, B = מלא or בנפרד for sat
-
-      const elFull = sortByScore(activePeople.filter(p =>
-        !usedA.has(p.name) && p.name !== vName &&
-        p.weekendType !== 'בנפרד' && p.dutyCategory !== 'אב' &&
-        !isHardBlocked(p.name, day) && !isHardBlocked(p.name, sat)
-      ), day);
-
-      const elSepFri = sortByScore(activePeople.filter(p =>
-        !usedA.has(p.name) && p.name !== vName &&
-        p.weekendType === 'בנפרד' && p.dutyCategory !== 'אב' &&
-        !isHardBlocked(p.name, day)
-      ), day);
-
-      const chosenA = elFull[0] || elSepFri[0];
-      if (chosenA) {
-        usedA.add(chosenA.name);
-        aSlot[day] = chosenA.name;
-        if (chosenA.weekendType !== 'בנפרד') aSlot[sat] = chosenA.name;
+    if (isFriPair) {
+      const aPool = eligibleAB('סוף שבוע', usedA).filter(p =>
+        p.name !== vName && !isHardBlocked(p.name, day)
+      );
+      const aChosen = byScore(aPool, day)[0];
+      if (aChosen) {
+        usedA.add(aChosen.name);
+        aSlot[day] = aChosen.name;
+        if (aChosen.weekendType !== 'בנפרד') aSlot[sat] = aChosen.name;
       }
-
-      const elFullB = sortByScore(activePeople.filter(p =>
-        !usedB.has(p.name) && p.name !== vName && p.name !== (chosenA?.name||'') &&
-        p.weekendType !== 'בנפרד' && p.dutyCategory !== 'אב' &&
-        !isHardBlocked(p.name, day) && !isHardBlocked(p.name, sat)
-      ), day);
-
-      const elSepSat = sortByScore(activePeople.filter(p =>
-        !usedB.has(p.name) && p.name !== vName && p.name !== (chosenA?.name||'') &&
-        p.weekendType === 'בנפרד' && p.dutyCategory !== 'אב' &&
-        !isHardBlocked(p.name, sat||day)
-      ), sat||day);
-
-      const chosenB = elFullB[0] || elSepSat[0];
-      if (chosenB) {
-        usedB.add(chosenB.name);
-        bSlot[day] = chosenB.name;
-        if (chosenB.weekendType !== 'בנפרד') bSlot[sat] = chosenB.name;
+      const bPool = eligibleAB('סוף שבוע', usedB).filter(p =>
+        p.name !== vName && p.name !== (aChosen?.name||'') && !isHardBlocked(p.name, day)
+      );
+      const bChosen = byScore(bPool, day)[0];
+      if (bChosen) {
+        usedB.add(bChosen.name);
+        bSlot[day] = bChosen.name;
+        if (bChosen.weekendType !== 'בנפרד') bSlot[sat] = bChosen.name;
       }
       return;
     }
 
-    // Regular day A - אב restricted to חמישי only, others free
-    const elA = sortByScore(activePeople.filter(p =>
-      !usedA.has(p.name) && p.name !== vName &&
-      !isHardBlocked(p.name, day) &&
-      (p.dutyCategory !== 'אב' || canDoType(p, cat))
-    ), day);
-    const chosenA = elA[0];
-    if (chosenA) { usedA.add(chosenA.name); aSlot[day] = chosenA.name; }
+    const aPool = eligibleAB(cat, usedA).filter(p =>
+      p.name !== vName && !isHardBlocked(p.name, day)
+    );
+    const aChosen = byScore(aPool, day)[0];
+    if (aChosen) { usedA.add(aChosen.name); aSlot[day] = aChosen.name; }
 
-    // Regular day B
-    const elB = sortByScore(activePeople.filter(p =>
-      !usedB.has(p.name) && p.name !== vName && p.name !== (chosenA?.name||'') &&
-      !isHardBlocked(p.name, day) &&
-      (p.dutyCategory !== 'אב' || canDoType(p, cat))
-    ), day);
-    const chosenB = elB[0];
-    if (chosenB) { usedB.add(chosenB.name); bSlot[day] = chosenB.name; }
+    const bPool = eligibleAB(cat, usedB).filter(p =>
+      p.name !== vName && p.name !== (aChosen?.name||'') && !isHardBlocked(p.name, day)
+    );
+    const bChosen = byScore(bPool, day)[0];
+    if (bChosen) { usedB.add(bChosen.name); bSlot[day] = bChosen.name; }
   });
 
   // ── STEP 4: Build final assignment map ───────────
@@ -1136,8 +1083,7 @@ function actionGenerateSchedule(req) {
     };
   });
 
-
-  // ── Save to Sheet (preserve holidays/notes from existing sheet) ──────
+    // ── Save to Sheet (preserve holidays/notes from existing sheet) ──────
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheetName = 'Schedule_' + month;
   let sched = ss.getSheetByName(sheetName);
