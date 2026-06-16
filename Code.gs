@@ -689,8 +689,21 @@ function actionGenerateSchedule(req) {
   const daysInMonth = new Date(year, mon, 0).getDate();
 
   // Load people (active, non-exempt)
+  // Build set of active (non-disabled) users from Users sheet
+  const usersRowsForGen = getSheet(SH.USERS).getDataRange().getValues();
+  const activeUserNames = new Set();
+  for (let i = 1; i < usersRowsForGen.length; i++) {
+    const [, uName, , , , uActive] = usersRowsForGen[i];
+    if (uName && uActive) activeUserNames.add(String(uName));
+  }
+
   const allPeople = actionGetPeople().people;
-  const activePeople = allPeople.filter(p => p.activity !== '0' && p.dutyCategory !== 'פטור');
+  const activePeople = allPeople.filter(p =>
+    p.activity !== '0' &&
+    p.dutyCategory !== 'פטור' &&
+    p.dutyCategory !== 'טרם הוסמך' &&
+    activeUserNames.has(p.name)
+  );
 
   // Load accumulated scores as working copy
   const scoresData = actionGetScores().scores;
