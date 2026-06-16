@@ -694,7 +694,9 @@ function actionGenerateSchedule(req) {
   const activeUserNames = new Set();
   for (let i = 1; i < usersRowsForGen.length; i++) {
     const [, uName, , , , uActive] = usersRowsForGen[i];
-    if (uName && uActive) activeUserNames.add(String(uName));
+    if (uName && uActive !== false && uActive !== 0 && String(uActive).toUpperCase() !== 'FALSE') {
+      activeUserNames.add(String(uName));
+    }
   }
 
   const allPeople = actionGetPeople().people;
@@ -794,7 +796,7 @@ function actionGenerateSchedule(req) {
   function didWeekendInLastMonths(name, months) {
     var hist = getRecentAssignments(name, months);
     return hist.some(function(h) {
-      return h.dutyType.includes('סוף שבוע') || h.dutyType === 'שבת';
+      return h.dutyType.includes('סוף שבוע') || h.dutyType === 'שבת' || h.dutyType.includes('חג');
     });
   }
 
