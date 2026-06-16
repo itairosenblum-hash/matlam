@@ -694,9 +694,9 @@ function actionGenerateSchedule(req) {
   const activeUserNames = new Set();
   for (let i = 1; i < usersRowsForGen.length; i++) {
     const [, uName, , , , uActive] = usersRowsForGen[i];
-    if (uName && uActive !== false && uActive !== 0 && String(uActive).toUpperCase() !== 'FALSE') {
-      activeUserNames.add(String(uName));
-    }
+    const isActive = uActive !== false && uActive !== 0 && uActive !== '0' &&
+                     String(uActive).toUpperCase() !== 'FALSE' && uActive !== '';
+    if (uName && isActive) activeUserNames.add(String(uName));
   }
 
   const allPeople = actionGetPeople().people;
@@ -710,6 +710,29 @@ function actionGenerateSchedule(req) {
   // Load accumulated scores as working copy
   const scoresData = actionGetScores().scores;
   const workingScores = {};
+  // Also build lastWeekendMonth map from Scores sheet monthly columns
+  // Scores sheet: cols jan(idx4/5), feb(6/7), ... type at even, score at odd (0-indexed)
+  // Month index: col = 4 + (monthNum-1)*2 for type
+  const lastWeekendMonth = {}; // name → last month number that had סוף שבוע/חג
+  const scoreSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Scores');
+  if (scoreSheet) {
+    const scoreRows = scoreSheet.getDataRange().getValues();
+    for (let si = 1; si < scoreRows.length; si++) {
+      const sname = String(scoreRows[si][0]||'').trim();
+      if (!sname) continue;
+      // Search backwards from current month
+      for (let back = 1; back <= 12; back++) {
+        const mNum = mon - back;
+        if (mNum < 1) break;
+        const colIdx = 4 + (mNum - 1) * 2; // 0-indexed
+        const dtype = String(scoreRows[si][colIdx]||'').trim();
+        if (dtype && (dtype.includes('סוף שבוע') || dtype.includes('חג') || dtype === 'שבת')) {
+          lastWeekendMonth[sname] = mNum;
+          break;
+        }
+      }
+    }
+  }
   scoresData.forEach(s => { workingScores[s.name] = Number(s.acc2026) || 0; });
 
   // Load constraints for this month
@@ -792,12 +815,11 @@ function actionGenerateSchedule(req) {
   // Check current month assignments count
   var monthAssignmentCount = {}; // name → count this month
 
-  // Check if person did weekend in last N months
+  // Check if person did weekend/חג in last N months (using Scores sheet)
   function didWeekendInLastMonths(name, months) {
-    var hist = getRecentAssignments(name, months);
-    return hist.some(function(h) {
-      return h.dutyType.includes('סוף שבוע') || h.dutyType === 'שבת' || h.dutyType.includes('חג');
-    });
+    const last = lastWeekendMonth[name];
+    if (last === undefined) return false;
+    return (mon - last) <= months;
   }
 
   // Returns list sorted by score (lowest first), respecting hard constraints
