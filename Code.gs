@@ -297,7 +297,7 @@ function actionToggleUser(req) {
 function actionGetPeople() {
   const rows = getSheet(SH.PEOPLE).getDataRange().getValues();
   const people = [];
-  for (let i = 0; i < rows.length; i++) {
+  for (let i = 1; i < rows.length; i++) {
     const [name, activity, dutyCategory, phone, weekendType, email] = rows[i];
     if (name) people.push({
       name: String(name),
