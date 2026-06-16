@@ -84,6 +84,7 @@ function route(req) {
   if (action === 'getLockStatus') return actionGetLockStatus(req);
   if (action === 'debugUsers') return actionDebugUsers();
   if (action === 'debugPeople') return actionGetPeople();
+  if (action === 'debugSchedule') return actionDebugSchedule(req);
 
   const user = validateToken(req.token);
   if (!user) return {success: false, error: 'אין הרשאה', code: 401};
@@ -261,6 +262,69 @@ function actionUpdateUser(req) {
   }
   return {success: false, error: 'משתמש לא נמצא'};
 }
+
+function actionDebugSchedule(req) {
+  const month = String(req.month || '202507');
+  const year = parseInt(month.substring(0, 4));
+  const mon  = parseInt(month.substring(4, 6));
+  const daysInMonth = new Date(year, mon, 0).getDate();
+
+  const allPeople = actionGetPeople().people;
+  const usersRows = getSheet(SH.USERS).getDataRange().getValues();
+  const activeUserNames = new Set();
+  for (let i = 1; i < usersRows.length; i++) {
+    const [, uName, , , , uActive] = usersRows[i];
+    const isActive = uActive !== false && uActive !== 0 && uActive !== '0' &&
+                     String(uActive).toUpperCase() !== 'FALSE' && uActive !== '';
+    if (uName && isActive) activeUserNames.add(String(uName));
+  }
+
+  const activePeople = allPeople.filter(p =>
+    p.activity !== '0' &&
+    p.dutyCategory !== 'פטור' &&
+    p.dutyCategory !== 'טרם הוסמך' &&
+    p.name !== 'מנהל מערכת' &&
+    p.name !== 'בדיקה בדיקה' &&
+    p.name !== 'מטלמ' &&
+    activeUserNames.has(p.name)
+  );
+
+  const days = [];
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(year, mon - 1, d);
+    const dow = date.getDay();
+    const cat = dow === 4 ? 'חמישי' : (dow === 5 || dow === 6) ? 'סוף שבוע' : 'חול';
+    days.push({day: d, dow, cat});
+  }
+
+  // Count by weekendType
+  const mala = activePeople.filter(p => p.weekendType !== 'בנפרד' && p.dutyCategory !== 'אב');
+  const sep = activePeople.filter(p => p.weekendType === 'בנפרד' && p.dutyCategory !== 'אב');
+  const av = activePeople.filter(p => p.dutyCategory === 'אב');
+
+  const weekends = days.filter(d => d.dow === 5 && days.find(d2 => d2.day === d.day+1 && d2.cat === 'סוף שבוע'));
+  const standaloneFri = days.filter(d => d.dow === 5 && d.cat === 'סוף שבוע' && !weekends.find(w => w.day === d.day));
+  const standaloneSat = days.filter(d => d.dow === 6 && d.cat === 'סוף שבוע' && !weekends.find(w => w.day === d.day-1));
+  const thursdays = days.filter(d => d.cat === 'חמישי');
+  const weekdays = days.filter(d => d.cat === 'חול');
+
+  return {success: true, debug: {
+    totalActive: activePeople.length,
+    מלא: mala.length,
+    בנפרד: sep.length,
+    אב: av.length,
+    malaNames: mala.map(p => p.name),
+    sepNames: sep.map(p => p.name),
+    avNames: av.map(p => p.name),
+    daysNeedingMala: weekends.length,
+    weekendPairs: weekends.map(d => `${d.day}+${d.day+1}`),
+    standaloneFri: standaloneFri.map(d => d.day),
+    standaloneSat: standaloneSat.map(d => d.day),
+    thursdays: thursdays.map(d => d.day),
+    weekdays: weekdays.map(d => d.day)
+  }};
+}
+
 
 function actionDebugUsers() {
   const rows = getSheet(SH.USERS).getDataRange().getValues();
