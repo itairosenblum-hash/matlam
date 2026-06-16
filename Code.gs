@@ -856,10 +856,10 @@ function actionGenerateSchedule(req) {
       .filter(p => {
         if (isHardBlocked(p.name, day)) return false;
         if (!canDoType(p, cat)) return false;
-        // Max 1 per slot per month
+        // Max per month: V=1, A=2, B=2
         if (slot === 'V' && (monthAssignmentCount[p.name] || 0) >= 1) return false;
-        if (slot === 'A' && (monthACount[p.name] || 0) >= 1) return false;
-        if (slot === 'B' && (monthBCount[p.name] || 0) >= 1) return false;
+        if (slot === 'A' && (monthACount[p.name] || 0) >= 2) return false;
+        if (slot === 'B' && (monthBCount[p.name] || 0) >= 2) return false;
         // 6-month gap for מלא people on weekend/holiday days
         if (isWeekendOrHoliday && p.weekendType !== 'בנפרד' && didWeekendInLastMonths(p.name, 6)) return false;
         // 3-month gap for בנפרד people on weekend/holiday days
