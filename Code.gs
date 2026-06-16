@@ -121,8 +121,8 @@ function route(req) {
   if (action === 'updateUser') return actionUpdateUser(req);
   if (action === 'toggleUser') return actionToggleUser(req);
   if (action === 'getAllConstraints') return actionGetAllConstraints(req);
-  if (action === 'generateSchedule') return actionGenerateScheduleV2(req);  // uses duty_agent logic
-  if (action === 'generateScheduleLegacy') return actionGenerateSchedule(req);
+  if (action === 'generateSchedule') return actionGenerateSchedule(req);  // fixed version with proper filters
+  if (action === 'generateScheduleLegacy') return actionGenerateScheduleV2(req);
   if (action === 'initMonth') return actionInitMonth(req);
   if (action === 'resetSchedule') return actionResetSchedule(req);
   if (action === 'setLockStatus') return actionSetLockStatus(req);
