@@ -290,9 +290,11 @@ function actionDebugSchedule(req) {
   );
 
   const days = [];
+  const tzDbg = Session.getScriptTimeZone();
   for (let d = 1; d <= daysInMonth; d++) {
     const date = new Date(year, mon - 1, d);
-    const dow = date.getDay();
+    const dowISO = parseInt(Utilities.formatDate(date, tzDbg, 'u'));
+    const dow = dowISO === 7 ? 0 : dowISO;
     const cat = dow === 4 ? 'חמישי' : (dow === 5 || dow === 6) ? 'סוף שבוע' : 'חול';
     days.push({day: d, dow, cat});
   }
@@ -956,15 +958,15 @@ function actionGenerateSchedule(req) {
 
   // ── Build day list ────────────────────────────────
   const days = [];
+  const tz = Session.getScriptTimeZone();
   for (let d = 1; d <= daysInMonth; d++) {
     const date = new Date(year, mon - 1, d);
-    const dow = date.getDay(); // 0=sun,1=mon,...,5=fri,6=sat
+    // Use GAS Utilities to get correct day of week in local timezone
+    const dowISO = parseInt(Utilities.formatDate(date, tz, 'u')); // 1=Mon,7=Sun
+    const dow = dowISO === 7 ? 0 : dowISO; // convert to JS: 0=Sun,1=Mon,...,6=Sat
     const cat = String(dayCategories[String(d)] || (dow === 4 ? 'חמישי' : (dow === 5 || dow === 6) ? 'סוף שבוע' : 'חול'));
     days.push({day: d, dow, cat, hebrewDay: HEBREW_DAYS[dow]});
   }
-
-  // ── HELPERS ───────────────────────────────────────
-  function isHoliday(cat) { return cat.includes('חג') || cat.includes('ערב חג'); }
   function isWeekend(cat) { return cat === 'סוף שבוע' || isHoliday(cat); }
 
   // Who can serve as V on this day type
@@ -1112,6 +1114,7 @@ function actionGenerateSchedule(req) {
     const sat = isFriPair ? fullPairs[day] : null;
 
     if (isFriPair) {
+      // Full weekend A/B: always cover both fri+sat
       const aPool = eligibleAB('סוף שבוע', usedA).filter(p =>
         p.name !== vName && !isHardBlocked(p.name, day)
       );
@@ -1119,7 +1122,7 @@ function actionGenerateSchedule(req) {
       if (aChosen) {
         usedA.add(aChosen.name);
         aSlot[day] = aChosen.name;
-        if (aChosen.weekendType !== 'בנפרד') aSlot[sat] = aChosen.name;
+        aSlot[sat] = aChosen.name; // always cover saturday too
       }
       const bPool = eligibleAB('סוף שבוע', usedB).filter(p =>
         p.name !== vName && p.name !== (aChosen?.name||'') && !isHardBlocked(p.name, day)
@@ -1128,7 +1131,7 @@ function actionGenerateSchedule(req) {
       if (bChosen) {
         usedB.add(bChosen.name);
         bSlot[day] = bChosen.name;
-        if (bChosen.weekendType !== 'בנפרד') bSlot[sat] = bChosen.name;
+        bSlot[sat] = bChosen.name; // always cover saturday too
       }
       return;
     }
