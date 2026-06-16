@@ -2425,7 +2425,9 @@ async function loadScores() {
 
   var all = res.scores.filter(function(s){
     return s.name !== 'מנהל מערכת' && s.role !== 'admin' &&
-           s.dutyCategory !== 'מנהל מערכת' && s.dutyCategory !== 'אב';
+           s.dutyCategory !== 'מנהל מערכת' && s.dutyCategory !== 'אב' &&
+           s.dutyCategory !== 'טרם הוסמך' && s.dutyCategory !== 'פטור' &&
+           s.active !== false && s.active !== '0' && s.active !== 0;
   });
 
   all.forEach(function(s){
@@ -2564,7 +2566,9 @@ async function printScores() {
 
   const all = res.scores.filter(s =>
     s.name !== 'מנהל מערכת' && s.role !== 'admin' &&
-    s.dutyCategory !== 'מנהל מערכת' && s.dutyCategory !== 'אב'
+    s.dutyCategory !== 'מנהל מערכת' && s.dutyCategory !== 'אב' &&
+    s.dutyCategory !== 'טרם הוסמך' && s.dutyCategory !== 'פטור' &&
+    s.active !== false && s.active !== '0' && s.active !== 0
   );
   all.forEach(s => {
     let tot = s.acc2025 || 0;
