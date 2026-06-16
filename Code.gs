@@ -943,10 +943,10 @@ function actionGenerateSchedule(req) {
       .filter(p => {
         if (isHardBlocked(p.name, day)) return false;
         if (!canDoType(p, cat)) return false;
-        // Max per month: V=1, A=1, B=1
+        // Max per month: V=1, A=1 (fallback 2), B=1 (fallback 2)
         if (slot === 'V' && (monthAssignmentCount[p.name] || 0) >= 1) return false;
-        if (slot === 'A' && (monthACount[p.name] || 0) >= 1) return false;
-        if (slot === 'B' && (monthBCount[p.name] || 0) >= 1) return false;
+        if (slot === 'A' && (monthACount[p.name] || 0) >= 2) return false;
+        if (slot === 'B' && (monthBCount[p.name] || 0) >= 2) return false;
         // 6-month gap for מלא people on weekend/holiday days
         if (isWeekendOrHoliday && p.weekendType !== 'בנפרד' && didWeekendInLastMonths(p.name, 6)) return false;
         // 3-month gap for בנפרד people on weekend/holiday days
@@ -1003,11 +1003,23 @@ function actionGenerateSchedule(req) {
     });
   }
 
-  // Who can serve as A/B (אב only on חמישי, others unrestricted by gap)
-  function eligibleAB(cat, excludeNames) {
+  // Who can serve as A/B - prefer once, allow twice as fallback
+  function eligibleAB(cat, excludeNames, countMap, vName) {
+    // First try: served 0 times as this slot
+    const fresh = activePeople.filter(p => {
+      if (excludeNames && excludeNames.has(p.name)) return false;
+      if (vName && p.name === vName) return false;
+      if (p.dutyCategory === 'אב') return cat === 'חמישי' || cat.includes('חמישי');
+      if ((countMap[p.name] || 0) >= 1) return false;
+      return true;
+    });
+    if (fresh.length > 0) return fresh;
+    // Fallback: allow up to 2 times
     return activePeople.filter(p => {
       if (excludeNames && excludeNames.has(p.name)) return false;
+      if (vName && p.name === vName) return false;
       if (p.dutyCategory === 'אב') return cat === 'חמישי' || cat.includes('חמישי');
+      if ((countMap[p.name] || 0) >= 2) return false;
       return true;
     });
   }
@@ -1122,19 +1134,14 @@ function actionGenerateSchedule(req) {
     // All other days (standalone sat, holidays, thu, חול)
     const isStandaloneWeekend = isWeekend(cat) && !isFriWithSat;
     let pool = eligibleV(cat, usedV, isStandaloneWeekend ? true : undefined);
-    // Fallback 1: ignore gap rules (for weekends)
+    // Fallback: ignore gap rules for weekends if pool empty
     if (pool.length === 0 && isStandaloneWeekend) {
       pool = activePeople.filter(p =>
         !usedV.has(p.name) && p.weekendType === 'בנפרד' && p.dutyCategory !== 'אב' &&
         !isHardBlocked(p.name, day)
       );
     }
-    // Fallback 2: allow anyone not hard-blocked (for חול/חמישי when all V slots used)
-    if (pool.length === 0 && !isStandaloneWeekend) {
-      pool = activePeople.filter(p =>
-        !isHardBlocked(p.name, day) && p.dutyCategory !== 'אב' || p.dutyCategory === 'אב' && (cat === 'חמישי' || cat.includes('חמישי'))
-      );
-    }
+    // No fallback for חול/חמישי — each person serves as V exactly once
     const chosen = pick(pool, day, null);
     if (chosen) {
       usedV.add(chosen.name);
@@ -1163,38 +1170,48 @@ function actionGenerateSchedule(req) {
 
     if (isFriPair) {
       // Full weekend A/B: always cover both fri+sat
-      const aPool = eligibleAB('סוף שבוע', usedA).filter(p =>
-        p.name !== vName && !isHardBlocked(p.name, day)
+      const aPool = eligibleAB('סוף שבוע', usedA, monthACount, vName).filter(p =>
+        !isHardBlocked(p.name, day)
       );
       const aChosen = byScore(aPool, day)[0];
       if (aChosen) {
+        monthACount[aChosen.name] = (monthACount[aChosen.name] || 0) + 1;
         usedA.add(aChosen.name);
         aSlot[day] = aChosen.name;
-        aSlot[sat] = aChosen.name; // always cover saturday too
+        aSlot[sat] = aChosen.name;
       }
-      const bPool = eligibleAB('סוף שבוע', usedB).filter(p =>
-        p.name !== vName && p.name !== (aChosen?.name||'') && !isHardBlocked(p.name, day)
+      const bPool = eligibleAB('סוף שבוע', usedB, monthBCount, vName).filter(p =>
+        p.name !== (aChosen ? aChosen.name : '') && !isHardBlocked(p.name, day)
       );
       const bChosen = byScore(bPool, day)[0];
       if (bChosen) {
+        monthBCount[bChosen.name] = (monthBCount[bChosen.name] || 0) + 1;
         usedB.add(bChosen.name);
         bSlot[day] = bChosen.name;
-        bSlot[sat] = bChosen.name; // always cover saturday too
+        bSlot[sat] = bChosen.name;
       }
       return;
     }
 
-    const aPool = eligibleAB(cat, usedA).filter(p =>
-      p.name !== vName && !isHardBlocked(p.name, day)
+    const aPool = eligibleAB(cat, usedA, monthACount, vName).filter(p =>
+      !isHardBlocked(p.name, day)
     );
     const aChosen = byScore(aPool, day)[0];
-    if (aChosen) { usedA.add(aChosen.name); aSlot[day] = aChosen.name; }
+    if (aChosen) {
+      monthACount[aChosen.name] = (monthACount[aChosen.name] || 0) + 1;
+      usedA.add(aChosen.name);
+      aSlot[day] = aChosen.name;
+    }
 
-    const bPool = eligibleAB(cat, usedB).filter(p =>
-      p.name !== vName && p.name !== (aChosen?.name||'') && !isHardBlocked(p.name, day)
+    const bPool = eligibleAB(cat, usedB, monthBCount, vName).filter(p =>
+      p.name !== (aChosen ? aChosen.name : '') && !isHardBlocked(p.name, day)
     );
     const bChosen = byScore(bPool, day)[0];
-    if (bChosen) { usedB.add(bChosen.name); bSlot[day] = bChosen.name; }
+    if (bChosen) {
+      monthBCount[bChosen.name] = (monthBCount[bChosen.name] || 0) + 1;
+      usedB.add(bChosen.name);
+      bSlot[day] = bChosen.name;
+    }
   });
 
   // ── STEP 4: Build final assignment map ───────────
