@@ -2041,12 +2041,12 @@ async function loadUsers() { // keep name for tab switching
 
       <!-- Action buttons -->
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        ${phone ? `<a href="tel:${phone}" class="btn btn-secondary btn-sm" title="התקשר" style="flex:1;min-width:40px;text-align:center">📞</a>` : ''}
-        ${waPhone ? `<a href="https://wa.me/972${waPhone}" target="_blank" class="btn btn-secondary btn-sm" title="WhatsApp" style="flex:1;min-width:40px;text-align:center">💬</a>` : ''}
-        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick='openEditTorani(${JSON.stringify(t)})' title="ערוך" style="flex:1;min-width:40px">✏️</button>` : ''}
-        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="resetPassword('${t.username}','${t.name}')" title="איפוס סיסמה" style="flex:1;min-width:40px">🔑</button>` : ''}
-        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="sendLoginDetails('${t.username}','${t.name}')" title="שלח פרטי כניסה" style="flex:1;min-width:40px">📧</button>` : ''}
-        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="toggleTorani('${t.username}')" title="${isActive ? 'השבת' : 'הפעל'}" style="flex:1;min-width:40px">${isActive ? '🔒' : '🔓'}</button>` : ''}
+        ${phone ? `<a href="tel:${phone}" class="btn btn-secondary btn-sm" title="התקשר" style="flex:1;min-width:40px;text-align:center;display:flex;align-items:center;justify-content:center">📞</a>` : ''}
+        ${waPhone ? `<a href="https://wa.me/972${waPhone}" target="_blank" class="btn btn-secondary btn-sm" title="WhatsApp" style="flex:1;min-width:40px;text-align:center;display:flex;align-items:center;justify-content:center">💬</a>` : ''}
+        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick='openEditTorani(${JSON.stringify(t)})' title="ערוך" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">✏️</button>` : ''}
+        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="resetPassword('${t.username}','${t.name}')" title="איפוס סיסמה" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">🔑</button>` : ''}
+        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="sendLoginDetails('${t.username}','${t.name}')" title="שלח פרטי כניסה" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">📧</button>` : ''}
+        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="toggleTorani('${t.username}')" title="${isActive ? 'השבת' : 'הפעל'}" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">${isActive ? '🔒' : '🔓'}</button>` : ''}
       </div>
     </div>`;
   }).join('');
