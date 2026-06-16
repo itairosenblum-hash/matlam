@@ -2626,6 +2626,7 @@ async function printScores() {
 }
 
 
+async function loadAdminConstraints() {
   const {year, mon, days, s: month} = parseMonth(document.getElementById('admin-constraint-month').value);
   showLoading(true);
   const res = await api({action:'getAllConstraints', month});
