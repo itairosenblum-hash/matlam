@@ -808,6 +808,8 @@ function actionGenerateSchedule(req) {
         if (!canDoType(p, cat)) return false;
         // 6-month gap for מלא people on weekend/holiday days
         if (isWeekendOrHoliday && p.weekendType !== 'בנפרד' && didWeekendInLastMonths(p.name, 6)) return false;
+        // 3-month gap for בנפרד people on weekend/holiday days
+        if (isWeekendOrHoliday && p.weekendType === 'בנפרד' && didWeekendInLastMonths(p.name, 3)) return false;
         return true;
       })
       .sort((a, b) => {
@@ -852,7 +854,8 @@ function actionGenerateSchedule(req) {
         .map(p => ({name:p.name, full:true, score:workingScores[p.name]||0}));
 
       const elSep = activePeople
-        .filter(p => p.weekendType === 'בנפרד' && !isHardBlocked(p.name, day))
+        .filter(p => p.weekendType === 'בנפרד' && !isHardBlocked(p.name, day) &&
+          !didWeekendInLastMonths(p.name, 3))  // 3-month gap rule for בנפרד
         .map(p => ({name:p.name, full:false, score:workingScores[p.name]||0}));
 
       // Merge and sort by score (lowest first)
