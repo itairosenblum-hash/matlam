@@ -2045,7 +2045,7 @@ async function loadUsers() { // keep name for tab switching
         ${waPhone ? `<a href="https://wa.me/972${waPhone}" target="_blank" class="btn btn-secondary btn-sm" title="WhatsApp" style="flex:1;min-width:40px;text-align:center;display:flex;align-items:center;justify-content:center">💬</a>` : ''}
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick='openEditTorani(${JSON.stringify(t)})' title="ערוך" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">✏️</button>` : ''}
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="resetPassword('${t.username}','${t.name}')" title="איפוס סיסמה" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">🔑</button>` : ''}
-        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="sendLoginDetails('${t.username}','${t.name}')" title="שלח פרטי כניסה" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">📧</button>` : ''}
+        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="sendLoginDetails('${t.username}','${t.name}','${t.phone}')" title="שלח פרטי כניסה בוואטסאפ" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">📧</button>` : ''}
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="toggleTorani('${t.username}')" title="${isActive ? 'השבת' : 'הפעל'}" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">${isActive ? '🔒' : '🔓'}</button>` : ''}
       </div>
     </div>`;
@@ -2127,13 +2127,25 @@ async function saveTorani() {
   else showAlert('torani-alert', res.error||'שגיאה', 'error');
 }
 
-async function sendLoginDetails(username, name) {
-  if (!confirm(`לשלוח פרטי כניסה למייל של ${name}?`)) return;
-  showLoading(true);
-  const res = await api({action:'sendCredentialsOne', username});
-  showLoading(false);
-  if (res.ok) showAlert('torani-alert', `פרטי כניסה נשלחו ל-${name} ✉️`, 'success');
-  else showAlert('torani-alert', res.error || 'שגיאה בשליחה', 'error');
+function sendLoginDetails(username, name, phone) {
+  if (!phone) {
+    alert('אין מספר טלפון רשום עבור ' + name + '.\nעדכן מספר טלפון בעריכת התורן.');
+    return;
+  }
+  const pass = prompt('שלח פרטי כניסה ל-' + name + ' בוואטסאפ\nהכנס את הסיסמה לשלוח (השאר ריק לברירת מחדל Aa123456):');
+  if (pass === null) return;
+  const password = pass.trim() || 'Aa123456';
+  const digits = String(phone).replace(/\D/g, '');
+  const intl = digits.startsWith('0') ? '972' + digits.substring(1) : digits;
+  const siteUrl = 'https://itairosenblum-hash.github.io/matlam/';
+  const msg = 'שלום ' + name + ',\n\n'
+    + 'פרטי הכניסה שלך למערכת מטל\"מ:\n'
+    + '👤 שם משתמש: ' + username + '\n'
+    + '🔑 סיסמה: ' + password + '\n'
+    + '🔗 כניסה למערכת: ' + siteUrl + '\n\n'
+    + 'מומלץ לשנות סיסמה לאחר הכניסה הראשונה.';
+  const waUrl = 'https://wa.me/' + intl + '?text=' + encodeURIComponent(msg);
+  window.open(waUrl, '_blank');
 }
 
 async function toggleTorani(username) {
