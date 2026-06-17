@@ -132,13 +132,15 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
   .main{padding-bottom:72px}
 }
 /* ---- GUIDE & SWAP MOBILE ---- */
+#tab-guide .guide-scores-table{min-width:0!important}
 @media(max-width:768px){
   #tab-guide > div, #tab-swap > div{max-width:100%!important}
   #tab-guide .card{padding:14px 12px}
   #tab-guide p{font-size:13px!important;line-height:1.6!important}
-  .guide-scores-table{font-size:13px;width:100%}
-  .guide-scores-table td, .guide-scores-table th{padding:6px 8px!important}
-  .guide-col-hide{display:none}
+  .guide-scores-table{font-size:13px!important;width:100%!important;min-width:0!important}
+  .guide-scores-table td, .guide-scores-table th{padding:6px 8px!important;white-space:normal!important}
+  .guide-scores-table th:first-child, .guide-scores-table td:first-child{min-width:0!important;width:auto!important}
+  .guide-col-hide{display:none!important}
 }
 /* ---- MAIN CONTENT ---- */
 .main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%}
