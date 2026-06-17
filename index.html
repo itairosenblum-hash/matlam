@@ -3175,41 +3175,53 @@ function exportToJPG() {
   const {year, mon} = parseMonth(month);
   const monthName = MONTHS[mon-1] + ' ' + year;
 
-  // Find the calendar/table area
-  const target = document.querySelector('#tab-admin-schedule .card') ||
-                 document.querySelector('#tab-admin-schedule [class*="cal"]') ||
-                 document.getElementById('admin-schedule-content');
-  if (!target) { showAlert('admin-schedule-alert','לא נמצא לוח לייצוא','error'); return; }
-
-  showAlert('admin-schedule-alert','⏳ מכין תמונה...','success');
-
-  const titleDiv = document.createElement('div');
-  titleDiv.style.cssText = 'text-align:center;font-size:16px;font-weight:bold;padding:10px 0 6px;font-family:Arial,sans-serif;direction:rtl;color:#2d4a3e';
-  titleDiv.textContent = '\u05dc\u05d5\u05d7 \u05ea\u05d5\u05e8\u05e0\u05d5\u05d9\u05d5\u05ea \u2014 ' + monthName;
-  target.insertBefore(titleDiv, target.firstChild);
-
-  if (typeof html2canvas === 'undefined') {
-    target.removeChild(titleDiv);
-    showAlert('admin-schedule-alert','ספריית html2canvas לא נטענה, רענן את הדף','error');
+  const target = document.getElementById('admin-schedule-content');
+  if (!target || !target.querySelector('.cal-grid, .schedule-table, .schedule-list')) {
+    showAlert('admin-schedule-alert', 'אין לוח לייצוא — טען קודם את הלוח', 'error');
     return;
   }
 
-  html2canvas(target, {
+  if (typeof html2canvas === 'undefined') {
+    showAlert('admin-schedule-alert', 'ספריית html2canvas לא נטענה, רענן את הדף', 'error');
+    return;
+  }
+
+  showAlert('admin-schedule-alert', '⏳ מכין תמונה...', 'success');
+
+  // Wrap content with title in a temporary styled container
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'position:fixed;top:-9999px;left:-9999px;background:#ffffff;padding:16px;direction:rtl;font-family:Arial,sans-serif;width:' + Math.max(target.scrollWidth, 900) + 'px';
+
+  const titleEl = document.createElement('div');
+  titleEl.style.cssText = 'text-align:center;font-size:20px;font-weight:bold;color:#2d4a3e;padding:8px 0 14px;border-bottom:2px solid #2d4a3e;margin-bottom:12px';
+  titleEl.textContent = 'לוח תורנויות — ' + monthName;
+
+  const clone = target.cloneNode(true);
+  clone.style.cssText = 'overflow:visible;max-height:none;';
+
+  wrapper.appendChild(titleEl);
+  wrapper.appendChild(clone);
+  document.body.appendChild(wrapper);
+
+  html2canvas(wrapper, {
     scale: 2,
     useCORS: true,
     backgroundColor: '#ffffff',
     scrollX: 0,
-    scrollY: -window.scrollY
+    scrollY: 0,
+    width: wrapper.scrollWidth,
+    height: wrapper.scrollHeight,
+    windowWidth: wrapper.scrollWidth + 32
   }).then(canvas => {
-    target.removeChild(titleDiv);
+    document.body.removeChild(wrapper);
     const link = document.createElement('a');
-    link.download = 'toran-' + month + '.jpg';
+    link.download = 'לוח-תורנויות-' + monthName.replace(' ', '-') + '.jpg';
     link.href = canvas.toDataURL('image/jpeg', 0.92);
     link.click();
-    showAlert('admin-schedule-alert','\u2705 \u05d4\u05ea\u05de\u05d5\u05e0\u05d4 \u05d4\u05d5\u05e8\u05d3\u05d4 \u2014 \u05e0\u05d9\u05ea\u05df \u05dc\u05e9\u05dc\u05d5\u05d7 \u05d1\u05d5\u05d5\u05d0\u05d8\u05e1\u05d0\u05e4','success');
+    showAlert('admin-schedule-alert', '✅ התמונה הורדה — ניתן לשלוח בוואטסאפ', 'success');
   }).catch(err => {
-    target.removeChild(titleDiv);
-    showAlert('admin-schedule-alert','\u05e9\u05d2\u05d9\u05d0\u05d4: ' + err.message,'error');
+    document.body.removeChild(wrapper);
+    showAlert('admin-schedule-alert', 'שגיאה: ' + err.message, 'error');
   });
 }
 
