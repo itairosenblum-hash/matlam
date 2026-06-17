@@ -135,8 +135,10 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
 @media(max-width:768px){
   #tab-guide > div, #tab-swap > div{max-width:100%!important}
   #tab-guide .card{padding:14px 12px}
-  #tab-guide p{font-size:13px!important}
-  #tab-guide table{font-size:12px!important;display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  #tab-guide p{font-size:13px!important;line-height:1.6!important}
+  .guide-scores-table{font-size:13px;width:100%}
+  .guide-scores-table td, .guide-scores-table th{padding:6px 8px!important}
+  .guide-col-hide{display:none}
 }
 /* ---- MAIN CONTENT ---- */
 .main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%}
@@ -944,36 +946,36 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
               🆕 <strong>תורן חדש</strong> מקבל ניקוד התחלתי שווה לממוצע כל התורנים הפעילים — כדי להיכנס לסבב בצורה הוגנת.
             </p>
             <div style="overflow-x:auto">
-              <table class="schedule-table" style="min-width:400px">
-                <thead><tr><th>סוג תורנות</th><th>ניקוד</th><th>הסבר</th></tr></thead>
+              <table class="schedule-table guide-scores-table" style="width:100%">
+                <thead><tr><th>סוג תורנות</th><th style="width:60px;text-align:center">ניקוד</th><th class="guide-col-hide">הסבר</th></tr></thead>
                 <tbody>
-                  <tr><td>דולג</td><td><span style="color:var(--text3);font-weight:700">0</span></td><td class="text-muted text-sm">פטור / לא שובץ</td></tr>
-                  <tr><td>פטור</td><td><span style="color:var(--text3);font-weight:700">10</span></td><td class="text-muted text-sm">ניקוד סמלי</td></tr>
-                  <tr><td>חול</td><td><span style="color:var(--accent);font-weight:700">10</span></td><td class="text-muted text-sm">יום חול רגיל</td></tr>
-                  <tr><td>חמישי</td><td><span style="color:var(--accent);font-weight:700">12</span></td><td class="text-muted text-sm">יום חמישי</td></tr>
-                  <tr><td>חול 24 שעות</td><td><span style="color:var(--accent);font-weight:700">15</span></td><td class="text-muted text-sm">24 שעות ביום חול</td></tr>
-                  <tr><td>חמישי 24 שעות</td><td><span style="color:var(--accent);font-weight:700">16</span></td><td class="text-muted text-sm">24 שעות בחמישי</td></tr>
-                  <tr><td>הדממה</td><td><span style="color:var(--accent);font-weight:700">18</span></td><td class="text-muted text-sm">תורנות הדממה</td></tr>
-                  <tr><td>חמישי הדממה</td><td><span style="color:var(--accent);font-weight:700">19</span></td><td class="text-muted text-sm">הדממה בחמישי</td></tr>
-                  <tr><td>סוף שבוע</td><td><span style="color:var(--warn);font-weight:700">20</span></td><td class="text-muted text-sm">שישי או שבת בנפרד</td></tr>
-                  <tr><td>חול + חמישי</td><td><span style="color:var(--warn);font-weight:700">22</span></td><td class="text-muted text-sm">חול + חמישי</td></tr>
-                  <tr><td>חול + חול</td><td><span style="color:var(--warn);font-weight:700">24</span></td><td class="text-muted text-sm">שני ימי חול</td></tr>
-                  <tr><td>חג / ערב חג</td><td><span style="color:var(--warn);font-weight:700">25</span></td><td class="text-muted text-sm">יום חג או ערב חג</td></tr>
-                  <tr><td>חול 24 שעות + חול</td><td><span style="color:var(--warn);font-weight:700">25</span></td><td class="text-muted text-sm">—</td></tr>
-                  <tr><td>חמישי 24 שעות + חול</td><td><span style="color:var(--warn);font-weight:700">26</span></td><td class="text-muted text-sm">—</td></tr>
-                  <tr><td>הדממה + חול</td><td><span style="color:var(--warn);font-weight:700">28</span></td><td class="text-muted text-sm">—</td></tr>
-                  <tr><td>חול + שבת / שבת הקפצה</td><td><span style="color:var(--warn);font-weight:700">30</span></td><td class="text-muted text-sm">—</td></tr>
-                  <tr><td>חול 24 שעות + חול 24 שעות</td><td><span style="color:var(--warn);font-weight:700">30</span></td><td class="text-muted text-sm">—</td></tr>
-                  <tr><td>הדממה + חמישי</td><td><span style="color:var(--warn);font-weight:700">30</span></td><td class="text-muted text-sm">—</td></tr>
-                  <tr><td>חול 24 שעות + חמישי</td><td><span style="color:var(--warn);font-weight:700">31</span></td><td class="text-muted text-sm">—</td></tr>
-                  <tr><td>סוף שבוע + חמישי</td><td><span style="color:var(--danger);font-weight:700">32</span></td><td class="text-muted text-sm">—</td></tr>
-                  <tr><td>חול 24 שעות + שבת</td><td><span style="color:var(--danger);font-weight:700">35</span></td><td class="text-muted text-sm">—</td></tr>
-                  <tr><td>חג + חול</td><td><span style="color:var(--danger);font-weight:700">35</span></td><td class="text-muted text-sm">—</td></tr>
-                  <tr><td>סוף שבוע + חול</td><td><span style="color:var(--danger);font-weight:700">36</span></td><td class="text-muted text-sm">—</td></tr>
-                  <tr><td>חג + חמישי</td><td><span style="color:var(--danger);font-weight:700">37</span></td><td class="text-muted text-sm">—</td></tr>
-                  <tr><td>סוף שבוע מלא</td><td><span style="color:var(--danger);font-weight:700">40</span></td><td class="text-muted text-sm">שישי + שבת ביחד</td></tr>
-                  <tr><td>חג + סוף שבוע</td><td><span style="color:var(--danger);font-weight:700">45</span></td><td class="text-muted text-sm">—</td></tr>
-                  <tr><td>יומיים חג / סוף שבוע מלא + חול</td><td><span style="color:var(--danger);font-weight:700">50</span></td><td class="text-muted text-sm">הניקוד הגבוה ביותר</td></tr>
+                  <tr><td>דולג</td><td><span style="color:var(--text3);font-weight:700">0</span></td><td class="text-muted text-sm guide-col-hide">פטור / לא שובץ</td></tr>
+                  <tr><td>פטור</td><td><span style="color:var(--text3);font-weight:700">10</span></td><td class="text-muted text-sm guide-col-hide">ניקוד סמלי</td></tr>
+                  <tr><td>חול</td><td><span style="color:var(--accent);font-weight:700">10</span></td><td class="text-muted text-sm guide-col-hide">יום חול רגיל</td></tr>
+                  <tr><td>חמישי</td><td><span style="color:var(--accent);font-weight:700">12</span></td><td class="text-muted text-sm guide-col-hide">יום חמישי</td></tr>
+                  <tr><td>חול 24 שעות</td><td><span style="color:var(--accent);font-weight:700">15</span></td><td class="text-muted text-sm guide-col-hide">24 שעות ביום חול</td></tr>
+                  <tr><td>חמישי 24 שעות</td><td><span style="color:var(--accent);font-weight:700">16</span></td><td class="text-muted text-sm guide-col-hide">24 שעות בחמישי</td></tr>
+                  <tr><td>הדממה</td><td><span style="color:var(--accent);font-weight:700">18</span></td><td class="text-muted text-sm guide-col-hide">תורנות הדממה</td></tr>
+                  <tr><td>חמישי הדממה</td><td><span style="color:var(--accent);font-weight:700">19</span></td><td class="text-muted text-sm guide-col-hide">הדממה בחמישי</td></tr>
+                  <tr><td>סוף שבוע</td><td><span style="color:var(--warn);font-weight:700">20</span></td><td class="text-muted text-sm guide-col-hide">שישי או שבת בנפרד</td></tr>
+                  <tr><td>חול + חמישי</td><td><span style="color:var(--warn);font-weight:700">22</span></td><td class="text-muted text-sm guide-col-hide">חול + חמישי</td></tr>
+                  <tr><td>חול + חול</td><td><span style="color:var(--warn);font-weight:700">24</span></td><td class="text-muted text-sm guide-col-hide">שני ימי חול</td></tr>
+                  <tr><td>חג / ערב חג</td><td><span style="color:var(--warn);font-weight:700">25</span></td><td class="text-muted text-sm guide-col-hide">יום חג או ערב חג</td></tr>
+                  <tr><td>חול 24 שעות + חול</td><td><span style="color:var(--warn);font-weight:700">25</span></td><td class="text-muted text-sm guide-col-hide">—</td></tr>
+                  <tr><td>חמישי 24 שעות + חול</td><td><span style="color:var(--warn);font-weight:700">26</span></td><td class="text-muted text-sm guide-col-hide">—</td></tr>
+                  <tr><td>הדממה + חול</td><td><span style="color:var(--warn);font-weight:700">28</span></td><td class="text-muted text-sm guide-col-hide">—</td></tr>
+                  <tr><td>חול + שבת / שבת הקפצה</td><td><span style="color:var(--warn);font-weight:700">30</span></td><td class="text-muted text-sm guide-col-hide">—</td></tr>
+                  <tr><td>חול 24 שעות + חול 24 שעות</td><td><span style="color:var(--warn);font-weight:700">30</span></td><td class="text-muted text-sm guide-col-hide">—</td></tr>
+                  <tr><td>הדממה + חמישי</td><td><span style="color:var(--warn);font-weight:700">30</span></td><td class="text-muted text-sm guide-col-hide">—</td></tr>
+                  <tr><td>חול 24 שעות + חמישי</td><td><span style="color:var(--warn);font-weight:700">31</span></td><td class="text-muted text-sm guide-col-hide">—</td></tr>
+                  <tr><td>סוף שבוע + חמישי</td><td><span style="color:var(--danger);font-weight:700">32</span></td><td class="text-muted text-sm guide-col-hide">—</td></tr>
+                  <tr><td>חול 24 שעות + שבת</td><td><span style="color:var(--danger);font-weight:700">35</span></td><td class="text-muted text-sm guide-col-hide">—</td></tr>
+                  <tr><td>חג + חול</td><td><span style="color:var(--danger);font-weight:700">35</span></td><td class="text-muted text-sm guide-col-hide">—</td></tr>
+                  <tr><td>סוף שבוע + חול</td><td><span style="color:var(--danger);font-weight:700">36</span></td><td class="text-muted text-sm guide-col-hide">—</td></tr>
+                  <tr><td>חג + חמישי</td><td><span style="color:var(--danger);font-weight:700">37</span></td><td class="text-muted text-sm guide-col-hide">—</td></tr>
+                  <tr><td>סוף שבוע מלא</td><td><span style="color:var(--danger);font-weight:700">40</span></td><td class="text-muted text-sm guide-col-hide">שישי + שבת ביחד</td></tr>
+                  <tr><td>חג + סוף שבוע</td><td><span style="color:var(--danger);font-weight:700">45</span></td><td class="text-muted text-sm guide-col-hide">—</td></tr>
+                  <tr><td>יומיים חג / סוף שבוע מלא + חול</td><td><span style="color:var(--danger);font-weight:700">50</span></td><td class="text-muted text-sm guide-col-hide">הניקוד הגבוה ביותר</td></tr>
                 </tbody>
               </table>
             </div>
@@ -989,10 +991,10 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
             <table class="schedule-table">
               <thead><tr><th>קטגוריה</th><th>תיאור</th></tr></thead>
               <tbody>
-                <tr><td class="fw-bold">רגיל</td><td class="text-muted text-sm">משובץ לכל סוגי התורנויות לפי ניקוד</td></tr>
-                <tr><td class="fw-bold" style="color:var(--warn)">משרת אב</td><td class="text-muted text-sm">חמישי בלבד — מקסימום תורנות אחת לחודשיים</td></tr>
-                <tr><td class="fw-bold" style="color:var(--text2)">פטור</td><td class="text-muted text-sm">לא משובץ אוטומטית</td></tr>
-                <tr><td class="fw-bold" style="color:var(--danger)">לא מוסמך</td><td class="text-muted text-sm">בתהליך הכשרה — לא משובץ עד לאישור</td></tr>
+                <tr><td class="fw-bold">רגיל</td><td class="text-muted text-sm guide-col-hide">משובץ לכל סוגי התורנויות לפי ניקוד</td></tr>
+                <tr><td class="fw-bold" style="color:var(--warn)">משרת אב</td><td class="text-muted text-sm guide-col-hide">חמישי בלבד — מקסימום תורנות אחת לחודשיים</td></tr>
+                <tr><td class="fw-bold" style="color:var(--text2)">פטור</td><td class="text-muted text-sm guide-col-hide">לא משובץ אוטומטית</td></tr>
+                <tr><td class="fw-bold" style="color:var(--danger)">לא מוסמך</td><td class="text-muted text-sm guide-col-hide">בתהליך הכשרה — לא משובץ עד לאישור</td></tr>
               </tbody>
             </table>
           </div>
