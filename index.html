@@ -3176,7 +3176,8 @@ function exportToJPG() {
   const monthName = MONTHS[mon-1] + ' ' + year;
 
   const target = document.getElementById('admin-schedule-content');
-  if (!target || !target.querySelector('.cal-grid, .schedule-table, .schedule-list')) {
+  // Accept any rendered schedule: cal-grid (desktop) or sched-list (mobile)
+  if (!target || !target.querySelector('.cal-grid, .sched-list, .schedule-table')) {
     showAlert('admin-schedule-alert', 'אין לוח לייצוא — טען קודם את הלוח', 'error');
     return;
   }
@@ -3188,16 +3189,20 @@ function exportToJPG() {
 
   showAlert('admin-schedule-alert', '⏳ מכין תמונה...', 'success');
 
-  // Wrap content with title in a temporary styled container
+  const isMobile = window.innerWidth <= 640;
+  const wrapWidth = isMobile ? Math.max(target.scrollWidth, window.innerWidth - 16) : Math.max(target.scrollWidth, 900);
+
   const wrapper = document.createElement('div');
-  wrapper.style.cssText = 'position:fixed;top:-9999px;left:-9999px;background:#ffffff;padding:16px;direction:rtl;font-family:Arial,sans-serif;width:' + Math.max(target.scrollWidth, 900) + 'px';
+  wrapper.style.cssText = 'position:fixed;top:-9999px;left:-9999px;background:#ffffff;padding:16px;direction:rtl;font-family:Arial,sans-serif;width:' + wrapWidth + 'px;box-sizing:border-box';
 
   const titleEl = document.createElement('div');
   titleEl.style.cssText = 'text-align:center;font-size:20px;font-weight:bold;color:#2d4a3e;padding:8px 0 14px;border-bottom:2px solid #2d4a3e;margin-bottom:12px';
   titleEl.textContent = 'לוח תורנויות — ' + monthName;
 
   const clone = target.cloneNode(true);
-  clone.style.cssText = 'overflow:visible;max-height:none;';
+  clone.style.cssText = 'overflow:visible;max-height:none;width:100%';
+  // Remove edit pencil buttons from clone
+  clone.querySelectorAll('button').forEach(b => b.remove());
 
   wrapper.appendChild(titleEl);
   wrapper.appendChild(clone);
@@ -3214,11 +3219,34 @@ function exportToJPG() {
     windowWidth: wrapper.scrollWidth + 32
   }).then(canvas => {
     document.body.removeChild(wrapper);
-    const link = document.createElement('a');
-    link.download = 'לוח-תורנויות-' + monthName.replace(' ', '-') + '.jpg';
-    link.href = canvas.toDataURL('image/jpeg', 0.92);
-    link.click();
-    showAlert('admin-schedule-alert', '✅ התמונה הורדה — ניתן לשלוח בוואטסאפ', 'success');
+    const jpgDataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    const fileName = 'לוח-תורנויות-' + monthName.replace(' ', '-') + '.jpg';
+
+    // Try Web Share API first (mobile native share sheet)
+    canvas.toBlob(blob => {
+      if (navigator.canShare && navigator.canShare({files: [new File([blob], fileName, {type: 'image/jpeg'})]})) {
+        const file = new File([blob], fileName, {type: 'image/jpeg'});
+        navigator.share({files: [file], title: 'לוח תורנויות — ' + monthName})
+          .then(() => showAlert('admin-schedule-alert', '✅ הלוח שותף בהצלחה', 'success'))
+          .catch(err => {
+            if (err.name !== 'AbortError') {
+              // Fallback to download
+              const link = document.createElement('a');
+              link.download = fileName;
+              link.href = jpgDataUrl;
+              link.click();
+              showAlert('admin-schedule-alert', '✅ התמונה הורדה — ניתן לשלוח בוואטסאפ', 'success');
+            }
+          });
+      } else {
+        // Desktop or unsupported: download
+        const link = document.createElement('a');
+        link.download = fileName;
+        link.href = jpgDataUrl;
+        link.click();
+        showAlert('admin-schedule-alert', '✅ התמונה הורדה — ניתן לשלוח בוואטסאפ', 'success');
+      }
+    }, 'image/jpeg', 0.92);
   }).catch(err => {
     document.body.removeChild(wrapper);
     showAlert('admin-schedule-alert', 'שגיאה: ' + err.message, 'error');
