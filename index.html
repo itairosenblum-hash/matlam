@@ -2,6 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#2d4a3e">
 <link rel="icon" type="image/png" href="https://itairosenblum-hash.github.io/matlam/SemelMatzad_Color.svg.png">
@@ -757,6 +758,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
             <button class="btn btn-danger btn-sm" onclick="resetSchedule()" title="איפוס לוח החודש">🗑️ אפס לוח</button>
             </span>
             <button class="btn btn-secondary btn-sm" onclick="exportToPDF()" title="ייצוא PDF">📄 PDF</button>
+            <button class="btn btn-secondary btn-sm" onclick="exportToJPG()" title="הורד תמונה לשיתוף בוואטסאפ">🖼️ JPG</button>
           </div>
         </div>
         <div id="admin-schedule-alert"></div>
@@ -3166,6 +3168,49 @@ function exportToPDF() {
   printWin.document.write('</div></body></html>');
   printWin.document.close();
   setTimeout(() => { printWin.print(); }, 500);
+}
+
+function exportToJPG() {
+  const month = String(document.getElementById('admin-schedule-month').value);
+  const {year, mon} = parseMonth(month);
+  const monthName = MONTHS[mon-1] + ' ' + year;
+
+  // Find the calendar/table area
+  const target = document.querySelector('#tab-admin-schedule .card') ||
+                 document.querySelector('#tab-admin-schedule [class*="cal"]') ||
+                 document.getElementById('admin-schedule-content');
+  if (!target) { showAlert('admin-schedule-alert','לא נמצא לוח לייצוא','error'); return; }
+
+  showAlert('admin-schedule-alert','⏳ מכין תמונה...','success');
+
+  const titleDiv = document.createElement('div');
+  titleDiv.style.cssText = 'text-align:center;font-size:16px;font-weight:bold;padding:10px 0 6px;font-family:Arial,sans-serif;direction:rtl;color:#2d4a3e';
+  titleDiv.textContent = '\u05dc\u05d5\u05d7 \u05ea\u05d5\u05e8\u05e0\u05d5\u05d9\u05d5\u05ea \u2014 ' + monthName;
+  target.insertBefore(titleDiv, target.firstChild);
+
+  if (typeof html2canvas === 'undefined') {
+    target.removeChild(titleDiv);
+    showAlert('admin-schedule-alert','ספריית html2canvas לא נטענה, רענן את הדף','error');
+    return;
+  }
+
+  html2canvas(target, {
+    scale: 2,
+    useCORS: true,
+    backgroundColor: '#ffffff',
+    scrollX: 0,
+    scrollY: -window.scrollY
+  }).then(canvas => {
+    target.removeChild(titleDiv);
+    const link = document.createElement('a');
+    link.download = 'toran-' + month + '.jpg';
+    link.href = canvas.toDataURL('image/jpeg', 0.92);
+    link.click();
+    showAlert('admin-schedule-alert','\u2705 \u05d4\u05ea\u05de\u05d5\u05e0\u05d4 \u05d4\u05d5\u05e8\u05d3\u05d4 \u2014 \u05e0\u05d9\u05ea\u05df \u05dc\u05e9\u05dc\u05d5\u05d7 \u05d1\u05d5\u05d5\u05d0\u05d8\u05e1\u05d0\u05e4','success');
+  }).catch(err => {
+    target.removeChild(titleDiv);
+    showAlert('admin-schedule-alert','\u05e9\u05d2\u05d9\u05d0\u05d4: ' + err.message,'error');
+  });
 }
 
 // =====================================================
