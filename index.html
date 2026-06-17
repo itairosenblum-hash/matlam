@@ -131,16 +131,18 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
   /* push content above bottom nav */
   .main{padding-bottom:72px}
 }
+/* ---- GUIDE SCORE LIST ---- */
+.guide-score-list{display:flex;flex-direction:column;gap:0;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.guide-score-row{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid var(--border);font-size:13px;direction:rtl}
+.guide-score-row:last-child{border-bottom:none}
+.guide-score-row:nth-child(even){background:var(--surface2)}
+.guide-score-duty{color:var(--text);flex:1;text-align:right}
+.guide-score-num{font-weight:700;font-size:15px;margin-right:12px;min-width:32px;text-align:center}
 /* ---- GUIDE & SWAP MOBILE ---- */
-#tab-guide .guide-scores-table{min-width:0!important}
 @media(max-width:768px){
   #tab-guide > div, #tab-swap > div{max-width:100%!important}
   #tab-guide .card{padding:14px 12px}
   #tab-guide p{font-size:13px!important;line-height:1.6!important}
-  .guide-scores-table{font-size:13px!important;width:100%!important;min-width:0!important}
-  .guide-scores-table td, .guide-scores-table th{padding:6px 8px!important;white-space:normal!important}
-  .guide-scores-table th:first-child, .guide-scores-table td:first-child{min-width:0!important;width:auto!important}
-  .guide-col-hide{display:none!important}
 }
 /* ---- MAIN CONTENT ---- */
 .main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%}
@@ -947,39 +949,115 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
               כל תורנות מקבלת ניקוד בהתאם לסוגה ולעצימותה. המטרה: שיוויון בנטל בין כל התורנים לאורך זמן.<br>
               🆕 <strong>תורן חדש</strong> מקבל ניקוד התחלתי שווה לממוצע כל התורנים הפעילים — כדי להיכנס לסבב בצורה הוגנת.
             </p>
-            <div style="overflow-x:auto">
-              <table class="schedule-table guide-scores-table" style="width:100%">
-                <thead><tr><th>סוג תורנות</th><th style="width:60px;text-align:center">ניקוד</th><th class="guide-col-hide">הסבר</th></tr></thead>
-                <tbody>
-                  <tr><td>דולג</td><td><span style="color:var(--text3);font-weight:700">0</span></td><td class="text-muted text-sm guide-col-hide">פטור / לא שובץ</td></tr>
-                  <tr><td>פטור</td><td><span style="color:var(--text3);font-weight:700">10</span></td><td class="text-muted text-sm guide-col-hide">ניקוד סמלי</td></tr>
-                  <tr><td>חול</td><td><span style="color:var(--accent);font-weight:700">10</span></td><td class="text-muted text-sm guide-col-hide">יום חול רגיל</td></tr>
-                  <tr><td>חמישי</td><td><span style="color:var(--accent);font-weight:700">12</span></td><td class="text-muted text-sm guide-col-hide">יום חמישי</td></tr>
-                  <tr><td>חול 24 שעות</td><td><span style="color:var(--accent);font-weight:700">15</span></td><td class="text-muted text-sm guide-col-hide">24 שעות ביום חול</td></tr>
-                  <tr><td>חמישי 24 שעות</td><td><span style="color:var(--accent);font-weight:700">16</span></td><td class="text-muted text-sm guide-col-hide">24 שעות בחמישי</td></tr>
-                  <tr><td>הדממה</td><td><span style="color:var(--accent);font-weight:700">18</span></td><td class="text-muted text-sm guide-col-hide">תורנות הדממה</td></tr>
-                  <tr><td>חמישי הדממה</td><td><span style="color:var(--accent);font-weight:700">19</span></td><td class="text-muted text-sm guide-col-hide">הדממה בחמישי</td></tr>
-                  <tr><td>סוף שבוע</td><td><span style="color:var(--warn);font-weight:700">20</span></td><td class="text-muted text-sm guide-col-hide">שישי או שבת בנפרד</td></tr>
-                  <tr><td>חול + חמישי</td><td><span style="color:var(--warn);font-weight:700">22</span></td><td class="text-muted text-sm guide-col-hide">חול + חמישי</td></tr>
-                  <tr><td>חול + חול</td><td><span style="color:var(--warn);font-weight:700">24</span></td><td class="text-muted text-sm guide-col-hide">שני ימי חול</td></tr>
-                  <tr><td>חג / ערב חג</td><td><span style="color:var(--warn);font-weight:700">25</span></td><td class="text-muted text-sm guide-col-hide">יום חג או ערב חג</td></tr>
-                  <tr><td>חול 24 שעות + חול</td><td><span style="color:var(--warn);font-weight:700">25</span></td><td class="text-muted text-sm guide-col-hide">—</td></tr>
-                  <tr><td>חמישי 24 שעות + חול</td><td><span style="color:var(--warn);font-weight:700">26</span></td><td class="text-muted text-sm guide-col-hide">—</td></tr>
-                  <tr><td>הדממה + חול</td><td><span style="color:var(--warn);font-weight:700">28</span></td><td class="text-muted text-sm guide-col-hide">—</td></tr>
-                  <tr><td>חול + שבת / שבת הקפצה</td><td><span style="color:var(--warn);font-weight:700">30</span></td><td class="text-muted text-sm guide-col-hide">—</td></tr>
-                  <tr><td>חול 24 שעות + חול 24 שעות</td><td><span style="color:var(--warn);font-weight:700">30</span></td><td class="text-muted text-sm guide-col-hide">—</td></tr>
-                  <tr><td>הדממה + חמישי</td><td><span style="color:var(--warn);font-weight:700">30</span></td><td class="text-muted text-sm guide-col-hide">—</td></tr>
-                  <tr><td>חול 24 שעות + חמישי</td><td><span style="color:var(--warn);font-weight:700">31</span></td><td class="text-muted text-sm guide-col-hide">—</td></tr>
-                  <tr><td>סוף שבוע + חמישי</td><td><span style="color:var(--danger);font-weight:700">32</span></td><td class="text-muted text-sm guide-col-hide">—</td></tr>
-                  <tr><td>חול 24 שעות + שבת</td><td><span style="color:var(--danger);font-weight:700">35</span></td><td class="text-muted text-sm guide-col-hide">—</td></tr>
-                  <tr><td>חג + חול</td><td><span style="color:var(--danger);font-weight:700">35</span></td><td class="text-muted text-sm guide-col-hide">—</td></tr>
-                  <tr><td>סוף שבוע + חול</td><td><span style="color:var(--danger);font-weight:700">36</span></td><td class="text-muted text-sm guide-col-hide">—</td></tr>
-                  <tr><td>חג + חמישי</td><td><span style="color:var(--danger);font-weight:700">37</span></td><td class="text-muted text-sm guide-col-hide">—</td></tr>
-                  <tr><td>סוף שבוע מלא</td><td><span style="color:var(--danger);font-weight:700">40</span></td><td class="text-muted text-sm guide-col-hide">שישי + שבת ביחד</td></tr>
-                  <tr><td>חג + סוף שבוע</td><td><span style="color:var(--danger);font-weight:700">45</span></td><td class="text-muted text-sm guide-col-hide">—</td></tr>
-                  <tr><td>יומיים חג / סוף שבוע מלא + חול</td><td><span style="color:var(--danger);font-weight:700">50</span></td><td class="text-muted text-sm guide-col-hide">הניקוד הגבוה ביותר</td></tr>
-                </tbody>
-              </table>
+            <div class="guide-score-list">
+              <div class="guide-score-row">
+                <span class="guide-score-duty">דולג</span>
+                <span class="guide-score-num" style="color:var(--text3)">0</span>
+              </div>
+              <div class="guide-score-row">
+                <span class="guide-score-duty">פטור</span>
+                <span class="guide-score-num" style="color:var(--text3)">10</span>
+              </div>
+              <div class="guide-score-row">
+                <span class="guide-score-duty">חול</span>
+                <span class="guide-score-num" style="color:var(--accent)">10</span>
+              </div>
+              <div class="guide-score-row">
+                <span class="guide-score-duty">חמישי</span>
+                <span class="guide-score-num" style="color:var(--accent)">12</span>
+              </div>
+              <div class="guide-score-row">
+                <span class="guide-score-duty">חול 24 שעות</span>
+                <span class="guide-score-num" style="color:var(--accent)">15</span>
+              </div>
+              <div class="guide-score-row">
+                <span class="guide-score-duty">חמישי 24 שעות</span>
+                <span class="guide-score-num" style="color:var(--accent)">16</span>
+              </div>
+              <div class="guide-score-row">
+                <span class="guide-score-duty">הדממה</span>
+                <span class="guide-score-num" style="color:var(--accent)">18</span>
+              </div>
+              <div class="guide-score-row">
+                <span class="guide-score-duty">חמישי הדממה</span>
+                <span class="guide-score-num" style="color:var(--accent)">19</span>
+              </div>
+              <div class="guide-score-row">
+                <span class="guide-score-duty">סוף שבוע</span>
+                <span class="guide-score-num" style="color:var(--warn)">20</span>
+              </div>
+              <div class="guide-score-row">
+                <span class="guide-score-duty">חול + חמישי</span>
+                <span class="guide-score-num" style="color:var(--warn)">22</span>
+              </div>
+              <div class="guide-score-row">
+                <span class="guide-score-duty">חול + חול</span>
+                <span class="guide-score-num" style="color:var(--warn)">24</span>
+              </div>
+              <div class="guide-score-row">
+                <span class="guide-score-duty">חג / ערב חג</span>
+                <span class="guide-score-num" style="color:var(--warn)">25</span>
+              </div>
+              <div class="guide-score-row">
+                <span class="guide-score-duty">חול 24 שעות + חול</span>
+                <span class="guide-score-num" style="color:var(--warn)">25</span>
+              </div>
+              <div class="guide-score-row">
+                <span class="guide-score-duty">חמישי 24 שעות + חול</span>
+                <span class="guide-score-num" style="color:var(--warn)">26</span>
+              </div>
+              <div class="guide-score-row">
+                <span class="guide-score-duty">הדממה + חול</span>
+                <span class="guide-score-num" style="color:var(--warn)">28</span>
+              </div>
+              <div class="guide-score-row">
+                <span class="guide-score-duty">חול + שבת / שבת הקפצה</span>
+                <span class="guide-score-num" style="color:var(--warn)">30</span>
+              </div>
+              <div class="guide-score-row">
+                <span class="guide-score-duty">חול 24 שעות + חול 24 שעות</span>
+                <span class="guide-score-num" style="color:var(--warn)">30</span>
+              </div>
+              <div class="guide-score-row">
+                <span class="guide-score-duty">הדממה + חמישי</span>
+                <span class="guide-score-num" style="color:var(--warn)">30</span>
+              </div>
+              <div class="guide-score-row">
+                <span class="guide-score-duty">חול 24 שעות + חמישי</span>
+                <span class="guide-score-num" style="color:var(--warn)">31</span>
+              </div>
+              <div class="guide-score-row">
+                <span class="guide-score-duty">סוף שבוע + חמישי</span>
+                <span class="guide-score-num" style="color:var(--danger)">32</span>
+              </div>
+              <div class="guide-score-row">
+                <span class="guide-score-duty">חול 24 שעות + שבת</span>
+                <span class="guide-score-num" style="color:var(--danger)">35</span>
+              </div>
+              <div class="guide-score-row">
+                <span class="guide-score-duty">חג + חול</span>
+                <span class="guide-score-num" style="color:var(--danger)">35</span>
+              </div>
+              <div class="guide-score-row">
+                <span class="guide-score-duty">סוף שבוע + חול</span>
+                <span class="guide-score-num" style="color:var(--danger)">36</span>
+              </div>
+              <div class="guide-score-row">
+                <span class="guide-score-duty">חג + חמישי</span>
+                <span class="guide-score-num" style="color:var(--danger)">37</span>
+              </div>
+              <div class="guide-score-row">
+                <span class="guide-score-duty">סוף שבוע מלא</span>
+                <span class="guide-score-num" style="color:var(--danger)">40</span>
+              </div>
+              <div class="guide-score-row">
+                <span class="guide-score-duty">חג + סוף שבוע</span>
+                <span class="guide-score-num" style="color:var(--danger)">45</span>
+              </div>
+              <div class="guide-score-row">
+                <span class="guide-score-duty">יומיים חג / סוף שבוע מלא + חול</span>
+                <span class="guide-score-num" style="color:var(--danger)">50</span>
+              </div>
             </div>
             <div style="background:var(--surface3);border-radius:8px;padding:14px;margin-top:16px;font-size:13px;color:var(--text2);line-height:1.7">
               💡 <strong style="color:var(--text)">חשוב לדעת:</strong> הניקוד הוא <strong>מצטבר</strong> — ככל שהניקוד שלך גבוה יותר, 
