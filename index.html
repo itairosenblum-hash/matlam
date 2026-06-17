@@ -2762,7 +2762,7 @@ async function loadAdminConstraints() {
     <span style="display:inline-flex;align-items:center;gap:4px;background:var(--surface3);border:1px solid var(--border);border-radius:4px;padding:2px 7px;color:var(--text3)">— ריק</span>
   </div>`;
 
-  html += `<div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto">
+  html += `<div class="card" style="padding:0;overflow:hidden"><div style="overflow:auto;max-height:calc(100vh - 220px)">
     <table class="calendar-table" style="border-collapse:collapse;border:1px solid var(--border2)">
       <thead>
         <tr style="position:sticky;top:0;z-index:10">
@@ -2783,7 +2783,7 @@ async function loadAdminConstraints() {
               <div style="font-size:9px;opacity:0.8">${dayName}'</div>
             </th>`;
           }).join('')}
-          <th style="position:static;border:1px solid var(--border2);min-width:160px">הערות</th>
+          <th style="position:static;border:1px solid var(--border2);min-width:220px">הערות</th>
           <th style="position:static;border:1px solid var(--border2);min-width:70px">שמור</th>
         </tr>
       </thead>
@@ -2817,7 +2817,7 @@ async function loadAdminConstraints() {
         <input type="text" value="${(c.notes||'').replace(/"/g,'&quot;')}"
           onchange="adminUpdateConstraintNotes(this,'${safeName}')"
           oninput="adminMarkDirty('${safeName}')"
-          style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:3px 6px;color:var(--text);font-family:inherit;font-size:12px;outline:none"/>
+          style="width:100%;min-width:200px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:3px 6px;color:var(--text);font-family:inherit;font-size:12px;outline:none"/>
       </td>
       <td style="border:1px solid var(--border2);padding:4px 6px;text-align:center">
         <button id="save-btn-${safeName}" onclick="adminSaveConstraintRow('${safeName}')"
