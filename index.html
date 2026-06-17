@@ -123,12 +123,20 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
   /* hide hamburger + nav-tabs on mobile */
   .hamburger-btn{display:none!important}
   #nav-tabs-container{display:none!important}
+  #theme-btn-nav{display:inline-flex!important;align-items:center;justify-content:center}
   /* slim top navbar - keep logo, bell, impersonate */
   .navbar{height:50px;padding:0 12px;min-height:50px}
   .nav-brand > span{display:none}
   .nav-user .text-sm, #nav-role-badge{display:none}
   /* push content above bottom nav */
   .main{padding-bottom:72px}
+}
+/* ---- GUIDE & SWAP MOBILE ---- */
+@media(max-width:768px){
+  #tab-guide > div, #tab-swap > div{max-width:100%!important}
+  #tab-guide .card{padding:14px 12px}
+  #tab-guide p{font-size:13px!important}
+  #tab-guide table{font-size:12px!important;display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
 }
 /* ---- MAIN CONTENT ---- */
 .main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%}
@@ -622,6 +630,9 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
       </button>
       <div id="nav-tabs-container" class="nav-tabs"></div>
       <div class="nav-user">
+        <button id="theme-btn-nav" onclick="toggleTheme()" title="כהה / בהיר"
+          style="background:none;border:none;cursor:pointer;font-size:20px;padding:4px 8px;color:var(--text2);display:none;line-height:1"
+          aria-label="החלף ערכת צבעים">🌙</button>
         <div id="bell-wrapper" style="display:none;position:relative">
           <button id="bell-btn" class="bell-btn" onclick="toggleNotifPanel()" style="position:relative;background:none;border:none;cursor:pointer;font-size:18px;padding:4px 8px;color:var(--text2)" title="התראות">
             🔔<span id="bell-count" style="display:none;position:absolute;top:-2px;right:-2px;background:var(--danger);color:#fff;border-radius:50%;font-size:10px;font-weight:700;width:16px;height:16px;line-height:16px;text-align:center"></span>
@@ -874,7 +885,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
       <!-- SWAP TAB (users) -->
       <div id="tab-swap" class="tab-content hidden">
         <div class="section-title" style="margin-bottom:20px">🔄 בקשת החלפת תורנות</div>
-        <div style="max-width:600px;display:grid;gap:16px">
+        <div style="max-width:600px;width:100%;display:grid;gap:16px">
           <div class="card">
             <div class="card-title">בקשה חדשה</div>
             <div id="swap-alert"></div>
@@ -923,7 +934,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
       <!-- GUIDE TAB (all users) -->
       <div id="tab-guide" class="tab-content hidden">
         <div class="section-title" style="margin-bottom:24px">📖 מדריך מערכת התורנויות</div>
-        <div style="max-width:800px;display:grid;gap:24px">
+        <div style="max-width:800px;width:100%;display:grid;gap:24px">
 
           <!-- שיטת הניקוד -->
           <div class="card">
@@ -4244,6 +4255,9 @@ function updateThemeBtn(isLight) {
     const btn = document.getElementById(id);
     if (btn) btn.textContent = label;
   });
+  // navbar icon-only button
+  const nb = document.getElementById('theme-btn-nav');
+  if (nb) nb.textContent = isLight ? '🌑' : '☀️';
 }
 
 function initTheme() {
