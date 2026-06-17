@@ -511,6 +511,11 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
 .text-success{color:var(--accent)}
 .fw-bold{font-weight:700}
 .w-full{width:100%}
+/* ---- CONSTRAINTS HIGHLIGHT ---- */
+.c-hl-row td { background-color: rgba(56,139,253,0.07) !important; }
+.c-hl-col { background-color: rgba(56,139,253,0.07) !important; }
+.c-hl-row td.c-hl-col { background-color: rgba(56,139,253,0.2) !important; outline: 2px solid rgba(56,139,253,0.55); outline-offset: -2px; }
+thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 /* ---- CALENDAR VIEW ---- */
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:8px;touch-action:pan-y}
 .cal-header{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px}
@@ -2760,8 +2765,8 @@ async function loadAdminConstraints() {
   html += `<div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto">
     <table class="calendar-table" style="border-collapse:collapse;border:1px solid var(--border2)">
       <thead>
-        <tr style="position:static">
-          <th style="position:sticky;right:0;z-index:2;background:var(--surface3);min-width:140px;border:1px solid var(--border2)">שם</th>
+        <tr style="position:sticky;top:0;z-index:10">
+          <th style="position:sticky;right:0;z-index:12;background:var(--surface3);min-width:140px;border:1px solid var(--border2)">שם</th>
           ${Array.from({length:days},(_,i)=>{
             const date = new Date(year, mon-1, i+1);
             const dow = date.getDay();
@@ -2773,7 +2778,7 @@ async function loadAdminConstraints() {
                      : isWE  ? 'background:rgba(139,92,246,0.15);color:#a78bfa'
                      : isThu ? 'background:rgba(210,153,34,0.12);color:var(--warn)'
                      : 'background:var(--surface3)';
-            return `<th style="font-size:11px;padding:4px 2px;min-width:30px;text-align:center;position:static;border:1px solid var(--border2);${bg}" title="${dayName}'">
+            return `<th data-col="${i}" style="font-size:11px;padding:4px 2px;min-width:30px;text-align:center;position:static;border:1px solid var(--border2);${bg}" title="${dayName}'">
               <div style="font-weight:700">${i+1}</div>
               <div style="font-size:9px;opacity:0.8">${dayName}'</div>
             </th>`;
@@ -2802,7 +2807,7 @@ async function loadAdminConstraints() {
         : v === 'X'
         ? 'background:rgba(218,54,51,0.1);color:var(--danger)'
         : '';
-      html += `<td data-name="${safeName}" data-day="${d}" onclick="adminToggleConstraintCell(this)"
+      html += `<td data-name="${safeName}" data-day="${d}" data-col="${d}" onclick="adminToggleConstraintCell(this)"
         style="text-align:center;cursor:pointer;padding:4px 2px;border:1px solid var(--border2);transition:background .15s;${cellStyle}"
         title="לחץ לשינוי">
         <span style="font-weight:700;font-size:14px">${v === 'V' ? '✓' : v === 'X' ? '✕' : ''}</span>
@@ -2825,6 +2830,26 @@ async function loadAdminConstraints() {
 
   html += '</tbody></table></div></div>';
   container.innerHTML = html;
+
+  // Hover: highlight row + column
+  (function() {
+    const ctable = container.querySelector('.calendar-table');
+    if (!ctable) return;
+    function clearHL() {
+      ctable.querySelectorAll('.c-hl-row').forEach(el => el.classList.remove('c-hl-row'));
+      ctable.querySelectorAll('.c-hl-col').forEach(el => el.classList.remove('c-hl-col'));
+    }
+    ctable.addEventListener('mouseover', function(e) {
+      const cell = e.target.closest('td[data-col],th[data-col]');
+      if (!cell) { clearHL(); return; }
+      clearHL();
+      const col = cell.getAttribute('data-col');
+      const row = cell.closest('tr');
+      if (row && row.parentElement && row.parentElement.tagName === 'TBODY') row.classList.add('c-hl-row');
+      ctable.querySelectorAll('[data-col="' + col + '"]').forEach(el => el.classList.add('c-hl-col'));
+    });
+    ctable.addEventListener('mouseleave', clearHL);
+  })();
 }
 
 function adminToggleConstraintCell(td) {
