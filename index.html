@@ -794,6 +794,10 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
           <button class="btn btn-primary" id="btn-add-torani" onclick="openAddTorani()">+ הוסף תורן</button>
         </div>
         <div id="tornim-alert"></div>
+        <div style="margin-bottom:12px">
+          <input id="tornim-search" type="text" placeholder="🔍 חיפוש תורן..." oninput="filterTornim(this.value)"
+            style="width:100%;max-width:320px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:8px 14px;color:var(--text);font-family:inherit;font-size:14px;outline:none;box-sizing:border-box">
+        </div>
         <div id="tornim-content"></div>
       </div>
       <!-- ADMIN: SCHEDULE TAB -->
@@ -842,6 +846,10 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
           </div>
           <button class="btn btn-secondary btn-sm" onclick="loadScores()">🔄 רענן</button>
           <button class="btn btn-secondary btn-sm" onclick="printScores()">🖨️ הדפס PDF</button>
+        </div>
+        <div style="margin-bottom:12px">
+          <input id="scores-search" type="text" placeholder="🔍 חיפוש תורן..." oninput="filterScores(this.value)"
+            style="width:100%;max-width:320px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:8px 14px;color:var(--text);font-family:inherit;font-size:14px;outline:none;box-sizing:border-box">
         </div>
         <div id="scores-content"></div>
       </div>
@@ -2206,6 +2214,64 @@ async function loadUsers() { // keep name for tab switching
     </div>`;
   }).join('');
 
+  window._allTornimData = sorted;
+  window._tornimCardFn = cards;
+  container.innerHTML = `<div id="tornim-cards-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">${cards}</div>`;
+}
+
+function filterTornim(query) {
+  if (!window._allTornimData) return;
+  const container = document.getElementById('tornim-content');
+  const q = query.trim().toLowerCase();
+  const WEEKEND = {'מלא':'🗓️ מלא','בנפרד':'📅 בנפרד'};
+  const catColor = cat => {
+    if (!cat || cat === 'רגיל') return 'var(--accent)';
+    if (cat === 'אב') return '#f59e0b';
+    if (cat === 'טרם הוסמך') return 'var(--text3)';
+    if (cat === 'פטור') return 'var(--danger)';
+    return 'var(--text2)';
+  };
+  const list = q ? window._allTornimData.filter(t =>
+    t.name.toLowerCase().includes(q) || (t.username||'').toLowerCase().includes(q)
+  ) : window._allTornimData;
+
+  if (!list.length) {
+    container.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text2)">אין תוצאות לחיפוש זה</div>';
+    return;
+  }
+
+  const cards = list.map(t => {
+    const phone = t.phone ? t.phone.replace(/[^0-9+]/g,'') : '';
+    const waPhone = t.phone ? t.phone.replace(/[^0-9]/g,'').replace(/^0/,'') : '';
+    const cat = t.dutyCategory || 'רגיל';
+    const wkd = WEEKEND[t.weekendType] || t.weekendType || '—';
+    const isActive = t.active;
+    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;opacity:${isActive ? '1' : '0.6'};transition:box-shadow 0.2s"
+      onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.12)'"
+      onmouseout="this.style.boxShadow='none'">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:38px;height:38px;border-radius:50%;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:var(--accent)">${t.name.charAt(0)}</div>
+          <div><div style="font-weight:700;font-size:15px">${t.name}</div><div style="font-size:11px;color:var(--text3)">${t.username}</div></div>
+        </div>
+        <span class="status-badge ${isActive ? 'status-active' : 'status-inactive'}">${isActive ? 'פעיל' : 'מושבת'}</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
+        <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:${catColor(cat)};font-weight:600">${cat}</span>
+        <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">${wkd}</span>
+        ${t.role === 'admin' ? '<span style="background:rgba(56,139,253,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600">מנהל</span>' : ''}
+        ${t.phone ? `<span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">📱 ${formatPhoneDisplay(t.phone)}</span>` : ''}
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${phone ? `<a href="tel:${phone}" class="btn btn-secondary btn-sm" title="התקשר" style="flex:1;min-width:40px;text-align:center;display:flex;align-items:center;justify-content:center">📞</a>` : ''}
+        ${waPhone ? `<a href="https://wa.me/972${waPhone}" target="_blank" class="btn btn-secondary btn-sm" title="WhatsApp" style="flex:1;min-width:40px;text-align:center;display:flex;align-items:center;justify-content:center">💬</a>` : ''}
+        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick='openEditTorani(${JSON.stringify(t)})' title="ערוך" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">✏️</button>` : ''}
+        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="resetPassword('${t.username}','${t.name}')" title="איפוס סיסמה" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">🔑</button>` : ''}
+        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="sendLoginDetails('${t.username}','${t.name}','${t.phone}')" title="שלח פרטי כניסה בוואטסאפ" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">📧</button>` : ''}
+        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="toggleTorani('${t.username}')" title="${isActive ? 'השבת' : 'הפעל'}" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">${isActive ? '🔒' : '🔓'}</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
   container.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">${cards}</div>`;
 }
 
@@ -2641,9 +2707,24 @@ async function loadScores() {
   var midT = Math.ceil(n*2/3);
   var activeMon = MONTHS2.filter(function(m){ return all.some(function(s){ return (s[m.k]||{}).score>0; }); });
 
+  // Store data globally for live filter
+  window._allScoresData = { all, n, topT, midT, activeMon, pMap };
+  renderScores(all);
+}
+
+function renderScores(list) {
+  var container = document.getElementById('scores-content');
+  var { all, n, topT, midT, activeMon, pMap } = window._allScoresData || {};
+  if (!all) return;
+
+  if (!list.length) {
+    container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text2)">אין תוצאות לחיפוש זה</div>';
+    return;
+  }
+
   if (window.innerWidth <= 640) {
     var html = '<div style="display:grid;gap:8px;padding:8px">';
-    all.forEach(function(s, i) {
+    list.forEach(function(s, i) {
       var p = pMap[s.name] || {};
       var cat = p.dutyCategory || '';
       var wkd = p.weekendType || '';
@@ -2670,10 +2751,10 @@ async function loadScores() {
     html += '</div>';
     container.innerHTML = html;
   } else {
-    var maxT = all[0]._total || 1;
+    var maxT = list[0]._total || 1;
     var thS = 'background:var(--surface3);border-bottom:2px solid var(--border);white-space:nowrap;padding:8px 12px';
     var mHeaders = activeMon.map(function(m){ return '<th style="'+thS+';font-size:11px">'+m.l+'</th>'; }).join('');
-    var rows = all.map(function(s,i){
+    var rows = list.map(function(s,i){
       var p = pMap[s.name]||{};
       var dutyCat = s.dutyCategory || p.dutyCategory || 'רגיל';
       var wkdType = s.weekendType || p.weekendType || '';
@@ -2825,6 +2906,15 @@ async function printScores() {
   win.document.close();
 }
 
+
+function filterScores(query) {
+  if (!window._allScoresData) return;
+  var q = query.trim().toLowerCase();
+  var filtered = q ? window._allScoresData.all.filter(function(s){
+    return s.name.toLowerCase().includes(q);
+  }) : window._allScoresData.all;
+  renderScores(filtered);
+}
 
 async function loadAdminConstraints() {
   const {year, mon, days, s: month} = parseMonth(document.getElementById('admin-constraint-month').value);
