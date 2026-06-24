@@ -143,6 +143,12 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
   #tab-guide > div, #tab-swap > div{max-width:100%!important}
   #tab-guide .card{padding:14px 12px}
   #tab-guide p{font-size:13px!important;line-height:1.6!important}
+  #tab-guide table{font-size:12px;width:100%}
+  #tab-guide table td, #tab-guide table th{padding:6px 8px;word-break:break-word}
+  #tab-guide [style*="grid-template-columns:repeat(3"]{grid-template-columns:1fr!important}
+  #tab-guide [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important}
+  #tab-guide [style*="grid-template-columns:repeat(2"]{grid-template-columns:1fr!important}
+  .guide-col-hide{display:none}
 }
 /* ---- MAIN CONTENT ---- */
 .main{flex:1;padding:24px;max-width:1200px;margin:0 auto;width:100%}
@@ -1149,6 +1155,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
             <div style="background:var(--surface2);border-radius:8px;padding:12px 14px;font-size:13px;color:var(--text2)">
               💡 מי שלא שובץ החודש ("דולג") מקבל +10 נקודות אוטומטית. תורן חדש מקבל ניקוד התחלתי שווה לממוצע כל התורנים הפעילים.
             </div>
+          </div>
 
           <!-- אילוצים -->
           <div class="card">
