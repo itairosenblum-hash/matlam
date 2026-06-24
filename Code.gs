@@ -1451,13 +1451,14 @@ function actionGetAllTornim() {
   // Build people map by name
   const peopleMap = {};
   for (let i = 1; i < peopleRows.length; i++) {
-    const [name, activity, dutyCategory, phone, weekendType, email] = peopleRows[i];
+    const [name, activity, dutyCategory, phone, weekendType, email, endDate] = peopleRows[i];
     if (name) peopleMap[String(name)] = {
       activity: String(activity || '1'),
       dutyCategory: String(dutyCategory || ''),
       phone: String(phone || ''),
       weekendType: String(weekendType || 'מלא'),
       email: String(email || ''),
+      endDate: endDate ? String(endDate).split('T')[0] : '',
       peopleRow: i + 1
     };
   }
@@ -1475,6 +1476,7 @@ function actionGetAllTornim() {
       phone: p.phone || '',
       email: p.email || '',
       weekendType: p.weekendType || 'מלא',
+      endDate: p.endDate || '',
       hasPeopleEntry: !!peopleMap[String(name)]
     });
   }
@@ -1513,7 +1515,7 @@ function actionAddTorani(req) {
     }
   }
   if (!found) {
-    peopleSheet.appendRow([name, activity||'1', dutyCategory||'', phone||'', weekendType||'מלא', email||'']);
+    peopleSheet.appendRow([name, activity||'1', dutyCategory||'', phone||'', weekendType||'מלא', email||'', '']);
   }
 
   // Set starting score = average of all active tornim (fair entry into rotation)
@@ -1579,11 +1581,12 @@ function actionUpdateTorani(req) {
       if (phone !== undefined) peopleSheet.getRange(i+1,4).setValue(phone);
       if (weekendType !== undefined) peopleSheet.getRange(i+1,5).setValue(weekendType);
       if (email !== undefined) peopleSheet.getRange(i+1,6).setValue(email);
+      if (req.endDate !== undefined) peopleSheet.getRange(i+1,7).setValue(req.endDate);
       found = true; break;
     }
   }
   if (!found && lookupName) {
-    peopleSheet.appendRow([name||lookupName, activity||'1', dutyCategory||'', phone||'', weekendType||'מלא']);
+    peopleSheet.appendRow([name||lookupName, activity||'1', dutyCategory||'', phone||'', weekendType||'מלא', '', '']);
   }
 
   return {success: true};
