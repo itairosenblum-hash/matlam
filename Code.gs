@@ -196,11 +196,9 @@ function actionLogin(req) {
 }
 
 function validateToken(token) {
-  const tv0 = Date.now();
   if (!token) return null;
   const sheet = getSheet(SH.SESSIONS);
   const rows = sheet.getDataRange().getValues();
-  Logger.log('validateToken: Sessions read done in ' + (Date.now()-tv0) + 'ms, rows=' + rows.length);
   const now = new Date();
   let found = null;
   const toDelete = [];
@@ -381,9 +379,7 @@ function actionToggleUser(req) {
 
 // ===== PEOPLE =====
 function actionGetPeople() {
-  const tp0 = Date.now();
   const rows = getSheet(SH.PEOPLE).getDataRange().getValues();
-  Logger.log('actionGetPeople: People sheet read done in ' + (Date.now()-tp0) + 'ms, rows=' + rows.length);
   const people = [];
   for (let i = 1; i < rows.length; i++) {
     const [name, activity, dutyCategory, phone, weekendType, email, endDate] = rows[i];
@@ -418,16 +414,13 @@ function actionUpdatePerson(req) {
 
 // ===== SCORES =====
 function actionGetScores() {
-  const t0 = Date.now();
   const monthNames = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
 
   const peopleRes = actionGetPeople();
-  Logger.log('actionGetScores: getPeople done in ' + (Date.now()-t0) + 'ms');
   const people = peopleRes.people;
 
   const scoreSheet = getSheet(SH.SCORES);
   const scoreRows = scoreSheet.getDataRange().getValues();
-  Logger.log('actionGetScores: Scores sheet read done in ' + (Date.now()-t0) + 'ms, rows=' + scoreRows.length);
 
   // Build a map from name -> scores row data
   const scoreMap = {};
