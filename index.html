@@ -1337,6 +1337,10 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
           <option value="בנפרד">📅 ימים בנפרד</option>
         </select>
       </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label>תאריך סיום שירות 📅 <span class="text-muted text-sm">(אופציונלי)</span></label>
+        <input id="t-enddate" type="date">
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-add-torani')">ביטול</button>
@@ -2312,6 +2316,7 @@ function openAddTorani() {
   // activity not shown in UI
   document.getElementById('t-category').value = '';
   document.getElementById('t-weekend').value = 'מלא';
+  document.getElementById('t-enddate').value = '';
   document.getElementById('torani-alert').innerHTML = '';
   openModal('modal-add-torani');
 }
@@ -2329,6 +2334,7 @@ function openEditTorani(t) {
   // activity not shown in UI
   document.getElementById('t-category').value = t.dutyCategory||'';
   document.getElementById('t-weekend').value = t.weekendType||'מלא';
+  document.getElementById('t-enddate').value = t.endDate||'';
   document.getElementById('torani-alert').innerHTML = '';
   openModal('modal-add-torani');
 }
@@ -2358,6 +2364,7 @@ async function saveTorani() {
   const activity = '1'; // default, not shown in UI
   const dutyCategory = document.getElementById('t-category').value;
   const weekendType = document.getElementById('t-weekend').value;
+  const endDate = document.getElementById('t-enddate').value || '';
 
   if (!name) return showAlert('torani-alert','חסר שם מלא','error');
 
@@ -2365,11 +2372,11 @@ async function saveTorani() {
   let res;
   if (editingTorani) {
     res = await api({action:'updateTorani', username:editingTorani,
-      name, role, phone, email, activity, dutyCategory, weekendType,
+      name, role, phone, email, activity, dutyCategory, weekendType, endDate,
       newPassword: password||undefined});
   } else {
     if (!username||!password) { showLoading(false); return showAlert('torani-alert','חסרים שם משתמש וסיסמה','error'); }
-    res = await api({action:'addTorani', name, username, password, role, phone, activity, dutyCategory, weekendType});
+    res = await api({action:'addTorani', name, username, password, role, phone, activity, dutyCategory, weekendType, endDate});
   }
   showLoading(false);
   if (res.success) { closeModal('modal-add-torani'); loadUsers(); }
