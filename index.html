@@ -145,9 +145,8 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
   #tab-guide p{font-size:13px!important;line-height:1.6!important}
   #tab-guide table{font-size:12px;width:100%}
   #tab-guide table td, #tab-guide table th{padding:6px 8px;word-break:break-word}
-  #tab-guide [style*="grid-template-columns:repeat(3"]{grid-template-columns:1fr!important}
-  #tab-guide [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important}
-  #tab-guide [style*="grid-template-columns:repeat(2"]{grid-template-columns:1fr!important}
+  #tab-guide .guide-grid-2{grid-template-columns:1fr!important}
+  #tab-guide .guide-grid-3{grid-template-columns:1fr!important}
   .guide-col-hide{display:none}
 }
 /* ---- MAIN CONTENT ---- */
@@ -1155,14 +1154,11 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
             <div style="background:var(--surface2);border-radius:8px;padding:12px 14px;font-size:13px;color:var(--text2)">
               💡 מי שלא שובץ החודש ("דולג") מקבל +10 נקודות אוטומטית. תורן חדש מקבל ניקוד התחלתי שווה לממוצע כל התורנים הפעילים.
             </div>
-          </div>
 
           <!-- אילוצים -->
           <div class="card">
             <div class="card-title" style="font-size:16px;margin-bottom:16px">🚫 הגשת אילוצים</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-              <div style="background:rgba(218,54,51,0.08);border:1px solid rgba(218,54,51,0.25);border-radius:8px;padding:14px">
-                <div style="font-size:20px;margin-bottom:6px">✕</div>
+            <div class="guide-grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                 <div style="font-weight:600;font-size:14px;color:var(--danger)">לא יכול</div>
                 <div style="font-size:13px;color:var(--text2);margin-top:4px;line-height:1.6">
                   אילוץ חובה — לא תשובץ לתורנות ביום זה בשום מצב.
@@ -1185,7 +1181,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
           <!-- מבנה התורנות -->
           <div class="card">
             <div class="card-title" style="font-size:16px;margin-bottom:16px">👥 מבנה התורנות</div>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px">
+            <div class="guide-grid-3" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px">
               <div style="background:var(--accent-glow);border:1px solid rgba(46,160,67,0.3);border-radius:8px;padding:14px;text-align:center">
                 <div style="font-size:22px;font-weight:800;color:var(--accent)">V</div>
                 <div style="font-weight:600;font-size:13px;margin-top:4px">מבצע</div>
