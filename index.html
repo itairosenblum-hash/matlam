@@ -2204,6 +2204,7 @@ function openEndDateWhatsApp(name, phone, endDate) {
   const digits = String(phone).replace(/\D/g, '');
   const intl = digits.startsWith('0') ? '972' + digits.substring(1) : digits;
   const msg = encodeURIComponent(
+    'שלום ' + name + ',\n\n' +
     'תאריך סיום השירות שלך הוא ' + display + '.\n' +
     'האם את/ה מתכנן להאריך את השירות?\n\n' +
     'אשמח לדעת על מנת שאוכל להיערך בהתאם ולמצוא מחליף אם נדרש.\n\n' +
