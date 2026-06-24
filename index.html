@@ -2167,10 +2167,18 @@ function isoToDdmm(iso) {
   return parts[2] + '/' + parts[1] + '/' + parts[0];
 }
 
+function parseISODate(iso) {
+  // Safe parse: "2026-06-01" → Date at midnight local time
+  if (!iso) return null;
+  const p = iso.split('-');
+  if (p.length !== 3) return null;
+  return new Date(Number(p[0]), Number(p[1])-1, Number(p[2]));
+}
 function getEndDateStatus(endDate) {
   if (!endDate) return null;
   const today = new Date(); today.setHours(0,0,0,0);
-  const end = new Date(endDate); end.setHours(0,0,0,0);
+  const end = parseISODate(endDate);
+  if (!end) return null;
   if (end <= today) return 'expired';
   const diff = (end - today) / (1000*60*60*24);
   if (diff <= 90) return 'soon';
@@ -2178,8 +2186,9 @@ function getEndDateStatus(endDate) {
 }
 function formatEndDateDisplay(endDate) {
   if (!endDate) return '';
-  const d = new Date(endDate);
-  return d.toLocaleDateString('he-IL', {day:'2-digit',month:'2-digit',year:'numeric'});
+  const p = endDate.split('-');
+  if (p.length === 3) return p[2] + '/' + p[1] + '/' + p[0];
+  return endDate;
 }
 
 async function loadUsers() { // keep name for tab switching
