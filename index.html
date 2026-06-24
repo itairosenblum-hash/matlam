@@ -2175,7 +2175,7 @@ async function loadUsers() { // keep name for tab switching
         ${phone ? `<a href="tel:${phone}" class="btn btn-secondary btn-sm" title="התקשר" style="flex:1;min-width:40px;text-align:center;display:flex;align-items:center;justify-content:center">📞</a>` : ''}
         ${waPhone ? `<a href="https://wa.me/972${waPhone}" target="_blank" class="btn btn-secondary btn-sm" title="WhatsApp" style="flex:1;min-width:40px;text-align:center;display:flex;align-items:center;justify-content:center">💬</a>` : ''}
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick='openEditTorani(${JSON.stringify(t)})' title="ערוך" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">✏️</button>` : ''}
-        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="resetPassword('${t.username}','${t.name}')" title="איפוס סיסמה" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">🔑</button>` : ''}
+        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="resetPassword('${t.username}','${t.name}','${t.phone}')" title="איפוס סיסמה" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">🔑</button>` : ''}
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="sendLoginDetails('${t.username}','${t.name}','${t.phone}')" title="שלח פרטי כניסה בוואטסאפ" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">📧</button>` : ''}
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="toggleTorani('${t.username}')" title="${isActive ? 'השבת' : 'הפעל'}" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">${isActive ? '🔒' : '🔓'}</button>` : ''}
       </div>
@@ -2264,7 +2264,7 @@ function filterTornim(query) {
         ${phone ? `<a href="tel:${phone}" class="btn btn-secondary btn-sm" title="התקשר" style="flex:1;min-width:40px;text-align:center;display:flex;align-items:center;justify-content:center">📞</a>` : ''}
         ${waPhone ? `<a href="https://wa.me/972${waPhone}" target="_blank" class="btn btn-secondary btn-sm" title="WhatsApp" style="flex:1;min-width:40px;text-align:center;display:flex;align-items:center;justify-content:center">💬</a>` : ''}
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick='openEditTorani(${JSON.stringify(t)})' title="ערוך" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">✏️</button>` : ''}
-        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="resetPassword('${t.username}','${t.name}')" title="איפוס סיסמה" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">🔑</button>` : ''}
+        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="resetPassword('${t.username}','${t.name}','${t.phone}')" title="איפוס סיסמה" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">🔑</button>` : ''}
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="sendLoginDetails('${t.username}','${t.name}','${t.phone}')" title="שלח פרטי כניסה בוואטסאפ" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">📧</button>` : ''}
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="toggleTorani('${t.username}')" title="${isActive ? 'השבת' : 'הפעל'}" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">${isActive ? '🔒' : '🔓'}</button>` : ''}
       </div>
@@ -2305,7 +2305,7 @@ function openEditTorani(t) {
   openModal('modal-add-torani');
 }
 
-async function resetPassword(username, name) {
+async function resetPassword(username, name, phone) {
   const newPass = prompt(`איפוס סיסמה עבור ${name}\nהכנס סיסמה חדשה (או השאר ריק לסיסמת ברירת מחדל Aa123456):`);
   if (newPass === null) return; // ביטול
   const password = newPass.trim() || 'Aa123456';
@@ -2314,6 +2314,18 @@ async function resetPassword(username, name) {
   showLoading(false);
   if (res.success) {
     showAlert('tornim-alert', `✅ סיסמת ${name} אופסה ל: ${password}`, 'success');
+    // Send WhatsApp with new credentials
+    const waPhone = phone ? phone.replace(/[^0-9]/g,'').replace(/^0/,'') : '';
+    if (waPhone) {
+      const msg = encodeURIComponent(`שלום ${name},
+סיסמתך במערכת התורנויות אופסה.
+
+שם משתמש: ${username}
+סיסמה חדשה: ${password}
+
+ניתן להתחבר בכתובת: https://itairosenblum-hash.github.io/matlam/`);
+      window.open(`https://wa.me/972${waPhone}?text=${msg}`, '_blank');
+    }
   } else {
     showAlert('tornim-alert', res.error || 'שגיאה', 'error');
   }
