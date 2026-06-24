@@ -1458,7 +1458,7 @@ function actionGetAllTornim() {
       phone: String(phone || ''),
       weekendType: String(weekendType || 'מלא'),
       email: String(email || ''),
-      endDate: endDate ? String(endDate).split('T')[0] : '',
+      endDate: endDate ? (endDate instanceof Date ? Utilities.formatDate(endDate, Session.getScriptTimeZone(), 'yyyy-MM-dd') : String(endDate).split('T')[0]) : '',
       peopleRow: i + 1
     };
   }
