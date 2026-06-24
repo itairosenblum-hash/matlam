@@ -2197,6 +2197,20 @@ function getEndDateStatus(endDate) {
   if (diff <= 90) return 'soon';
   return 'ok';
 }
+function openEndDateWhatsApp(name, phone, endDate) {
+  if (!phone) { alert('אין מספר טלפון רשום עבור ' + name); return; }
+  const display = formatEndDateDisplay(endDate);
+  const digits = String(phone).replace(/\D/g, '');
+  const intl = digits.startsWith('0') ? '972' + digits.substring(1) : digits;
+  const msg = encodeURIComponent(
+    'שלום ' + name + ',\n' +
+    'תאריך סיום השירות שלך במטל"מ הוא ' + display + '.\n' +
+    'האם אתה מתכנן להאריך את השירות? אשמח לדעת על מנת שאוכל להיערך בהתאם ולמצוא מחליף אם נדרש.\n' +
+    'תודה 🙏'
+  );
+  window.open('https://wa.me/' + intl + '?text=' + msg, '_blank');
+}
+
 function formatEndDateDisplay(endDate) {
   const iso = normalizeEndDate(endDate);
   if (!iso) return '';
@@ -2273,7 +2287,10 @@ async function loadUsers() { // keep name for tab switching
         <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">${wkd}</span>
         ${t.role === 'admin' ? '<span style="background:rgba(56,139,253,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600">מנהל</span>' : ''}
         ${t.phone ? `<span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">📱 ${formatPhoneDisplay(t.phone)}</span>` : ''}
-        ${t.endDate ? `<span style="background:${eds==='expired'?'rgba(218,54,51,0.12)':eds==='soon'?'rgba(210,153,34,0.12)':'var(--surface2)'};border-radius:20px;padding:3px 10px;font-size:11px;color:${eds==='expired'?'var(--danger)':eds==='soon'?'var(--warn)':'var(--text2)'};font-weight:${eds&&eds!=='ok'?'700':'400'}">📅 ${formatEndDateDisplay(t.endDate)}</span>` : ''}
+        ${t.endDate ? `<span
+          style="background:${eds==='expired'?'rgba(218,54,51,0.12)':eds==='soon'?'rgba(210,153,34,0.12)':'var(--surface2)'};border-radius:20px;padding:3px 10px;font-size:11px;color:${eds==='expired'?'var(--danger)':eds==='soon'?'var(--warn)':'var(--text2)'};font-weight:${eds&&eds!=='ok'?'700':'400'};${eds&&eds!=='ok'?'cursor:pointer;text-decoration:underline dotted;':''}"
+          ${eds&&eds!=='ok' ? `onclick="openEndDateWhatsApp('${t.name}','${t.phone}','${t.endDate}')" title="שלח הודעת וואטסאפ על סיום שירות"` : ''}
+          >📅 ${formatEndDateDisplay(t.endDate)}${eds&&eds!=='ok'?' 💬':''}</span>` : ''}
       </div>
 
       <!-- Action buttons -->
@@ -2338,7 +2355,10 @@ function filterTornim(query) {
         <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">${wkd}</span>
         ${t.role === 'admin' ? '<span style="background:rgba(56,139,253,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600">מנהל</span>' : ''}
         ${t.phone ? `<span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">📱 ${formatPhoneDisplay(t.phone)}</span>` : ''}
-        ${t.endDate ? `<span style="background:${eds==='expired'?'rgba(218,54,51,0.12)':eds==='soon'?'rgba(210,153,34,0.12)':'var(--surface2)'};border-radius:20px;padding:3px 10px;font-size:11px;color:${eds==='expired'?'var(--danger)':eds==='soon'?'var(--warn)':'var(--text2)'};font-weight:${eds&&eds!=='ok'?'700':'400'}">📅 ${formatEndDateDisplay(t.endDate)}</span>` : ''}
+        ${t.endDate ? `<span
+          style="background:${eds==='expired'?'rgba(218,54,51,0.12)':eds==='soon'?'rgba(210,153,34,0.12)':'var(--surface2)'};border-radius:20px;padding:3px 10px;font-size:11px;color:${eds==='expired'?'var(--danger)':eds==='soon'?'var(--warn)':'var(--text2)'};font-weight:${eds&&eds!=='ok'?'700':'400'};${eds&&eds!=='ok'?'cursor:pointer;text-decoration:underline dotted;':''}"
+          ${eds&&eds!=='ok' ? `onclick="openEndDateWhatsApp('${t.name}','${t.phone}','${t.endDate}')" title="שלח הודעת וואטסאפ על סיום שירות"` : ''}
+          >📅 ${formatEndDateDisplay(t.endDate)}${eds&&eds!=='ok'?' 💬':''}</span>` : ''}
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         ${phone ? `<a href="tel:${phone}" class="btn btn-secondary btn-sm" title="התקשר" style="flex:1;min-width:40px;text-align:center;display:flex;align-items:center;justify-content:center">📞</a>` : ''}
