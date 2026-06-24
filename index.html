@@ -2134,6 +2134,21 @@ async function loadMySchedule() {
 // =====================================================
 let editingTorani = null;
 
+function getEndDateStatus(endDate) {
+  if (!endDate) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const end = new Date(endDate); end.setHours(0,0,0,0);
+  if (end <= today) return 'expired';
+  const diff = (end - today) / (1000*60*60*24);
+  if (diff <= 90) return 'soon';
+  return 'ok';
+}
+function formatEndDateDisplay(endDate) {
+  if (!endDate) return '';
+  const d = new Date(endDate);
+  return d.toLocaleDateString('he-IL', {day:'2-digit',month:'2-digit',year:'numeric'});
+}
+
 async function loadUsers() { // keep name for tab switching
   // Hide add button for viewer
   const addBtn = document.getElementById('btn-add-torani');
