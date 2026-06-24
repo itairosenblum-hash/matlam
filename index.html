@@ -2203,10 +2203,10 @@ function openEndDateWhatsApp(name, phone, endDate) {
   const digits = String(phone).replace(/\D/g, '');
   const intl = digits.startsWith('0') ? '972' + digits.substring(1) : digits;
   const msg = encodeURIComponent(
-    'שלום ' + name + ',\n' +
-    'תאריך סיום השירות שלך במטל"מ הוא ' + display + '.\n' +
-    'האם אתה מתכנן להאריך את השירות? אשמח לדעת על מנת שאוכל להיערך בהתאם ולמצוא מחליף אם נדרש.\n' +
-    'תודה 🙏'
+    'תאריך סיום השירות שלך הוא ' + display + '.\n' +
+    'האם את/ה מתכנן להאריך את השירות?\n\n' +
+    'אשמח לדעת על מנת שאוכל להיערך בהתאם ולמצוא מחליף אם נדרש.\n\n' +
+    'בתודה מראש'
   );
   window.open('https://wa.me/' + intl + '?text=' + msg, '_blank');
 }
