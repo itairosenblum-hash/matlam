@@ -396,63 +396,40 @@ function actionUpdatePerson(req) {
 
 // ===== SCORES =====
 function actionGetScores() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheets = ss.getSheets();
+  // Fast version: reads directly from Scores sheet (already updated in real-time by updateScoreForMonth).
+  // Avoids scanning all Schedule_YYYYMM sheets which was O(months * rows).
+  // Scores sheet columns (1-indexed):
+  //   1: name, 2: activity, 3: acc2025, 4: acc2026,
+  //   5: jan_type, 6: jan_score, 7: feb_type, 8: feb_score, ... (pairs per month)
   const monthNames = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
 
-  // Get all people
   const peopleRes = actionGetPeople();
   const people = peopleRes.people;
 
-  // Base scores from Score sheet (2025 accumulation)
-  const baseScores = {};
   const scoreSheet = getSheet(SH.SCORES);
   const scoreRows = scoreSheet.getDataRange().getValues();
+
+  // Build a map from name -> scores row data
+  const scoreMap = {};
   for (let i = 1; i < scoreRows.length; i++) {
-    if (!scoreRows[i][0]) continue;
-    baseScores[String(scoreRows[i][0])] = {
-      acc2025: Number(scoreRows[i][2]) || 0,
-      activity: String(scoreRows[i][1] || '1')
+    const row = scoreRows[i];
+    if (!row[0]) continue;
+    const name = String(row[0]).trim();
+    const entry = {
+      acc2025: Number(row[2]) || 0,
+      acc2026: Number(row[3]) || 0,
+      activity: String(row[1] || '1')
     };
+    monthNames.forEach((mKey, idx) => {
+      const typeCol = 4 + idx * 2;     // col index 0-based: jan=4,5  feb=6,7 ...
+      const scoreCol = typeCol + 1;
+      entry[mKey] = {
+        type:  String(row[typeCol]  || ''),
+        score: Number(row[scoreCol] || 0)
+      };
+    });
+    scoreMap[name] = entry;
   }
-
-  // Find all Schedule_YYYYMM sheets
-  const scheduleSheets = sheets.filter(s => /^Schedule_\d{6}$/.test(s.getName()));
-
-  // Compute scores per person per month from actual schedules
-  const personMonthScores = {}; // name -> { '202601': {score, type}, ... }
-
-  scheduleSheets.forEach(sheet => {
-    const monthCode = sheet.getName().replace('Schedule_',''); // e.g. '202606'
-    const year = monthCode.substring(0,4);
-    const mon = parseInt(monthCode.substring(4,6));
-    const rows = sheet.getDataRange().getValues();
-
-    // Headers: תאריך, יום, סוג יום, מבצע, עתודה א, עתודה ב, הערות, סוג תורנות, ניקוד, מבצע שני, עתודה א שנייה, עתודה ב שנייה
-    for (let i = 1; i < rows.length; i++) {
-      const vName  = String(rows[i][3] || '').trim();
-      const v2Name = String(rows[i][9] || '').trim();
-      const dutyType = String(rows[i][7] || rows[i][2] || '');
-      const sc = Number(rows[i][8]) || 0;
-
-      // Add score for V (main)
-      if (vName && sc > 0) {
-        if (!personMonthScores[vName]) personMonthScores[vName] = {};
-        if (!personMonthScores[vName][monthCode])
-          personMonthScores[vName][monthCode] = {score: 0, type: dutyType};
-        personMonthScores[vName][monthCode].score += sc;
-        personMonthScores[vName][monthCode].type = dutyType;
-      }
-
-      // Add score for V2 (second shift) - same score as main duty
-      if (v2Name && sc > 0) {
-        if (!personMonthScores[v2Name]) personMonthScores[v2Name] = {};
-        if (!personMonthScores[v2Name][monthCode])
-          personMonthScores[v2Name][monthCode] = {score: 0, type: dutyType};
-        personMonthScores[v2Name][monthCode].score += sc;
-      }
-    }
-  });
 
   // Build set of active user names from Users sheet
   const usersSheet = getSheet(SH.USERS);
@@ -465,8 +442,7 @@ function actionGetScores() {
     if (uName && isActive) activeUserSet.add(String(uName));
   }
 
-  // Build result - exclude inactive, admin, non-duty categories
-  // אב category: include but sorted to bottom in frontend
+  // Build result - same filters as before
   const scores = people.filter(p => {
     if (p.name === 'מנהל מערכת' || p.name === 'בדיקה בדיקה' || p.name === 'מטלמ') return false;
     if (p.dutyCategory === 'מנהל מערכת') return false;
@@ -476,37 +452,23 @@ function actionGetScores() {
     if (!activeUserSet.has(p.name)) return false;
     return true;
   }).map(p => {
-    const base = baseScores[p.name] || {};
-    const monthData = personMonthScores[p.name] || {};
-
-    // Compute 2026 accumulated total from schedules
-    let acc2026 = 0;
-    const monthScores = {};
-    monthNames.forEach((mKey, idx) => {
-      const mon = idx + 1;
-      const code2026 = '2026' + String(mon).padStart(2,'0');
-      const md = monthData[code2026] || {score:0, type:''};
-      monthScores[mKey] = {score: md.score, type: md.type};
-      acc2026 += md.score;
-    });
-
+    const s = scoreMap[p.name] || {};
     const result = {
       name: p.name,
       activity: p.activity,
       dutyCategory: p.dutyCategory || '',
       weekendType: p.weekendType || '',
-      acc2025: base.acc2025 || 0,
-      acc2026: Math.round(acc2026)
+      acc2025: s.acc2025 || 0,
+      acc2026: s.acc2026 || 0
     };
     monthNames.forEach(m => {
-      result[m] = monthScores[m] || {score:0, type:''};
+      result[m] = s[m] || {score: 0, type: ''};
     });
     return result;
   });
 
   return {success: true, scores};
 }
-
 function updateScoreForMonth(name, monthIdx, dutyType, score) {
   // monthIdx: 0=Jan, 4=May, etc.
   const sheet = getSheet(SH.SCORES);
