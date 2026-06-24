@@ -2175,7 +2175,10 @@ async function loadUsers() { // keep name for tab switching
     const wkd = WEEKEND[t.weekendType] || t.weekendType || '—';
     const isActive = t.active;
 
-    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;
+        const eds = getEndDateStatus(t.endDate);
+    const edsBorder = eds === 'expired' ? '2px solid var(--danger)' : eds === 'soon' ? '2px solid var(--warn)' : '1px solid var(--border)';
+    const edsBg = eds === 'expired' ? 'rgba(218,54,51,0.06)' : eds === 'soon' ? 'rgba(210,153,34,0.06)' : 'transparent';
+    return `<div style="background:linear-gradient(${edsBg},${edsBg}),var(--surface);border:${edsBorder};border-radius:14px;padding:14px 16px;
       opacity:${isActive ? '1' : '0.6'};transition:box-shadow 0.2s"
       onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.12)'"
       onmouseout="this.style.boxShadow='none'">
@@ -2200,6 +2203,7 @@ async function loadUsers() { // keep name for tab switching
         <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">${wkd}</span>
         ${t.role === 'admin' ? '<span style="background:rgba(56,139,253,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600">מנהל</span>' : ''}
         ${t.phone ? `<span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">📱 ${formatPhoneDisplay(t.phone)}</span>` : ''}
+        ${t.endDate ? `<span style="background:${eds==='expired'?'rgba(218,54,51,0.15)':eds==='soon'?'rgba(210,153,34,0.15)':'var(--surface2)'};border-radius:20px;padding:3px 10px;font-size:11px;color:${eds==='expired'?'var(--danger)':eds==='soon'?'var(--warn)':'var(--text2)'};font-weight:${eds&&eds!=='ok'?'700':'400'}">📅 עד ${formatEndDateDisplay(t.endDate)}${eds==='expired'?' ⚠️ פג':eds==='soon'?' ⚠️':''}</span>` : ''}
       </div>
 
       <!-- Action buttons -->
@@ -2246,7 +2250,10 @@ function filterTornim(query) {
     const cat = t.dutyCategory || 'רגיל';
     const wkd = WEEKEND[t.weekendType] || t.weekendType || '—';
     const isActive = t.active;
-    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;opacity:${isActive ? '1' : '0.6'};transition:box-shadow 0.2s"
+    const eds = getEndDateStatus(t.endDate);
+    const edsBorder = eds === 'expired' ? '2px solid var(--danger)' : eds === 'soon' ? '2px solid var(--warn)' : '1px solid var(--border)';
+    const edsBg = eds === 'expired' ? 'rgba(218,54,51,0.06)' : eds === 'soon' ? 'rgba(210,153,34,0.06)' : 'transparent';
+    return `<div style="background:linear-gradient(${edsBg},${edsBg}),var(--surface);border:${edsBorder};border-radius:14px;padding:14px 16px;opacity:${isActive ? '1' : '0.6'};transition:box-shadow 0.2s"
       onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.12)'"
       onmouseout="this.style.boxShadow='none'">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -2261,6 +2268,7 @@ function filterTornim(query) {
         <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">${wkd}</span>
         ${t.role === 'admin' ? '<span style="background:rgba(56,139,253,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600">מנהל</span>' : ''}
         ${t.phone ? `<span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">📱 ${formatPhoneDisplay(t.phone)}</span>` : ''}
+        ${t.endDate ? `<span style="background:${eds==='expired'?'rgba(218,54,51,0.15)':eds==='soon'?'rgba(210,153,34,0.15)':'var(--surface2)'};border-radius:20px;padding:3px 10px;font-size:11px;color:${eds==='expired'?'var(--danger)':eds==='soon'?'var(--warn)':'var(--text2)'};font-weight:${eds&&eds!=='ok'?'700':'400'}">📅 עד ${formatEndDateDisplay(t.endDate)}${eds==='expired'?' ⚠️ פג':eds==='soon'?' ⚠️':''}</span>` : ''}
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         ${phone ? `<a href="tel:${phone}" class="btn btn-secondary btn-sm" title="התקשר" style="flex:1;min-width:40px;text-align:center;display:flex;align-items:center;justify-content:center">📞</a>` : ''}
