@@ -737,7 +737,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
             </div>
             <div class="form-group">
               <label>תאריך סיום שירות 📅</label>
-              <input id="profile-enddate" type="date">
+              <input id="profile-enddate" type="text" placeholder="dd/mm/yyyy" maxlength="10" oninput="maskDateInput(this)">
               <div id="profile-enddate-status" style="margin-top:6px;font-size:12px"></div>
             </div>
             <button class="btn btn-primary" onclick="saveProfileDetails()">💾 שמור פרטים</button>
@@ -1339,7 +1339,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
       </div>
       <div class="form-group" style="grid-column:1/-1">
         <label>תאריך סיום שירות 📅 <span class="text-muted text-sm">(אופציונלי)</span></label>
-        <input id="t-enddate" type="date">
+        <input id="t-enddate" type="text" placeholder="dd/mm/yyyy" maxlength="10" oninput="maskDateInput(this)">
       </div>
     </div>
     <div class="modal-footer">
@@ -2143,6 +2143,30 @@ async function loadMySchedule() {
 // =====================================================
 let editingTorani = null;
 
+function maskDateInput(el) {
+  let v = el.value.replace(/[^0-9]/g, '');
+  if (v.length > 8) v = v.slice(0, 8);
+  let out = '';
+  if (v.length <= 2) out = v;
+  else if (v.length <= 4) out = v.slice(0,2) + '/' + v.slice(2);
+  else out = v.slice(0,2) + '/' + v.slice(2,4) + '/' + v.slice(4);
+  el.value = out;
+}
+function ddmmToISO(ddmm) {
+  if (!ddmm) return '';
+  const parts = ddmm.split('/');
+  if (parts.length !== 3) return '';
+  const [d, m, y] = parts;
+  if (!d || !m || !y || y.length !== 4) return '';
+  return y + '-' + m.padStart(2,'0') + '-' + d.padStart(2,'0');
+}
+function isoToDdmm(iso) {
+  if (!iso) return '';
+  const parts = iso.split('-');
+  if (parts.length !== 3) return iso;
+  return parts[2] + '/' + parts[1] + '/' + parts[0];
+}
+
 function getEndDateStatus(endDate) {
   if (!endDate) return null;
   const today = new Date(); today.setHours(0,0,0,0);
@@ -2334,7 +2358,7 @@ function openEditTorani(t) {
   // activity not shown in UI
   document.getElementById('t-category').value = t.dutyCategory||'';
   document.getElementById('t-weekend').value = t.weekendType||'מלא';
-  document.getElementById('t-enddate').value = t.endDate||'';
+  document.getElementById('t-enddate').value = isoToDdmm(t.endDate||'');
   document.getElementById('torani-alert').innerHTML = '';
   openModal('modal-add-torani');
 }
@@ -2364,7 +2388,7 @@ async function saveTorani() {
   const activity = '1'; // default, not shown in UI
   const dutyCategory = document.getElementById('t-category').value;
   const weekendType = document.getElementById('t-weekend').value;
-  const endDate = document.getElementById('t-enddate').value || '';
+  const endDate = ddmmToISO(document.getElementById('t-enddate').value || '');
 
   if (!name) return showAlert('torani-alert','חסר שם מלא','error');
 
@@ -4531,7 +4555,7 @@ async function loadProfile() {
   if (emailEl) emailEl.value = p.email || '';
   const endDateEl = document.getElementById('profile-enddate');
   const endDateStatus = document.getElementById('profile-enddate-status');
-  if (endDateEl) endDateEl.value = p.endDate || '';
+  if (endDateEl) endDateEl.value = isoToDdmm(p.endDate || '');
   if (endDateStatus && p.endDate) {
     const eds = getEndDateStatus(p.endDate);
     if (eds === 'expired') {
@@ -4570,7 +4594,7 @@ async function loadProfile() {
 async function saveProfileDetails() {
   const phone = document.getElementById('profile-phone').value.trim();
   const email = document.getElementById('profile-email').value.trim();
-  const endDate = (document.getElementById('profile-enddate') || {}).value || '';
+  const endDate = ddmmToISO((document.getElementById('profile-enddate') || {}).value || '');
   showLoading(true);
   const res = await api({action:'updateTorani', username: currentUser.username, phone, email, endDate});
   showLoading(false);
