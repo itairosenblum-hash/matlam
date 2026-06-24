@@ -2168,16 +2168,29 @@ function isoToDdmm(iso) {
 }
 
 function parseISODate(iso) {
-  // Safe parse: "2026-06-01" → Date at midnight local time
+  // Accepts "yyyy-MM-dd" only; returns Date at local midnight
   if (!iso) return null;
-  const p = iso.split('-');
-  if (p.length !== 3) return null;
+  const p = String(iso).split('-');
+  if (p.length !== 3 || p[0].length !== 4) return null;
   return new Date(Number(p[0]), Number(p[1])-1, Number(p[2]));
 }
+function normalizeEndDate(endDate) {
+  // Always return "yyyy-MM-dd" string regardless of what backend sends
+  if (!endDate) return '';
+  const s = String(endDate).trim();
+  // Already ISO
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+  // Try parsing anything else as a Date
+  const d = new Date(s);
+  if (isNaN(d)) return '';
+  const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+  return y + '-' + m + '-' + day;
+}
 function getEndDateStatus(endDate) {
-  if (!endDate) return null;
+  const iso = normalizeEndDate(endDate);
+  if (!iso) return null;
   const today = new Date(); today.setHours(0,0,0,0);
-  const end = parseISODate(endDate);
+  const end = parseISODate(iso);
   if (!end) return null;
   if (end <= today) return 'expired';
   const diff = (end - today) / (1000*60*60*24);
@@ -2185,10 +2198,10 @@ function getEndDateStatus(endDate) {
   return 'ok';
 }
 function formatEndDateDisplay(endDate) {
-  if (!endDate) return '';
-  const p = endDate.split('-');
-  if (p.length === 3) return p[2] + '/' + p[1] + '/' + p[0];
-  return endDate;
+  const iso = normalizeEndDate(endDate);
+  if (!iso) return '';
+  const p = iso.split('-');
+  return p[2] + '/' + p[1] + '/' + p[0];
 }
 
 async function loadUsers() { // keep name for tab switching
@@ -2260,7 +2273,7 @@ async function loadUsers() { // keep name for tab switching
         <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">${wkd}</span>
         ${t.role === 'admin' ? '<span style="background:rgba(56,139,253,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600">מנהל</span>' : ''}
         ${t.phone ? `<span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">📱 ${formatPhoneDisplay(t.phone)}</span>` : ''}
-        ${t.endDate ? `<span style="background:${eds==='expired'?'rgba(218,54,51,0.15)':eds==='soon'?'rgba(210,153,34,0.15)':'var(--surface2)'};border-radius:20px;padding:3px 10px;font-size:11px;color:${eds==='expired'?'var(--danger)':eds==='soon'?'var(--warn)':'var(--text2)'};font-weight:${eds&&eds!=='ok'?'700':'400'}">📅 עד ${formatEndDateDisplay(t.endDate)}${eds==='expired'?' ⚠️ פג':eds==='soon'?' ⚠️':''}</span>` : ''}
+        ${t.endDate ? `<span style="background:${eds==='expired'?'rgba(218,54,51,0.12)':eds==='soon'?'rgba(210,153,34,0.12)':'var(--surface2)'};border-radius:20px;padding:3px 10px;font-size:11px;color:${eds==='expired'?'var(--danger)':eds==='soon'?'var(--warn)':'var(--text2)'};font-weight:${eds&&eds!=='ok'?'700':'400'}">📅 ${formatEndDateDisplay(t.endDate)}</span>` : ''}
       </div>
 
       <!-- Action buttons -->
@@ -2325,7 +2338,7 @@ function filterTornim(query) {
         <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">${wkd}</span>
         ${t.role === 'admin' ? '<span style="background:rgba(56,139,253,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600">מנהל</span>' : ''}
         ${t.phone ? `<span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">📱 ${formatPhoneDisplay(t.phone)}</span>` : ''}
-        ${t.endDate ? `<span style="background:${eds==='expired'?'rgba(218,54,51,0.15)':eds==='soon'?'rgba(210,153,34,0.15)':'var(--surface2)'};border-radius:20px;padding:3px 10px;font-size:11px;color:${eds==='expired'?'var(--danger)':eds==='soon'?'var(--warn)':'var(--text2)'};font-weight:${eds&&eds!=='ok'?'700':'400'}">📅 עד ${formatEndDateDisplay(t.endDate)}${eds==='expired'?' ⚠️ פג':eds==='soon'?' ⚠️':''}</span>` : ''}
+        ${t.endDate ? `<span style="background:${eds==='expired'?'rgba(218,54,51,0.12)':eds==='soon'?'rgba(210,153,34,0.12)':'var(--surface2)'};border-radius:20px;padding:3px 10px;font-size:11px;color:${eds==='expired'?'var(--danger)':eds==='soon'?'var(--warn)':'var(--text2)'};font-weight:${eds&&eds!=='ok'?'700':'400'}">📅 ${formatEndDateDisplay(t.endDate)}</span>` : ''}
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         ${phone ? `<a href="tel:${phone}" class="btn btn-secondary btn-sm" title="התקשר" style="flex:1;min-width:40px;text-align:center;display:flex;align-items:center;justify-content:center">📞</a>` : ''}
