@@ -150,9 +150,15 @@ function route(req) {
 }
 
 // ===== UTILS =====
+// Cache ss and sheets for the lifetime of one request execution
+let _ss = null;
+const _sheetCache = {};
 function getSheet(name) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  return ss.getSheetByName(name) || ss.insertSheet(name);
+  if (!_ss) _ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!_sheetCache[name]) {
+    _sheetCache[name] = _ss.getSheetByName(name) || _ss.insertSheet(name);
+  }
+  return _sheetCache[name];
 }
 
 function hashPass(pw) {
@@ -191,13 +197,25 @@ function actionLogin(req) {
 
 function validateToken(token) {
   if (!token) return null;
-  const rows = getSheet(SH.SESSIONS).getDataRange().getValues();
+  const sheet = getSheet(SH.SESSIONS);
+  const rows = sheet.getDataRange().getValues();
   const now = new Date();
+  let found = null;
+  const toDelete = [];
   for (let i = 1; i < rows.length; i++) {
     const [tok, username, name, role, , expiry] = rows[i];
-    if (tok === token && new Date(expiry) > now) return {username, name, role};
+    const expired = new Date(expiry) <= now;
+    if (expired) { toDelete.push(i + 1); continue; }
+    if (tok === token) found = {username, name, role};
   }
-  return null;
+  // Clean expired sessions in batch (reverse order to preserve row indices)
+  if (toDelete.length > 0) {
+    for (let i = toDelete.length - 1; i >= 0; i--) {
+      sheet.deleteRow(toDelete[i]);
+    }
+    _sheetCache[SH.SESSIONS] = null; // invalidate cache after structural change
+  }
+  return found;
 }
 
 function cleanSessions() {
@@ -2101,7 +2119,7 @@ function actionResetSchedule(req) {
     const mon  = parseInt(req.mon  || month.substring(4,6));
     if (!year || !mon) return {success:false, error:'חסר חודש'};
     // Clear sheet cache so next read gets fresh data
-    _sheetCache = {};
+    Object.keys(_sheetCache).forEach(k => delete _sheetCache[k]); _ss = null;
     const msg = initMonthScheduleEx(year, mon);
     
     // Also clear this month's scores from Scores sheet
