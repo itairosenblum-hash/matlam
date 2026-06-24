@@ -799,6 +799,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
           <button class="btn btn-primary" id="btn-add-torani" onclick="openAddTorani()">+ הוסף תורן</button>
         </div>
         <div id="tornim-alert"></div>
+        <div id="tornim-stats" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px"></div>
         <div style="margin-bottom:12px">
           <input id="tornim-search" type="text" placeholder="🔍 חיפוש תורן..." oninput="filterTornim(this.value)"
             style="width:100%;max-width:320px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:8px 14px;color:var(--text);font-family:inherit;font-size:14px;outline:none;box-sizing:border-box">
@@ -2304,6 +2305,29 @@ async function loadUsers() { // keep name for tab switching
       </div>
     </div>`;
   }).join('');
+
+  // ── Stats summary ──
+  const activeOnly = sorted.filter(t => t.active && t.role !== 'admin');
+  const countRegular = activeOnly.filter(t => !t.dutyCategory || t.dutyCategory === 'רגיל').length;
+  const countAv      = activeOnly.filter(t => t.dutyCategory === 'אב').length;
+  const countUnqual  = activeOnly.filter(t => t.dutyCategory === 'טרם הוסמך' || t.dutyCategory === 'לא מוסמך').length;
+  const countTotal   = activeOnly.length;
+  const statsEl = document.getElementById('tornim-stats');
+  if (statsEl) {
+    const pill = (icon, label, count, color) =>
+      `<div style="display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:8px 16px;font-size:13px">
+        <span style="font-size:18px">${icon}</span>
+        <div>
+          <div style="font-weight:700;font-size:18px;color:${color};line-height:1">${count}</div>
+          <div style="font-size:11px;color:var(--text2)">${label}</div>
+        </div>
+      </div>`;
+    statsEl.innerHTML =
+      pill('👥', 'סה"כ תורנים פעילים', countTotal, 'var(--text)') +
+      pill('✅', 'תורנים רגילים', countRegular, 'var(--accent)') +
+      pill('👶', 'משרת אב', countAv, '#f59e0b') +
+      pill('🎓', 'טרם הוסמכו', countUnqual, 'var(--text3)');
+  }
 
   window._allTornimData = sorted;
   window._tornimCardFn = cards;
