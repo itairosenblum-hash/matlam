@@ -364,14 +364,15 @@ function actionGetPeople() {
   const rows = getSheet(SH.PEOPLE).getDataRange().getValues();
   const people = [];
   for (let i = 1; i < rows.length; i++) {
-    const [name, activity, dutyCategory, phone, weekendType, email] = rows[i];
+    const [name, activity, dutyCategory, phone, weekendType, email, endDate] = rows[i];
     if (name) people.push({
       name: String(name),
       activity: String(activity),
       dutyCategory: String(dutyCategory || ''),
       phone: String(phone || ''),
       weekendType: String(weekendType || 'מלא'),
-      email: String(email || '')
+      email: String(email || ''),
+      endDate: endDate ? (endDate instanceof Date ? Utilities.formatDate(endDate, Session.getScriptTimeZone(), 'yyyy-MM-dd') : String(endDate).split('T')[0]) : ''
     });
   }
   return {success: true, people};
