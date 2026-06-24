@@ -1836,10 +1836,9 @@ function debounceLoad(fn, delay) {
 function preloadAdjacentMonths(currentMonth) {
   const y = parseInt(currentMonth.substring(0,4));
   const m = parseInt(currentMonth.substring(4,6));
-  const prev = m===1 ? `${y-1}12` : `${y}${String(m-1).padStart(2,'0')}`;
   const next = m===12 ? `${y+1}01` : `${y}${String(m+1).padStart(2,'0')}`;
-  setTimeout(() => api({action:'getSchedule', month: next}).catch(()=>{}), 1000);
-  setTimeout(() => api({action:'getSchedule', month: prev}).catch(()=>{}), 2000);
+  // Only preload next month (most likely to be needed), with long delay so it doesn't compete with main render
+  setTimeout(() => api({action:'getSchedule', month: next}).catch(()=>{}), 8000);
 }
 
 function switchTab(id) {
@@ -2783,8 +2782,6 @@ async function runGenerate() {
 async function loadScores() {
   const container = document.getElementById('scores-content');
   showLoading(true);
-  // Clear cache to force fresh data
-  clearApiCache();
   let res, pRes2;
   try {
     [res, pRes2] = await Promise.all([api({action:'getScores'}), api({action:'getPeople'})]);
