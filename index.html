@@ -735,6 +735,11 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
               <label>אימייל</label>
               <input id="profile-email" type="email" placeholder="your@email.com">
             </div>
+            <div class="form-group">
+              <label>תאריך סיום שירות 📅</label>
+              <input id="profile-enddate" type="date">
+              <div id="profile-enddate-status" style="margin-top:6px;font-size:12px"></div>
+            </div>
             <button class="btn btn-primary" onclick="saveProfileDetails()">💾 שמור פרטים</button>
           </div>
 
@@ -4517,6 +4522,22 @@ async function loadProfile() {
   if (userEl) userEl.value = p.username || currentUser.username || '';
   if (phoneEl) phoneEl.value = formatPhoneDisplay(p.phone || '');
   if (emailEl) emailEl.value = p.email || '';
+  const endDateEl = document.getElementById('profile-enddate');
+  const endDateStatus = document.getElementById('profile-enddate-status');
+  if (endDateEl) endDateEl.value = p.endDate || '';
+  if (endDateStatus && p.endDate) {
+    const eds = getEndDateStatus(p.endDate);
+    if (eds === 'expired') {
+      endDateStatus.innerHTML = '<span style="color:var(--danger);font-weight:700">⚠️ תאריך הסיום עבר!</span>';
+    } else if (eds === 'soon') {
+      const days = Math.ceil((new Date(p.endDate) - new Date()) / (1000*60*60*24));
+      endDateStatus.innerHTML = '<span style="color:var(--warn);font-weight:700">⚠️ נותרו ' + days + ' ימים לסיום השירות</span>';
+    } else {
+      endDateStatus.innerHTML = '<span style="color:var(--accent)">✓ שירות פעיל</span>';
+    }
+  } else if (endDateStatus) {
+    endDateStatus.innerHTML = '';
+  }
 
   // Fill duty settings
   if (actEl) actEl.value = p.activity || '1';
@@ -4542,12 +4563,26 @@ async function loadProfile() {
 async function saveProfileDetails() {
   const phone = document.getElementById('profile-phone').value.trim();
   const email = document.getElementById('profile-email').value.trim();
+  const endDate = (document.getElementById('profile-enddate') || {}).value || '';
   showLoading(true);
-  const res = await api({action:'updateTorani', username: currentUser.username, phone, email});
+  const res = await api({action:'updateTorani', username: currentUser.username, phone, email, endDate});
   showLoading(false);
   if (res.success) {
     showAlert('profile-alert','✅ הפרטים נשמרו בהצלחה','success');
-    if (_profilePerson) { _profilePerson.phone = phone; _profilePerson.email = email; }
+    if (_profilePerson) { _profilePerson.phone = phone; _profilePerson.email = email; _profilePerson.endDate = endDate; }
+    // Refresh status display
+    const endDateStatus = document.getElementById('profile-enddate-status');
+    if (endDateStatus && endDate) {
+      const eds = getEndDateStatus(endDate);
+      if (eds === 'expired') {
+        endDateStatus.innerHTML = '<span style="color:var(--danger);font-weight:700">⚠️ תאריך הסיום עבר!</span>';
+      } else if (eds === 'soon') {
+        const days = Math.ceil((new Date(endDate) - new Date()) / (1000*60*60*24));
+        endDateStatus.innerHTML = '<span style="color:var(--warn);font-weight:700">⚠️ נותרו ' + days + ' ימים לסיום השירות</span>';
+      } else {
+        endDateStatus.innerHTML = '<span style="color:var(--accent)">✓ שירות פעיל</span>';
+      }
+    } else if (endDateStatus) { endDateStatus.innerHTML = ''; }
   } else {
     showAlert('profile-alert', res.error||'שגיאה','error');
   }
