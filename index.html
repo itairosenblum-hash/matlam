@@ -1332,19 +1332,25 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 
 <script>
 // =====================================================
-// VERSION CHECK — מחיקת session ישן בעת עדכון
+// VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
-const APP_VERSION = '2026-06-25';
 (function() {
-  const savedVersion = localStorage.getItem('app_version');
-  if (savedVersion !== APP_VERSION) {
-    sessionStorage.clear();
-    localStorage.setItem('app_version', APP_VERSION);
-    // נקה גם service worker cache אם קיים
-    if ('caches' in window) {
-      caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
-    }
-  }
+  // בדוק גרסה ברקע — אם יש עדכון, מחק session
+  fetch('https://api.github.com/repos/itairosenblum-hash/matlam/commits/main?per_page=1', {cache: 'no-store'})
+    .then(r => r.json())
+    .then(data => {
+      const latestSha = data && data.sha ? data.sha.substring(0, 10) : null;
+      if (!latestSha) return;
+      const savedSha = localStorage.getItem('app_commit_sha');
+      if (savedSha && savedSha !== latestSha) {
+        // גרסה חדשה זוהתה — נקה session וcache
+        sessionStorage.clear();
+        if ('caches' in window) caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+        console.log('🔄 גרסה חדשה זוהתה, session נוקה');
+      }
+      localStorage.setItem('app_commit_sha', latestSha);
+    })
+    .catch(() => {}); // שקט אם אין רשת
 })();
 
 // =====================================================
