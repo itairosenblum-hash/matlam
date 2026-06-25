@@ -1332,6 +1332,22 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 
 <script>
 // =====================================================
+// VERSION CHECK — מחיקת session ישן בעת עדכון
+// =====================================================
+const APP_VERSION = '2026-06-25';
+(function() {
+  const savedVersion = localStorage.getItem('app_version');
+  if (savedVersion !== APP_VERSION) {
+    sessionStorage.clear();
+    localStorage.setItem('app_version', APP_VERSION);
+    // נקה גם service worker cache אם קיים
+    if ('caches' in window) {
+      caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+    }
+  }
+})();
+
+// =====================================================
 // CONFIG & STATE
 // =====================================================
 const API_URL = 'https://script.google.com/macros/s/AKfycbwq3r8NoWEEHgiLCd-LkRMf80c__rmrQFpmS1lyilq84QssZVkR91LpkUbRBKDfEvL0OQ/exec';
