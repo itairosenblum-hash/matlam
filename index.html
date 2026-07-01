@@ -2223,9 +2223,9 @@ async function loadUsers() { // keep name for tab switching
       </div>`;
     statsEl.innerHTML =
       pill('👥', 'סה"כ תורנים פעילים', countTotal, 'var(--text)') +
-      pill('✅', 'תורנים רגילים', countRegular, 'var(--accent)') +
-      pill('👶', 'משרת אב', countAv, '#f59e0b') +
-      pill('🎓', 'טרם הוסמכו', countUnqual, 'var(--text3)') +
+      pill('✅', 'תורנים רגילים', countRegular, 'var(--accent)', "filterTornimByCategory('regular')") +
+      pill('👶', 'משרת אב', countAv, '#f59e0b', "filterTornimByCategory('av')") +
+      pill('🎓', 'טרם הוסמכו', countUnqual, 'var(--text3)', "filterTornimByCategory('unqual')") +
       pill('⏳', 'מסיימים תפקיד ב-3 חודשים', countEndingSoon, 'var(--warn)', 'filterTornimEndingSoon()');
   }
 
@@ -2295,6 +2295,86 @@ function filterTornim(query) {
     </div>`;
   }).join('');
   container.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">${cards}</div>`;
+}
+
+function filterTornimByCategory(kind) {
+  if (!window._allTornimData) return;
+  const container = document.getElementById('tornim-content');
+  const searchInput = document.getElementById('tornim-search');
+  if (searchInput) searchInput.value = '';
+  const WEEKEND = {'מלא':'🗓️ מלא','בנפרד':'📅 בנפרד'};
+  const catColor = cat => {
+    if (!cat || cat === 'רגיל') return 'var(--accent)';
+    if (cat === 'אב') return '#f59e0b';
+    if (cat === 'טרם הוסמך') return 'var(--text3)';
+    if (cat === 'פטור') return 'var(--danger)';
+    return 'var(--text2)';
+  };
+  const matchers = {
+    regular: t => !t.dutyCategory || t.dutyCategory === 'רגיל',
+    av: t => t.dutyCategory === 'אב',
+    unqual: t => t.dutyCategory === 'טרם הוסמך' || t.dutyCategory === 'לא מוסמך'
+  };
+  const labels = {
+    regular: { icon: '✅', text: 'תורנים רגילים' },
+    av: { icon: '👶', text: 'תורנים במשרת אב' },
+    unqual: { icon: '🎓', text: 'תורנים שטרם הוסמכו' }
+  };
+  const matchFn = matchers[kind];
+  if (!matchFn) return;
+  const list = window._allTornimData.filter(t => t.active && t.role !== 'admin' && matchFn(t));
+  const lbl = labels[kind];
+
+  const banner = `<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px">
+    <span>${lbl.icon} מציג ${list.length} ${lbl.text}</span>
+    <button class="btn btn-secondary btn-sm" onclick="loadUsers()">נקה סינון ✕</button>
+  </div>`;
+
+  if (!list.length) {
+    container.innerHTML = banner + '<div style="padding:30px;text-align:center;color:var(--text2)">אין תורנים בקטגוריה זו</div>';
+    return;
+  }
+
+  const cards = list.map(t => {
+    const phone = t.phone ? t.phone.replace(/[^0-9+]/g,'') : '';
+    const waPhone = t.phone ? t.phone.replace(/[^0-9]/g,'').replace(/^0/,'') : '';
+    const cat = t.dutyCategory || 'רגיל';
+    const wkd = WEEKEND[t.weekendType] || t.weekendType || '—';
+    const isActive = t.active;
+    const eds = getEndDateStatus(t.endDate);
+    const edsBorder = eds === 'expired' ? '2px solid var(--danger)' : eds === 'soon' ? '2px solid var(--warn)' : '1px solid var(--border)';
+    const edsBg = eds === 'expired' ? 'rgba(218,54,51,0.06)' : eds === 'soon' ? 'rgba(210,153,34,0.06)' : 'transparent';
+    return `<div style="background:linear-gradient(${edsBg},${edsBg}),var(--surface);border:${edsBorder};border-radius:14px;padding:14px 16px;opacity:${isActive ? '1' : '0.6'};transition:box-shadow 0.2s"
+      onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.12)'"
+      onmouseout="this.style.boxShadow='none'">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:38px;height:38px;border-radius:50%;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:var(--accent)">${t.name.charAt(0)}</div>
+          <div><div style="font-weight:700;font-size:15px">${t.name}</div><div style="font-size:11px;color:var(--text3)">${t.username}</div></div>
+        </div>
+        <span class="status-badge ${isActive ? 'status-active' : 'status-inactive'}">${isActive ? 'פעיל' : 'מושבת'}</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
+        <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:${catColor(cat)};font-weight:600">${cat}</span>
+        <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">${wkd}</span>
+        ${t.role === 'admin' ? '<span style="background:rgba(56,139,253,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600">מנהל</span>' : ''}
+        ${t.phone ? `<span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">📱 ${formatPhoneDisplay(t.phone)}</span>` : ''}
+        ${t.endDate ? `<span
+          style="background:${eds==='expired'?'rgba(218,54,51,0.12)':eds==='soon'?'rgba(210,153,34,0.12)':'var(--surface2)'};border-radius:20px;padding:3px 10px;font-size:11px;color:${eds==='expired'?'var(--danger)':eds==='soon'?'var(--warn)':'var(--text2)'};font-weight:${eds&&eds!=='ok'?'700':'400'};${eds&&eds!=='ok'?'cursor:pointer;text-decoration:underline dotted;':''}"
+          ${eds&&eds!=='ok' ? `onclick="openEndDateWhatsApp('${t.name}','${t.phone}','${t.endDate}')" title="שלח הודעת וואטסאפ על סיום שירות"` : ''}
+          >📅 ${formatEndDateDisplay(t.endDate)}${eds&&eds!=='ok'?' 💬':''}</span>` : ''}
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${phone ? `<a href="tel:${phone}" class="btn btn-secondary btn-sm" title="התקשר" style="flex:1;min-width:40px;text-align:center;display:flex;align-items:center;justify-content:center">📞</a>` : ''}
+        ${waPhone ? `<a href="https://wa.me/972${waPhone}" target="_blank" class="btn btn-secondary btn-sm" title="WhatsApp" style="flex:1;min-width:40px;text-align:center;display:flex;align-items:center;justify-content:center">💬</a>` : ''}
+        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick='openEditTorani(${JSON.stringify(t)})' title="ערוך" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">✏️</button>` : ''}
+        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="resetPassword('${t.username}','${t.name}','${t.phone}')" title="איפוס סיסמה" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">🔑</button>` : ''}
+        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="sendLoginDetails('${t.username}','${t.name}','${t.phone}')" title="שלח פרטי כניסה בוואטסאפ" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">📧</button>` : ''}
+        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="toggleTorani('${t.username}')" title="${isActive ? 'השבת' : 'הפעל'}" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">${isActive ? '🔒' : '🔓'}</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+  container.innerHTML = banner + `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">${cards}</div>`;
 }
 
 function filterTornimEndingSoon() {
