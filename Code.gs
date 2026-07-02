@@ -527,9 +527,10 @@ function actionGetConstraints(req, user) {
 }
 
 function getNameByUsername(username) {
+  const target = String(username || '').trim().toLowerCase();
   const rows = getSheet(SH.USERS).getDataRange().getValues();
   for (let i = 1; i < rows.length; i++) {
-    if (String(rows[i][2]) === String(username)) return String(rows[i][1]);
+    if (String(rows[i][2] || '').trim().toLowerCase() === target) return String(rows[i][1]);
   }
   return username;
 }
