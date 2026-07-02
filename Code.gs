@@ -546,6 +546,10 @@ function actionSaveConstraints(req, user) {
     if (lockRes.locked) {
       return {success: false, error: 'הגשת אילוצים לחודש זה נעולה. פנה למנהל.'};
     }
+    const xCount = (constraints || []).filter(c => c === 'X' || c === 'x').length;
+    if (xCount > 6) {
+      return {success: false, error: 'ניתן לסמן עד 6 ימי אילוץ (X) בלבד בחודש.'};
+    }
   }
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName('Constraints_' + month);
