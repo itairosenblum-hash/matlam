@@ -680,7 +680,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
         <div class="section-header">
           <div>
             <div class="section-title">📅 הגשת אילוצים</div>
-            <div class="section-subtitle">סמן X בימים שאינך יכול לשרת תורנות</div>
+            <div class="section-subtitle">סמן X בימים שאינך יכול לשרת תורנות (עד 6 ימים)</div>
           </div>
           <div class="flex gap-8 items-center flex-wrap">
             <div class="month-picker">
@@ -1921,7 +1921,14 @@ function renderConstraintGrid(year, mon, days) {
 function toggleConstraint(idx) {
   // Cycle: '' → 'V' → 'X' → ''
   const cur = constraintData[idx] || '';
-  const next = cur === '' ? 'V' : cur === 'V' ? 'X' : '';
+  let next = cur === '' ? 'V' : cur === 'V' ? 'X' : '';
+  if (next === 'X') {
+    const xCount = constraintData.filter(c => c === 'X').length;
+    if (xCount >= 6) {
+      showAlert('constraint-alert', '⚠️ ניתן לסמן עד 6 ימי אילוץ (X) בחודש. הסר אילוץ אחר כדי להוסיף חדש.', 'error');
+      next = '';
+    }
+  }
   constraintData[idx] = next;
   const day = idx + 1;
   const cell = document.getElementById('ccal-' + day);
