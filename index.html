@@ -3494,6 +3494,10 @@ async function toggleConstraintLock() {
     _currentLockStatus = res.locked;
     updateLockBtn(res.locked);
     showAlert('admin-constraints-alert', `✅ ${monthName} ${action}`, 'success');
+    if (newLocked === false) {
+      const waMsg = `🔓 האילוצים לחודש ${monthName} נפתחו להגשה!\nיש להזין את האילוצים שלכם במערכת מטל"מ:\nhttps://itairosenblum-hash.github.io/matlam/`;
+      window.open('https://wa.me/?text=' + encodeURIComponent(waMsg), '_blank');
+    }
   }
 }
 
