@@ -829,6 +829,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
                 <button class="btn btn-secondary btn-sm" onclick="openGenerateModal()">⚡ הפק שיבוץ</button>
                 <button class="btn btn-danger btn-sm" onclick="resetSchedule()" title="איפוס לוח החודש">🗑️ אפס לוח</button>
                 <button class="btn btn-secondary btn-sm" id="btn-publish-schedule" onclick="publishSchedule()" style="display:none;border-color:rgba(210,153,34,.5);color:#d29922">📢 פרסם לוח</button>
+                <button class="btn btn-secondary btn-sm" id="btn-unpublish-schedule" onclick="unpublishSchedule()" style="display:none">🛠️ החזר לטיוטה</button>
                 <span id="schedule-status-badge" style="display:none"></span>
               </span>
               <button class="btn btn-secondary btn-sm" onclick="exportToPDF()" title="ייצוא PDF">📄 PDF</button>
@@ -2595,12 +2596,15 @@ const saveUser = saveTorani;
 // =====================================================
 function updateScheduleStatusUI(isDraft) {
   const btn = document.getElementById('btn-publish-schedule');
+  const btnUn = document.getElementById('btn-unpublish-schedule');
   const badge = document.getElementById('schedule-status-badge');
   if (isDraft === null) { // no schedule for this month
     if (btn) btn.style.display = 'none';
+    if (btnUn) btnUn.style.display = 'none';
     if (badge) badge.style.display = 'none';
     return;
   }
+  if (btnUn) btnUn.style.display = isDraft ? 'none' : '';
   if (badge) {
     badge.textContent = isDraft ? '🛠️ טיוטה' : '✅ מפורסם';
     badge.setAttribute('style',
@@ -2610,6 +2614,23 @@ function updateScheduleStatusUI(isDraft) {
         : 'background:rgba(63,185,80,.12);color:var(--accent);border:1px solid rgba(63,185,80,.35)'));
   }
   if (btn) btn.style.display = isDraft ? '' : 'none';
+}
+
+async function unpublishSchedule() {
+  const month = String(document.getElementById('admin-schedule-month').value);
+  const {year, mon} = parseMonth(month);
+  const monthName = MONTHS[mon-1] + ' ' + year;
+  if (!confirm('להחזיר את לוח ' + monthName + ' למצב טיוטה?\n\nהתורנים יפסיקו לראות את הלוח (יוצג להם "הלוח בהכנה") עד שתפרסם אותו מחדש.')) return;
+  showLoading(true);
+  const res = await api({action:'publishSchedule', month, status:'draft'});
+  showLoading(false);
+  if (res.success) {
+    clearApiCache();
+    updateScheduleStatusUI(true);
+    showAlert('admin-schedule-alert', '🛠️ לוח ' + monthName + ' הוחזר לטיוטה — מוסתר מהתורנים', 'info');
+  } else {
+    showAlert('admin-schedule-alert', res.error || 'שגיאה', 'error');
+  }
 }
 
 async function publishSchedule() {
