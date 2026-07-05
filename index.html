@@ -1189,6 +1189,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
         <select id="t-role">
           <option value="user">תורן</option>
           <option value="admin">מנהל</option>
+          <option value="viewer">צופה (צפייה בלבד)</option>
         </select>
       </div>
       <div class="form-group">
@@ -1707,7 +1708,7 @@ function buildNavTabs() {
   const tabs = currentUser.role === 'admin'
     ? [['admin-schedule','📅','לוח'],['admin-constraints','🚫','אילוצים'],['admin-scores','📊','ניקוד'],['admin-users','👥','תורנים'],['admin-swaps','🔄','החלפות'],['guide','📖','מדריך']]
     : currentUser.role === 'viewer'
-    ? [['admin-schedule','📅','לוח'],['admin-users','👥','תורנים']]
+    ? [['admin-schedule','📅','לוח'],['scores','📊','ניקוד'],['admin-users','👥','תורנים'],['profile','👤','פרופיל']]
     : [['full-schedule','📅','לוח'],['constraints','🚫','אילוצים'],['scores','📊','ניקוד'],['swap','🔄','החלפה'],['profile','👤','פרופיל'],['guide','📖','מדריך']];
 
   // Desktop nav (hidden on mobile via CSS)
@@ -4900,6 +4901,14 @@ autoStart();
 let _profilePerson = null;
 
 async function loadProfile() {
+  // Viewer accounts have no torani profile — show only the password-change card
+  if (currentUser && currentUser.role === 'viewer') {
+    const nameCard = document.getElementById('profile-name')?.closest('.card');
+    const dutyCard = document.getElementById('profile-weekend')?.closest('.card');
+    if (nameCard) nameCard.style.display = 'none';
+    if (dutyCard) dutyCard.style.display = 'none';
+    return;
+  }
   // Load person data from People sheet (accessible to all users)
   try {
     const res = await api({action:'getPeople'});
