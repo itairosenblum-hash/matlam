@@ -1358,7 +1358,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // =====================================================
 // CONFIG & STATE
 // =====================================================
-const API_URL = 'https://script.google.com/macros/s/AKfycbzIo4fHFRwQPCi9BsohomsobmSsQ1JxrkUWG-lTQwAvpWHOFFaIGfYWMgKys9rON0Agag/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzW47i9KGRQtzgO42hSqJknFB22Eact_SwHXvs0KG1lcanXq2xrRbjlQWPoOf9Y-Pat4g/exec';
 // Token lives in localStorage so users stay logged in across browser close AND site updates
 let token = localStorage.getItem('duty_token') || sessionStorage.getItem('duty_token') || '';
 let currentUser = JSON.parse(localStorage.getItem('duty_user') || sessionStorage.getItem('duty_user') || 'null');
@@ -2966,8 +2966,12 @@ async function runGenerate() {
     showLoading(false);
     if (sched.success) {
       renderAdminSchedule(sched.schedule, month);
+      updateScheduleStatusUI(sched.draft === true);
     }
-    showAlert('admin-schedule-alert', '✓ ' + (res.message||'השיבוץ הופק בהצלחה! ניתן לערוך ידנית'), 'success');
+    const genMsg = ('✓ ' + (res.message||'השיבוץ הופק בהצלחה! ניתן לערוך ידנית'))
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+    // Multi-line summaries (unassigned days, relaxations) stay visible; simple success auto-dismisses
+    showAlert('admin-schedule-alert', genMsg, genMsg.includes('<br>') ? 'info' : 'success');
   } else {
     showAlert('generate-alert', res.error||'שגיאה בהפקת שיבוץ','error');
   }
