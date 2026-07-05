@@ -828,6 +828,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
               <span id="viewer-hide-btns" style="display:contents">
                 <button class="btn btn-secondary btn-sm" onclick="openGenerateModal()">⚡ הפק שיבוץ</button>
                 <button class="btn btn-danger btn-sm" onclick="resetSchedule()" title="איפוס לוח החודש">🗑️ אפס לוח</button>
+                <button class="btn btn-secondary btn-sm" id="btn-publish-schedule" onclick="publishSchedule()" style="display:none;border-color:rgba(210,153,34,.5);color:#d29922">📢 פרסם לוח</button>
+                <span id="schedule-status-badge" style="display:none"></span>
               </span>
               <button class="btn btn-secondary btn-sm" onclick="exportToPDF()" title="ייצוא PDF">📄 PDF</button>
               <button class="btn btn-secondary btn-sm" onclick="exportToJPG()" title="הורד תמונה לשיתוף בוואטסאפ">🖼️ JPG</button>
@@ -1356,9 +1358,10 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // =====================================================
 // CONFIG & STATE
 // =====================================================
-const API_URL = 'https://script.google.com/macros/s/AKfycbxgTS2a9Fz-N91I9bm7GaqCPN9WD3rVRgJ_mkhGVXEk5P-YGCWv9oIN5DbESXg00z5PZA/exec';
-let token = sessionStorage.getItem('duty_token') || '';
-let currentUser = JSON.parse(sessionStorage.getItem('duty_user') || 'null');
+const API_URL = 'https://script.google.com/macros/s/AKfycbzIo4fHFRwQPCi9BsohomsobmSsQ1JxrkUWG-lTQwAvpWHOFFaIGfYWMgKys9rON0Agag/exec';
+// Token lives in localStorage so users stay logged in across browser close AND site updates
+let token = localStorage.getItem('duty_token') || sessionStorage.getItem('duty_token') || '';
+let currentUser = JSON.parse(localStorage.getItem('duty_user') || sessionStorage.getItem('duty_user') || 'null');
 let allPeople = [];
 let currentTab = '';
 
@@ -1478,7 +1481,7 @@ function impersonateUser(username) {
     if (_realUser) {
       currentUser = {..._realUser};
       _realUser = null;
-      sessionStorage.setItem('duty_user', JSON.stringify(currentUser));
+      localStorage.setItem('duty_user', JSON.stringify(currentUser));
     }
     // Clear constraint data
     constraintData = new Array(31).fill('');
@@ -1505,7 +1508,7 @@ function impersonateUser(username) {
     role: 'user',
     _impersonating: true
   };
-  sessionStorage.setItem('duty_user', JSON.stringify(currentUser));
+  localStorage.setItem('duty_user', JSON.stringify(currentUser));
   document.getElementById('nav-role-badge').textContent = '👁️ ' + name;
   document.getElementById('nav-user-name').textContent = '';
 
@@ -1568,8 +1571,8 @@ async function doLogin() {
     if (res.success) {
       token = res.token;
       currentUser = {name:res.name, username:res.username, role:res.role};
-      sessionStorage.setItem('duty_token', token);
-      sessionStorage.setItem('duty_user', JSON.stringify(currentUser));
+      localStorage.setItem('duty_token', token);
+      localStorage.setItem('duty_user', JSON.stringify(currentUser));
       initApp();
     } else {
       showAlert('login-alert', res.error || 'שם משתמש או סיסמה שגויים','error');
@@ -1584,11 +1587,22 @@ async function doLogin() {
 function doLogout() {
   stopNotifPolling();
   token = ''; currentUser = null; allPeople = [];
+  localStorage.removeItem('duty_token');
+  localStorage.removeItem('duty_user');
   sessionStorage.clear();
   showPage('login-page');
 }
 
 document.getElementById('login-pass').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
+
+// Block geresh/apostrophes in torani name input — they break JS templates and HTML attributes
+(function(){
+  const tn = document.getElementById('t-name');
+  if (tn) tn.addEventListener('input', () => {
+    const clean = tn.value.replace(/['\u05f3\u2019]/g, '');
+    if (clean !== tn.value) tn.value = clean;
+  });
+})();
 document.getElementById('login-user').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
 document.getElementById('login-pass').addEventListener('input', () => { document.getElementById('login-alert').innerHTML = ''; });
 document.getElementById('login-user').addEventListener('input', () => { document.getElementById('login-alert').innerHTML = ''; });
@@ -2579,6 +2593,44 @@ const saveUser = saveTorani;
 // =====================================================
 // ADMIN: SCHEDULE
 // =====================================================
+function updateScheduleStatusUI(isDraft) {
+  const btn = document.getElementById('btn-publish-schedule');
+  const badge = document.getElementById('schedule-status-badge');
+  if (isDraft === null) { // no schedule for this month
+    if (btn) btn.style.display = 'none';
+    if (badge) badge.style.display = 'none';
+    return;
+  }
+  if (badge) {
+    badge.textContent = isDraft ? '🛠️ טיוטה' : '✅ מפורסם';
+    badge.setAttribute('style',
+      'display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;' +
+      (isDraft
+        ? 'background:rgba(210,153,34,.15);color:#d29922;border:1px solid rgba(210,153,34,.4)'
+        : 'background:rgba(63,185,80,.12);color:var(--accent);border:1px solid rgba(63,185,80,.35)'));
+  }
+  if (btn) btn.style.display = isDraft ? '' : 'none';
+}
+
+async function publishSchedule() {
+  const month = String(document.getElementById('admin-schedule-month').value);
+  const {year, mon} = parseMonth(month);
+  const monthName = MONTHS[mon-1] + ' ' + year;
+  if (!confirm('לפרסם את לוח ' + monthName + ' לכל התורנים?\n\nכל התורנים יקבלו התראה במערכת, וייפתח חלון וואטסאפ להודעה לקבוצה.')) return;
+  showLoading(true);
+  const res = await api({action:'publishSchedule', month});
+  showLoading(false);
+  if (res.success) {
+    clearApiCache();
+    updateScheduleStatusUI(false);
+    showAlert('admin-schedule-alert', '✅ לוח ' + monthName + ' פורסם! נשלחו התראות לתורנים', 'success');
+    const waMsg = '🗓️ לוח ' + monthName + ' פורסם!\nהיכנסו למערכת מטל"מ לצפייה בשיבוצים שלכם:\nhttps://itairosenblum-hash.github.io/matlam/';
+    setTimeout(() => window.open('https://wa.me/?text=' + encodeURIComponent(waMsg), '_blank'), 600);
+  } else {
+    showAlert('admin-schedule-alert', res.error || 'שגיאה בפרסום', 'error');
+  }
+}
+
 async function loadAdminSchedule() {
   const month = String(document.getElementById('admin-schedule-month').value);
   showLoading(true);
@@ -2593,9 +2645,11 @@ async function loadAdminSchedule() {
   if (!res.success || !res.schedule.length) {
     container.innerHTML = '';
     if (banner) banner.style.display = 'block';
+    updateScheduleStatusUI(null);
     return;
   }
   if (banner) banner.style.display = 'none';
+  updateScheduleStatusUI(res.draft === true);
   renderAdminSchedule(res.schedule, month);
   preloadAdjacentMonths(month);
 }
@@ -2743,6 +2797,73 @@ function openEditEntry(entry, month) {
   openModal('modal-edit-entry');
 }
 
+async function collectAssignmentWarnings(month, date, names) {
+  const warnings = [];
+  if (!names || !names.length) return warnings;
+  // Day number from either yyyy-mm-dd or dd/mm/yyyy
+  const ds = String(date);
+  const dayNum = /^\d{4}-\d{2}-\d{2}/.test(ds) ? parseInt(ds.split('-')[2]) : parseInt(ds.split('/')[0]);
+  if (!dayNum) return warnings;
+
+  // 1. X constraint on that day
+  try {
+    const cRes = await api({action:'getAllConstraints', month});
+    if (cRes.success && cRes.constraints) {
+      names.forEach(n => {
+        const c = cRes.constraints[n];
+        if (c && c.constraints && c.constraints[dayNum - 1] === 'X') {
+          warnings.push('🚫 ל' + n + ' יש אילוץ (X) ביום זה');
+        }
+      });
+    }
+  } catch(e) {}
+
+  // 2. Duty on an adjacent day
+  try {
+    const sRes = await api({action:'getSchedule', month});
+    if (sRes.success && sRes.schedule) {
+      const byDay = {};
+      sRes.schedule.forEach(e => {
+        const eds = String(e.date);
+        const d = /^\d{4}-\d{2}-\d{2}/.test(eds) ? parseInt(eds.split('-')[2]) : parseInt(eds.split('/')[0]);
+        if (d) byDay[d] = [e.v, e.a, e.b, e.v2, e.a2, e.b2].filter(Boolean);
+      });
+      names.forEach(n => {
+        if ((byDay[dayNum - 1] || []).includes(n)) warnings.push('📅 ' + n + ' משובץ יום קודם (' + (dayNum - 1) + ' בחודש)');
+        if ((byDay[dayNum + 1] || []).includes(n)) warnings.push('📅 ' + n + ' משובץ יום למחרת (' + (dayNum + 1) + ' בחודש)');
+      });
+    }
+  } catch(e) {}
+
+  // 3. Score noticeably above average
+  try {
+    const scRes = await api({action:'getScores'});
+    if (scRes.success && scRes.scores && scRes.scores.length) {
+      const MK = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+      const totals = {};
+      let sum = 0, cnt = 0;
+      scRes.scores.forEach(s => {
+        if (s.name === 'מנהל מערכת' || s.role === 'admin') return;
+        if (s.dutyCategory === 'טרם הוסמך' || s.dutyCategory === 'פטור' || s.dutyCategory === 'מנהל מערכת') return;
+        if (s.active === false || s.active === '0' || s.active === 0) return;
+        let tot = s.acc2025 || 0;
+        MK.forEach(m => { tot += ((s[m] || {}).score || 0); });
+        totals[s.name] = tot; sum += tot; cnt++;
+      });
+      if (cnt > 1) {
+        const avg = sum / cnt;
+        names.forEach(n => {
+          if (totals[n] !== undefined && totals[n] > avg * 1.15) {
+            warnings.push('📊 הניקוד של ' + n + ' (' + Math.round(totals[n]) + ') גבוה מהממוצע (' + Math.round(avg) + ')');
+          }
+        });
+      }
+    }
+  } catch(e) {}
+
+  return warnings;
+}
+
 async function saveEntry() {
   clearApiCache();
   const date     = document.getElementById('edit-entry-date').value;
@@ -2755,6 +2876,11 @@ async function saveEntry() {
   const v2       = document.getElementById('edit-v2')?.value || '';
   const a2       = document.getElementById('edit-a2')?.value || '';
   const b2       = document.getElementById('edit-b2')?.value || '';
+  // Smart warnings before saving a manual assignment
+  try {
+    const warns = await collectAssignmentWarnings(month, date, [...new Set([v, a, b, v2, a2, b2].filter(Boolean))]);
+    if (warns.length && !confirm('⚠️ שים לב:\n\n' + warns.join('\n') + '\n\nלהמשיך בכל זאת?')) return;
+  } catch(e) {}
   showLoading(true);
   const res = await api({action:'updateScheduleEntry', month, date, v, a, b, notes, dutyType, v2, a2, b2});
   showLoading(false);
@@ -3110,6 +3236,51 @@ function filterScores(query) {
   renderScores(filtered);
 }
 
+function buildPendingConstraintsRow(submittedNames, month) {
+  try {
+    const submitted = new Set(submittedNames);
+    const pending = (window._allUsers || []).filter(t =>
+      t.active &&
+      t.role !== 'admin' && t.role !== 'viewer' &&
+      (String(t.activity) === '1' || String(t.activity) === '0.5') &&
+      String(t.dutyCategory || '') !== 'טרם הוסמך' &&
+      String(t.dutyCategory || '') !== 'לא מוסמך' &&
+      String(t.dutyCategory || '') !== 'פטור' &&
+      !submitted.has(t.name)
+    ).sort((a, b) => a.name.localeCompare(b.name, 'he'));
+    window._pendingConstraints = pending;
+    window._pendingConstraintsMonth = month;
+    if (!pending.length) {
+      return '<div style="background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.3);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:var(--accent)">✅ כל התורנים הפעילים הגישו אילוצים לחודש זה</div>';
+    }
+    const chips = pending.map((t, i) =>
+      '<button onclick="waRemindConstraints(' + i + ')" style="border:1px solid rgba(210,153,34,.5);background:rgba(210,153,34,.1);color:#d29922;border-radius:14px;padding:4px 12px;font-size:12.5px;cursor:pointer;font-family:inherit">' + escapeHtml(t.name) + ' 💬</button>'
+    ).join(' ');
+    return '<div style="background:rgba(210,153,34,.06);border:1px solid rgba(210,153,34,.3);border-radius:10px;padding:10px 14px;margin-bottom:12px">' +
+      '<div style="font-size:13px;font-weight:600;color:#d29922;margin-bottom:8px">⏳ טרם הגישו (' + pending.length + ') — לחץ על שם לשליחת תזכורת בוואטסאפ:</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:6px">' + chips + '</div></div>';
+  } catch(e) { return ''; }
+}
+
+function waRemindConstraints(idx) {
+  const t = (window._pendingConstraints || [])[idx];
+  if (!t) return;
+  if (!t.phone) { alert('אין מספר טלפון שמור עבור ' + t.name); return; }
+  const month = window._pendingConstraintsMonth || '';
+  const {year, mon} = parseMonth(month);
+  const monthName = MONTHS[mon-1] + ' ' + year;
+  const firstName = String(t.name).trim().split(' ')[0];
+  const digits = String(t.phone).replace(/\D/g, '');
+  const intl = digits.startsWith('0') ? '972' + digits.substring(1) : digits;
+  const msg = encodeURIComponent(
+    'היי ' + firstName + ' 👋\n\n' +
+    'תזכורת: טרם הגשת אילוצים לחודש ' + monthName + ' במערכת מטל"מ.\n' +
+    'נא להגיש עד ה-15 לחודש (עד 6 אילוצים):\n\n' +
+    'https://itairosenblum-hash.github.io/matlam/'
+  );
+  window.open('https://wa.me/' + intl + '?text=' + msg, '_blank');
+}
+
 async function loadAdminConstraints() {
   const {year, mon, days, s: month} = parseMonth(document.getElementById('admin-constraint-month').value);
   showLoading(true);
@@ -3117,28 +3288,28 @@ async function loadAdminConstraints() {
   showLoading(false);
   const container = document.getElementById('admin-constraints-content');
 
-  if (!res.success || !Object.keys(res.constraints).length) {
-    container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>לא הוגשו אילוצים לחודש זה</p></div>';
-    return;
-  }
+  const constraintsObj = (res.success && res.constraints) ? res.constraints : {};
 
   // Only show people who actually marked something + exclude admin accounts
-  const allNames = Object.keys(res.constraints);
+  const allNames = Object.keys(constraintsObj);
   const activeNames = allNames.filter(name => {
     if (name === 'מנהל מערכת' || name === 'admin') return false; // exclude admin
-    const c = res.constraints[name];
+    const c = constraintsObj[name];
     return c.constraints.some(v => v === 'V' || v === 'X') || (c.notes && c.notes.trim());
   });
 
-  if (activeNames.length === 0) {
-    container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>אף אחד לא הגיש אילוצים לחודש זה</p></div>';
-    return;
-  }
-
-  // Fetch user list to get username mapping for saveConstraints viewAs
+  // Fetch user list (username mapping for viewAs + pending-reminders row)
   if (!window._allUsers || !window._allUsers.length) {
     const uRes = await api({action:'getAllTornim'});
     if (uRes.success) window._allUsers = uRes.tornim;
+  }
+
+  // "Not yet submitted" chips row
+  const pendingHtml = buildPendingConstraintsRow(activeNames, month);
+
+  if (activeNames.length === 0) {
+    container.innerHTML = pendingHtml + '<div class="empty-state"><div class="icon">📭</div><p>אף אחד לא הגיש אילוצים לחודש זה</p></div>';
+    return;
   }
 
   // Store editable state per person
@@ -3260,7 +3431,7 @@ async function loadAdminConstraints() {
   });
 
   html += '</tbody></table></div></div>';
-  container.innerHTML = html;
+  container.innerHTML = pendingHtml + html;
 
   // Hover: highlight row + column
   (function() {
@@ -3544,13 +3715,17 @@ async function resetSchedule() {
   const month = String(document.getElementById('admin-schedule-month').value);
   const {year, mon} = parseMonth(month);
   const monthName = MONTHS[mon-1] + ' ' + year;
-  const confirmed = confirm(
-    'אפס לוח ' + monthName + '?\n\n' +
+  const typed = prompt(
+    '⚠️ איפוס לוח ' + monthName + '\n\n' +
     'כל התורנים המשובצים יימחקו מהלוח.\n' +
     'הלוח יחזור למצב ריק עם סוגי ימים וחגים בלבד.\n\n' +
-    'האם אתה בטוח?'
+    'לאישור, הקלד את מספר החודש: ' + month
   );
-  if (!confirmed) return;
+  if (typed === null) return;
+  if (String(typed).trim() !== String(month)) {
+    showAlert('admin-schedule-alert', 'האיפוס בוטל — מספר החודש שהוקלד אינו תואם', 'error');
+    return;
+  }
   showLoading(true);
   const res = await api({action:'resetSchedule', month, year, mon});
   showLoading(false);
@@ -3804,6 +3979,9 @@ async function loadUserFullSchedule() {
   const res = await api({action:'getSchedule', month});
   showLoading(false);
   const container = document.getElementById('user-schedule-content');
+  if (res.success && res.draft) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">🛠️</div><p style="font-weight:600">הלוח בהכנה</p><p style="font-size:13px;color:var(--text2);margin-top:4px">לוח החודש נמצא בעבודה ויפורסם בקרוב 🙂</p></div>'; return;
+  }
   if (!res.success || !res.schedule.length) {
     container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>אין לוח לחודש זה</p></div>'; return;
   }
@@ -4501,7 +4679,12 @@ async function testConnection() {
 }
 
 async function initSheets() {
-  if (!confirm('פעולה זו תאתחל את כל הגיליונות ותדרוס נתונים קיימים. להמשיך?')) return;
+  const typed = prompt('⚠️ פעולה זו תאתחל את כל הגיליונות ותדרוס נתונים קיימים!\n\nלאישור, הקלד: אתחול');
+  if (typed === null) return;
+  if (String(typed).trim() !== 'אתחול') {
+    showAlert('setup-alert', 'האתחול בוטל — הטקסט שהוקלד אינו תואם', 'error');
+    return;
+  }
   showLoading(true);
   const res = await api({action:'initSheets'});
   showLoading(false);
