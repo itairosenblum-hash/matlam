@@ -1399,6 +1399,7 @@ function apiJsonp(params) {
     const parts = {...params, callback: cbName};
     if (token) parts.token = token;
     const qs = Object.entries(parts)
+      .filter(([k,v]) => v !== undefined && v !== null)
       .map(([k,v]) => encodeURIComponent(k) + '=' + encodeURIComponent(typeof v === 'object' ? JSON.stringify(v) : v))
       .join('&');
     const script = document.createElement('script');
