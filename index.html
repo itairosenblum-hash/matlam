@@ -1278,6 +1278,12 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
       <label>הערות</label>
       <input id="edit-notes" type="text">
     </div>
+    <div class="form-group">
+      <label>🎓 תורנות הסמכה <span style="font-size:11px;color:var(--text2);font-weight:400">(ללא ניקוד וללא עתודה — שיבוץ ידני בלבד)</span></label>
+      <select id="edit-trainee">
+        <option value="">— ללא —</option>
+      </select>
+    </div>
         <!-- תורנות שנייה (מקרים חריגים) -->
     <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
       <div style="font-size:12px;color:var(--text2);margin-bottom:10px">🔁 תורנות שנייה (מקרה חריג — לא חובה)</div>
@@ -2743,9 +2749,10 @@ function renderAdminSchedule(schedule, month) {
       ${e.a2?`<div class="cal-person cal-a" style="font-size:9px">א ${e.a2}</div>`:''}
       ${e.b2?`<div class="cal-person cal-b" style="font-size:9px">ב ${e.b2}</div>`:''}
     </div>` : '';
+    const tTag = e.t ? `<div class="cal-person" style="color:#8957e5;font-size:10px" title="תורנות הסמכה">🎓 ${e.t}</div>` : '';
     const entryKey = `cal_${month}_${d}`;
     window._calEntries = window._calEntries || {};
-    window._calEntries[entryKey] = e || {date:dateStr,v:'',a:'',b:'',v2:'',a2:'',b2:'',notes:'',dayType:cat,dutyType:''};
+    window._calEntries[entryKey] = e || {date:dateStr,v:'',a:'',b:'',v2:'',a2:'',b2:'',t:'',notes:'',dayType:cat,dutyType:''};
 
     // Mobile-friendly: add day name
     const HEB_DAYS_SHORT = ['א','ב','ג','ד','ה','ו','ש'];
@@ -2759,7 +2766,7 @@ function renderAdminSchedule(schedule, month) {
       </div>
       <div class="cal-persons">
         ${typeBadge ? `<div class="cal-day-type-label">${typeBadge}</div>` : ''}
-        ${vTag}${aTag}${bTag}${v2Tag}
+        ${vTag}${aTag}${bTag}${tTag}${v2Tag}
       </div>
       <button class="cal-edit-btn" onclick="openCalEntry('${entryKey}','${month}')">✏️</button>
     </div>`;
@@ -2804,6 +2811,13 @@ function openEditEntry(entry, month) {
   document.getElementById('edit-b').value = entry.b || '';
   document.getElementById('edit-notes').value = entry.notes || '';
   document.getElementById('edit-dutytype').value = entry.dutyType || '';
+  // 🎓 trainee dropdown: not-yet-qualified tornim only
+  const traineeOpts = '<option value="">— ללא —</option>' +
+    allPeople.filter(p => p.dutyCategory === 'טרם הוסמך').map(p =>
+      `<option value="${p.name}">${p.name}</option>`
+    ).join('');
+  document.getElementById('edit-trainee').innerHTML = traineeOpts;
+  document.getElementById('edit-trainee').value = entry.t || '';
   // Second shift
   const opts2 = '<option value="">— ללא —</option>' +
     allPeople.filter(p => p.activity !== '0').map(p =>
@@ -2897,13 +2911,14 @@ async function saveEntry() {
   const v2       = document.getElementById('edit-v2')?.value || '';
   const a2       = document.getElementById('edit-a2')?.value || '';
   const b2       = document.getElementById('edit-b2')?.value || '';
+  const trainee  = document.getElementById('edit-trainee')?.value || '';
   // Smart warnings before saving a manual assignment
   try {
-    const warns = await collectAssignmentWarnings(month, date, [...new Set([v, a, b, v2, a2, b2].filter(Boolean))]);
+    const warns = await collectAssignmentWarnings(month, date, [...new Set([v, a, b, v2, a2, b2, trainee].filter(Boolean))]);
     if (warns.length && !confirm('⚠️ שים לב:\n\n' + warns.join('\n') + '\n\nלהמשיך בכל זאת?')) return;
   } catch(e) {}
   showLoading(true);
-  const res = await api({action:'updateScheduleEntry', month, date, v, a, b, notes, dutyType, v2, a2, b2});
+  const res = await api({action:'updateScheduleEntry', month, date, v, a, b, notes, dutyType, v2, a2, b2, trainee});
   showLoading(false);
   if (res.success) {
     closeModal('modal-edit-entry');
@@ -3157,7 +3172,7 @@ function renderScheduleList(schedule, month, who) {
     const entryKey = 'cal_' + month + '_' + d;
     if (isAdmin) {
       window._calEntries = window._calEntries || {};
-      window._calEntries[entryKey] = e.date ? e : {date:dateStr,v:'',a:'',b:'',v2:'',a2:'',b2:'',notes:'',dayType:'',dutyType:''};
+      window._calEntries[entryKey] = e.date ? e : {date:dateStr,v:'',a:'',b:'',v2:'',a2:'',b2:'',t:'',notes:'',dayType:'',dutyType:''};
     }
 
     const editBtn = isAdmin && currentUser.role !== 'viewer' ? `<div class="sl-edit"><button onclick="openCalEntry('${entryKey}','${month}')" title="עריכה">✏️</button></div>` : '';
@@ -3167,6 +3182,7 @@ function renderScheduleList(schedule, month, who) {
       <div class="sl-cell"><div class="sl-lbl">מבצע</div><div class="sl-name sl-v${e.v ? '' : ' empty'}">${e.v || '—'}</div></div>
       <div class="sl-cell"><div class="sl-lbl">עתודה א'</div><div class="sl-name sl-a${e.a ? '' : ' empty'}">${e.a || '—'}</div></div>
       <div class="sl-cell"><div class="sl-lbl">עתודה ב'</div><div class="sl-name sl-b${e.b ? '' : ' empty'}">${e.b || '—'}</div></div>
+      ${e.t ? `<div class="sl-cell"><div class="sl-lbl">🎓 הסמכה</div><div class="sl-name" style="color:#8957e5">${e.t}</div></div>` : ''}
       ${editBtn}
     </div>`;
   }
@@ -4036,7 +4052,7 @@ function renderUserSchedule(schedule, month) {
   schedule.forEach(e => {
     const d = parseInt(e.date.split('-')[2] || e.date.split('/')[0]);
     const isToday = e.date === todayStr;
-    const isMe = e.v===currentUser.name||e.a===currentUser.name||e.b===currentUser.name||e.v2===currentUser.name;
+    const isMe = e.v===currentUser.name||e.a===currentUser.name||e.b===currentUser.name||e.v2===currentUser.name||e.t===currentUser.name;
     let cls = 'cal-day';
     if (isToday) cls += ' today';
     if (e.dayType==='סוף שבוע'||e.dayType==='סוף שבוע מלא') cls += ' cal-weekend';
@@ -4049,6 +4065,7 @@ function renderUserSchedule(schedule, month) {
       ${e.v?`<div class="cal-person cal-v" title="מבצע">✓ ${e.v}</div>`:''}
       ${e.a?`<div class="cal-person cal-a" title="עתודה א׳">א ${e.a}</div>`:''}
       ${e.b?`<div class="cal-person cal-b" title="עתודה ב׳">ב ${e.b}</div>`:''}
+      ${e.t?`<div class="cal-person" style="color:#8957e5" title="תורנות הסמכה">🎓 ${e.t}</div>`:''}
     </div>`;
   });
 
@@ -4059,7 +4076,7 @@ function renderUserSchedule(schedule, month) {
   html += '</div></div></div>';
   html += `<div style="display:flex;gap:16px;margin-top:12px;flex-wrap:wrap;font-size:12px;color:var(--text2)">
     <span><span style="background:rgba(46,160,67,0.15);padding:2px 8px;border-radius:4px">■</span> התורנות שלי</span>
-    <span>✓ מבצע &nbsp; א׳ עתודה ראשונה &nbsp; ב׳ עתודה שנייה</span>
+    <span>✓ מבצע &nbsp; א׳ עתודה ראשונה &nbsp; ב׳ עתודה שנייה &nbsp; 🎓 הסמכה</span>
   </div>`;
 
   container.innerHTML = html;
