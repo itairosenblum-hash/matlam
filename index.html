@@ -2968,6 +2968,8 @@ async function openGenerateModal() {
 }
 
 async function runGenerate() {
+  // Pre-flight reminder: Matlam requests must be entered before generating
+  if (!confirm('לפני ההפקה 📋\n\nהאם הזנת את בקשות המטל"מ לחודש זה?\n\nאישור = הזנתי הכל, הפק שיבוץ\nביטול = עצור, אשלים קודם')) return;
   const {year, mon, days, s: month} = parseMonth(document.getElementById('admin-schedule-month').value);
   const dayCategories = {};
   for (let d = 1; d <= days; d++) {
