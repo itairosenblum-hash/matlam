@@ -2845,9 +2845,17 @@ async function collectAssignmentWarnings(month, date, names) {
   const dayNum = /^\d{4}-\d{2}-\d{2}/.test(ds) ? parseInt(ds.split('-')[2]) : parseInt(ds.split('/')[0]);
   if (!dayNum) return warnings;
 
+  // Fetch all three lookups in PARALLEL (each is 1-2s on Apps Script when cache is cold)
+  const [cResP, sResP, scResP] = await Promise.allSettled([
+    api({action:'getAllConstraints', month}),
+    api({action:'getSchedule', month}),
+    api({action:'getScores'})
+  ]);
+  const pv = r => (r.status === 'fulfilled' ? r.value : null);
+
   // 1. X constraint on that day
   try {
-    const cRes = await api({action:'getAllConstraints', month});
+    const cRes = pv(cResP);
     if (cRes.success && cRes.constraints) {
       names.forEach(n => {
         const c = cRes.constraints[n];
@@ -2860,7 +2868,7 @@ async function collectAssignmentWarnings(month, date, names) {
 
   // 2. Duty on an adjacent day
   try {
-    const sRes = await api({action:'getSchedule', month});
+    const sRes = pv(sResP);
     if (sRes.success && sRes.schedule) {
       const byDay = {};
       sRes.schedule.forEach(e => {
@@ -2877,7 +2885,7 @@ async function collectAssignmentWarnings(month, date, names) {
 
   // 3. Score noticeably above average
   try {
-    const scRes = await api({action:'getScores'});
+    const scRes = pv(scResP);
     if (scRes.success && scRes.scores && scRes.scores.length) {
       const MK = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
       const totals = {};
@@ -2937,7 +2945,21 @@ async function saveEntry() {
   showLoading(false);
   if (res.success) {
     closeModal('modal-edit-entry');
-    loadAdminSchedule();
+    // Update the calendar instantly from what we just saved — no server round-trip
+    clearApiCache(); // so any future load fetches fresh data
+    const sched = window._lastScheduleData;
+    const entry = sched ? sched.find(e => e.date === date) : null;
+    if (entry) {
+      if (v !== undefined) entry.v = v;
+      if (a !== undefined) entry.a = a;
+      if (b !== undefined) entry.b = b;
+      if (notes !== undefined) entry.notes = notes;
+      if (dutyType) entry.dutyType = dutyType;
+      entry.v2 = v2; entry.a2 = a2; entry.b2 = b2; entry.t = trainee;
+      renderAdminSchedule(sched, month);
+    } else {
+      loadAdminSchedule(); // fallback: full reload (cache already cleared)
+    }
   } else {
     showAlert('admin-schedule-alert', res.error || 'שגיאה', 'error');
   }
