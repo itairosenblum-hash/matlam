@@ -2830,6 +2830,11 @@ function openEditEntry(entry, month) {
   document.getElementById('edit-v2').value = entry.v2 || '';
   document.getElementById('edit-a2').value = entry.a2 || '';
   document.getElementById('edit-b2').value = entry.b2 || '';
+  // Snapshot originals so warnings run only on fields that actually CHANGED
+  window._editOriginal = {
+    v: entry.v || '', a: entry.a || '', b: entry.b || '',
+    v2: entry.v2 || '', a2: entry.a2 || '', b2: entry.b2 || '', t: entry.t || ''
+  };
   openModal('modal-edit-entry');
 }
 
@@ -2913,9 +2918,19 @@ async function saveEntry() {
   const a2       = document.getElementById('edit-a2')?.value || '';
   const b2       = document.getElementById('edit-b2')?.value || '';
   const trainee  = document.getElementById('edit-trainee')?.value || '';
-  // Smart warnings before saving a manual assignment
+  // Smart warnings — only for names that were CHANGED in this edit,
+  // so untouched existing assignments don't produce noise
   try {
-    const warns = await collectAssignmentWarnings(month, date, [...new Set([v, a, b, v2, a2, b2, trainee].filter(Boolean))]);
+    const orig = window._editOriginal || {};
+    const changed = [];
+    if (v && v !== orig.v) changed.push(v);
+    if (a && a !== orig.a) changed.push(a);
+    if (b && b !== orig.b) changed.push(b);
+    if (v2 && v2 !== orig.v2) changed.push(v2);
+    if (a2 && a2 !== orig.a2) changed.push(a2);
+    if (b2 && b2 !== orig.b2) changed.push(b2);
+    if (trainee && trainee !== orig.t) changed.push(trainee);
+    const warns = await collectAssignmentWarnings(month, date, [...new Set(changed)]);
     if (warns.length && !confirm('⚠️ שים לב:\n\n' + warns.join('\n') + '\n\nלהמשיך בכל זאת?')) return;
   } catch(e) {}
   showLoading(true);
