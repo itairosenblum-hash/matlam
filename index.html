@@ -2940,28 +2940,39 @@ async function saveEntry() {
     const warns = await collectAssignmentWarnings(month, date, [...new Set(changed)]);
     if (warns.length && !confirm('⚠️ שים לב:\n\n' + warns.join('\n') + '\n\nלהמשיך בכל זאת?')) return;
   } catch(e) {}
-  showLoading(true);
-  const res = await api({action:'updateScheduleEntry', month, date, v, a, b, notes, dutyType, v2, a2, b2, trainee});
-  showLoading(false);
-  if (res.success) {
-    closeModal('modal-edit-entry');
-    // Update the calendar instantly from what we just saved — no server round-trip
-    clearApiCache(); // so any future load fetches fresh data
-    const sched = window._lastScheduleData;
-    const entry = sched ? sched.find(e => e.date === date) : null;
-    if (entry) {
-      if (v !== undefined) entry.v = v;
-      if (a !== undefined) entry.a = a;
-      if (b !== undefined) entry.b = b;
-      if (notes !== undefined) entry.notes = notes;
-      if (dutyType) entry.dutyType = dutyType;
-      entry.v2 = v2; entry.a2 = a2; entry.b2 = b2; entry.t = trainee;
-      renderAdminSchedule(sched, month);
+  // ---- OPTIMISTIC SAVE ----
+  // Google Apps Script routing adds ~10s of pure network latency per save.
+  // Instead of making the admin wait for it, close the modal and update the
+  // calendar IMMEDIATELY, then finish the server save in the background.
+  closeModal('modal-edit-entry');
+  clearApiCache();
+  const sched = window._lastScheduleData;
+  const entry = sched ? sched.find(e => e.date === date) : null;
+  if (entry) {
+    if (v !== undefined) entry.v = v;
+    if (a !== undefined) entry.a = a;
+    if (b !== undefined) entry.b = b;
+    if (notes !== undefined) entry.notes = notes;
+    if (dutyType) entry.dutyType = dutyType;
+    entry.v2 = v2; entry.a2 = a2; entry.b2 = b2; entry.t = trainee;
+    renderAdminSchedule(sched, month);
+  }
+  showAlert('admin-schedule-alert', '⏳ שומר...', 'info');
+
+  try {
+    const res = await api({action:'updateScheduleEntry', month, date, v, a, b, notes, dutyType, v2, a2, b2, trainee});
+    if (res.success) {
+      showAlert('admin-schedule-alert', '✓ נשמר', 'success');
     } else {
-      loadAdminSchedule(); // fallback: full reload (cache already cleared)
+      // Server rejected — resync the calendar to the real state
+      showAlert('admin-schedule-alert', '✗ השמירה נכשלה: ' + (res.error || 'שגיאה') + ' — הלוח סונכרן מחדש', 'error');
+      clearApiCache();
+      loadAdminSchedule();
     }
-  } else {
-    showAlert('admin-schedule-alert', res.error || 'שגיאה', 'error');
+  } catch(err) {
+    showAlert('admin-schedule-alert', '✗ השמירה נכשלה (תקשורת) — הלוח סונכרן מחדש', 'error');
+    clearApiCache();
+    loadAdminSchedule();
   }
 }
 
