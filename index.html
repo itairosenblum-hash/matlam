@@ -962,6 +962,20 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
       </div>
 
       <!-- GUIDE TAB (all users) -->
+      <div id="tab-admin-audit" class="tab-content hidden">
+        <div class="page-header">
+          <h2>📋 יומן פעולות</h2>
+          <p>תיעוד כל הפעולות במערכת — מי עשה מה ומתי (מנהל בלבד)</p>
+        </div>
+        <div class="card">
+          <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+            <input id="audit-search" type="text" placeholder="🔍 חיפוש ביומן — שם, פעולה, חודש..." style="flex:1;min-width:200px" oninput="filterAuditLog()">
+            <button class="btn btn-secondary btn-sm" onclick="loadAuditLog()">🔄 רענן</button>
+          </div>
+          <div id="audit-content"><div class="empty-state"><div class="icon">⏳</div><p>טוען...</p></div></div>
+        </div>
+      </div>
+
       <div id="tab-guide" class="tab-content hidden">
         <div class="section-title" style="margin-bottom:20px">📖 מדריך מערכת התורנויות</div>
         <div style="display:flex;flex-direction:column;gap:16px;max-width:700px;width:100%">
@@ -1698,6 +1712,56 @@ async function initApp() {
   }
 }
 
+// ===== ADMIN AUDIT LOG PAGE =====
+let _auditEntries = [];
+
+async function loadAuditLog() {
+  const container = document.getElementById('audit-content');
+  if (!container) return;
+  container.innerHTML = '<div class="empty-state"><div class="icon">⏳</div><p>טוען יומן...</p></div>';
+  let res;
+  try { res = await api({action:'getAuditLog', limit: 300}); }
+  catch(e) { container.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>שגיאה בטעינת היומן</p></div>'; return; }
+  if (!res || !res.success) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>' + escapeHtml((res && res.error) || 'שגיאה בטעינת היומן') + '</p></div>';
+    return;
+  }
+  _auditEntries = res.entries || [];
+  filterAuditLog();
+}
+
+function renderAuditLog(entries, total) {
+  const container = document.getElementById('audit-content');
+  if (!entries.length) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>אין רשומות ביומן</p></div>';
+    return;
+  }
+  const p2 = n => String(n).padStart(2, '0');
+  const fmtTs = iso => {
+    const d = new Date(iso);
+    if (isNaN(d)) return escapeHtml(String(iso));
+    return p2(d.getDate()) + '/' + p2(d.getMonth()+1) + '/' + d.getFullYear() + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
+  };
+  container.innerHTML =
+    '<div style="display:flex;flex-direction:column;gap:8px">' +
+    entries.map(e => `
+      <div style="display:flex;gap:10px;align-items:baseline;padding:10px 12px;background:rgba(128,128,128,.07);border-radius:10px;font-size:13.5px;flex-wrap:wrap">
+        <span style="color:var(--text2);font-size:12px;white-space:nowrap;direction:ltr">${fmtTs(e.ts)}</span>
+        <span style="font-weight:700">${escapeHtml(e.who)}</span>
+        <span style="color:var(--accent);font-weight:600">${escapeHtml(e.action)}</span>
+        <span style="color:var(--text2)">${escapeHtml(e.details)}</span>
+      </div>`).join('') +
+    '</div>' +
+    (total >= 300 ? '<div style="text-align:center;color:var(--text2);font-size:12px;margin-top:10px">מוצגות 300 הרשומות האחרונות — ההיסטוריה המלאה בלשונית AuditLog בגיליון</div>' : '');
+}
+
+function filterAuditLog() {
+  const q = (document.getElementById('audit-search')?.value || '').trim();
+  const list = !q ? _auditEntries
+    : _auditEntries.filter(e => (e.who + ' ' + e.action + ' ' + e.details).includes(q));
+  renderAuditLog(list, _auditEntries.length);
+}
+
 function buildNavTabs() {
   const container = document.getElementById('nav-tabs-container');
   // Reload impersonation list if admin
@@ -1705,7 +1769,7 @@ function buildNavTabs() {
     setTimeout(loadImpersonateList, 500);
   }
   const tabs = currentUser.role === 'admin'
-    ? [['admin-schedule','📅','לוח'],['admin-constraints','🚫','אילוצים'],['admin-scores','📊','ניקוד'],['admin-users','👥','תורנים'],['admin-swaps','🔄','החלפות'],['guide','📖','מדריך']]
+    ? [['admin-schedule','📅','לוח'],['admin-constraints','🚫','אילוצים'],['admin-scores','📊','ניקוד'],['admin-users','👥','תורנים'],['admin-swaps','🔄','החלפות'],['admin-audit','📋','יומן'],['guide','📖','מדריך']]
     : currentUser.role === 'viewer'
     ? [['admin-schedule','📅','לוח'],['scores','📊','ניקוד'],['admin-users','👥','תורנים'],['profile','👤','פרופיל']]
     : [['full-schedule','📅','לוח'],['constraints','🚫','אילוצים'],['scores','📊','ניקוד'],['swap','🔄','החלפה'],['profile','👤','פרופיל'],['guide','📖','מדריך']];
@@ -1787,6 +1851,7 @@ function switchTab(id) {
   if (id === 'scores') { loadUserScores(); }
   if (id === 'swap') { initSwapTab(); }
   if (id === 'admin-swaps') { loadAdminSwaps(); }
+  if (id === 'admin-audit') { loadAuditLog(); }
   if (id === 'guide') {}
   if (false && id === 'admin-setup') {
     if(document.getElementById('setup-api-url')) document.getElementById('setup-api-url').value = API_URL;
