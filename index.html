@@ -774,6 +774,11 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
             <button class="btn btn-primary" onclick="saveDutySettings()">💾 שמור הגדרות</button>
           </div>
 
+          <!-- היסטוריית תורנויות -->
+          <div class="card" id="profile-history-card">
+            <button class="btn btn-secondary" onclick="openToraniHistory(currentUser.name)" style="width:100%">📖 היסטוריית התורנויות שלי</button>
+          </div>
+
           <!-- שינוי סיסמה -->
           <div class="card">
             <div class="card-title">שינוי סיסמה</div>
@@ -1240,6 +1245,16 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
       <button class="btn btn-secondary" onclick="closeModal('modal-add-torani')">ביטול</button>
       <button class="btn btn-primary" onclick="saveTorani()">שמור</button>
     </div>
+  </div>
+</div>
+
+<div id="modal-history" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="history-title">📖 היסטוריית תורנויות</div>
+      <button class="modal-close" onclick="closeModal('modal-history')">✕</button>
+    </div>
+    <div id="history-content"></div>
   </div>
 </div>
 
@@ -1710,6 +1725,60 @@ async function initApp() {
       if (bw) bw.style.display = 'block';
     }, 1000);
   }
+}
+
+// ===== TORANI DUTY HISTORY =====
+const _historyCache = {};
+
+async function openToraniHistory(name) {
+  if (!name) return;
+  document.getElementById('history-title').textContent = '📖 היסטוריית תורנויות — ' + name;
+  const box = document.getElementById('history-content');
+  openModal('modal-history');
+  if (_historyCache[name]) { renderToraniHistory(_historyCache[name]); return; }
+  box.innerHTML = '<div class="empty-state"><div class="icon">⏳</div><p>אוסף נתונים מכל לוחות החודשים...</p><p style="font-size:12px;color:var(--text2)">עשוי לקחת עד 10 שניות</p></div>';
+  let res;
+  try { res = await api({action:'getToraniHistory', name}); }
+  catch(e) { box.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>שגיאה בטעינת ההיסטוריה</p></div>'; return; }
+  if (!res || !res.success) {
+    box.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>' + escapeHtml((res && res.error) || 'שגיאה') + '</p></div>';
+    return;
+  }
+  _historyCache[name] = res.entries || [];
+  renderToraniHistory(_historyCache[name]);
+}
+
+function renderToraniHistory(entries) {
+  const box = document.getElementById('history-content');
+  if (!entries.length) {
+    box.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>אין תורנויות רשומות</p></div>';
+    return;
+  }
+  const cnt = {weekend: 0, hag: 0, thu: 0};
+  entries.forEach(e => {
+    const t = (e.dutyType || e.dayType || '');
+    if (t.includes('חג')) cnt.hag++;
+    else if (t.includes('סוף שבוע') || t.includes('שבת')) cnt.weekend++;
+    else if (t.includes('חמישי')) cnt.thu++;
+  });
+  const chip = (label, val) => `<div style="background:rgba(128,128,128,.08);border-radius:12px;padding:8px 14px;text-align:center;flex:1;min-width:70px"><div style="font-size:20px;font-weight:800;color:var(--accent)">${val}</div><div style="font-size:11px;color:var(--text2)">${label}</div></div>`;
+  const fmtD = iso => { const p = String(iso).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : iso; };
+  const dow = iso => { const d = new Date(iso); return isNaN(d) ? '' : ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'][d.getDay()]; };
+  box.innerHTML =
+    '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">' +
+      chip('סה"כ תורנויות', entries.length) + chip('סופ"ש', cnt.weekend) + chip('חגים', cnt.hag) + chip('חמישי', cnt.thu) +
+    '</div>' +
+    '<div style="font-size:12.5px;color:var(--text2);margin-bottom:10px">תורנות אחרונה: <b>' + fmtD(entries[0].date) + '</b></div>' +
+    '<div style="display:flex;flex-direction:column;gap:6px;max-height:50vh;overflow-y:auto">' +
+    entries.map(e => `
+      <div style="display:flex;gap:10px;align-items:baseline;padding:8px 12px;background:rgba(128,128,128,.06);border-radius:8px;font-size:13px;flex-wrap:wrap">
+        <span style="font-weight:700;direction:ltr">${fmtD(e.date)}</span>
+        <span style="color:var(--text2);font-size:12px">${dow(e.date)}</span>
+        <span style="color:var(--accent);font-weight:600">${escapeHtml(e.dutyType || e.dayType || '')}</span>
+        ${e.role !== 'מבצע' ? `<span style="font-size:11px;color:var(--text2)">(${e.role})</span>` : ''}
+        <span style="margin-inline-start:auto;color:var(--text2);font-size:12px">+${e.score}</span>
+      </div>`).join('') +
+    '</div>';
 }
 
 // ===== ADMIN AUDIT LOG PAGE =====
@@ -2292,7 +2361,7 @@ async function loadUsers() { // keep name for tab switching
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         ${phone ? `<a href="tel:${phone}" class="btn btn-secondary btn-sm" title="התקשר" style="flex:1;min-width:40px;text-align:center;display:flex;align-items:center;justify-content:center">📞</a>` : ''}
         ${waPhone ? `<a href="https://wa.me/972${waPhone}" target="_blank" class="btn btn-secondary btn-sm" title="WhatsApp" style="flex:1;min-width:40px;text-align:center;display:flex;align-items:center;justify-content:center">💬</a>` : ''}
-        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick='openEditTorani(${JSON.stringify(t)})' title="ערוך" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">✏️</button>` : ''}
+        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" data-name="${escapeHtml(t.name)}" onclick="openToraniHistory(this.dataset.name)" title="היסטוריית תורנויות" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">📖</button>` : ''}${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick='openEditTorani(${JSON.stringify(t)})' title="ערוך" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">✏️</button>` : ''}
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="resetPassword('${t.username}','${t.name}','${t.phone}')" title="איפוס סיסמה" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">🔑</button>` : ''}
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="sendLoginDetails('${t.username}','${t.name}','${t.phone}')" title="שלח פרטי כניסה בוואטסאפ" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">📧</button>` : ''}
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="toggleTorani('${t.username}')" title="${isActive ? 'השבת' : 'הפעל'}" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">${isActive ? '🔒' : '🔓'}</button>` : ''}
@@ -2383,7 +2452,7 @@ function filterTornim(query) {
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         ${phone ? `<a href="tel:${phone}" class="btn btn-secondary btn-sm" title="התקשר" style="flex:1;min-width:40px;text-align:center;display:flex;align-items:center;justify-content:center">📞</a>` : ''}
         ${waPhone ? `<a href="https://wa.me/972${waPhone}" target="_blank" class="btn btn-secondary btn-sm" title="WhatsApp" style="flex:1;min-width:40px;text-align:center;display:flex;align-items:center;justify-content:center">💬</a>` : ''}
-        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick='openEditTorani(${JSON.stringify(t)})' title="ערוך" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">✏️</button>` : ''}
+        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" data-name="${escapeHtml(t.name)}" onclick="openToraniHistory(this.dataset.name)" title="היסטוריית תורנויות" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">📖</button>` : ''}${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick='openEditTorani(${JSON.stringify(t)})' title="ערוך" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">✏️</button>` : ''}
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="resetPassword('${t.username}','${t.name}','${t.phone}')" title="איפוס סיסמה" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">🔑</button>` : ''}
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="sendLoginDetails('${t.username}','${t.name}','${t.phone}')" title="שלח פרטי כניסה בוואטסאפ" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">📧</button>` : ''}
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="toggleTorani('${t.username}')" title="${isActive ? 'השבת' : 'הפעל'}" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">${isActive ? '🔒' : '🔓'}</button>` : ''}
@@ -2463,7 +2532,7 @@ function filterTornimByCategory(kind) {
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         ${phone ? `<a href="tel:${phone}" class="btn btn-secondary btn-sm" title="התקשר" style="flex:1;min-width:40px;text-align:center;display:flex;align-items:center;justify-content:center">📞</a>` : ''}
         ${waPhone ? `<a href="https://wa.me/972${waPhone}" target="_blank" class="btn btn-secondary btn-sm" title="WhatsApp" style="flex:1;min-width:40px;text-align:center;display:flex;align-items:center;justify-content:center">💬</a>` : ''}
-        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick='openEditTorani(${JSON.stringify(t)})' title="ערוך" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">✏️</button>` : ''}
+        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" data-name="${escapeHtml(t.name)}" onclick="openToraniHistory(this.dataset.name)" title="היסטוריית תורנויות" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">📖</button>` : ''}${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick='openEditTorani(${JSON.stringify(t)})' title="ערוך" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">✏️</button>` : ''}
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="resetPassword('${t.username}','${t.name}','${t.phone}')" title="איפוס סיסמה" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">🔑</button>` : ''}
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="sendLoginDetails('${t.username}','${t.name}','${t.phone}')" title="שלח פרטי כניסה בוואטסאפ" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">📧</button>` : ''}
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="toggleTorani('${t.username}')" title="${isActive ? 'השבת' : 'הפעל'}" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">${isActive ? '🔒' : '🔓'}</button>` : ''}
@@ -2532,7 +2601,7 @@ function filterTornimEndingSoon() {
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         ${phone ? `<a href="tel:${phone}" class="btn btn-secondary btn-sm" title="התקשר" style="flex:1;min-width:40px;text-align:center;display:flex;align-items:center;justify-content:center">📞</a>` : ''}
         ${waPhone ? `<a href="https://wa.me/972${waPhone}" target="_blank" class="btn btn-secondary btn-sm" title="WhatsApp" style="flex:1;min-width:40px;text-align:center;display:flex;align-items:center;justify-content:center">💬</a>` : ''}
-        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick='openEditTorani(${JSON.stringify(t)})' title="ערוך" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">✏️</button>` : ''}
+        ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" data-name="${escapeHtml(t.name)}" onclick="openToraniHistory(this.dataset.name)" title="היסטוריית תורנויות" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">📖</button>` : ''}${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick='openEditTorani(${JSON.stringify(t)})' title="ערוך" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">✏️</button>` : ''}
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="resetPassword('${t.username}','${t.name}','${t.phone}')" title="איפוס סיסמה" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">🔑</button>` : ''}
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="sendLoginDetails('${t.username}','${t.name}','${t.phone}')" title="שלח פרטי כניסה בוואטסאפ" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">📧</button>` : ''}
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="toggleTorani('${t.username}')" title="${isActive ? 'השבת' : 'הפעל'}" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">${isActive ? '🔒' : '🔓'}</button>` : ''}
@@ -5017,8 +5086,10 @@ async function loadProfile() {
   if (currentUser && currentUser.role === 'viewer') {
     const nameCard = document.getElementById('profile-name')?.closest('.card');
     const dutyCard = document.getElementById('profile-weekend')?.closest('.card');
+    const histCard = document.getElementById('profile-history-card');
     if (nameCard) nameCard.style.display = 'none';
     if (dutyCard) dutyCard.style.display = 'none';
+    if (histCard) histCard.style.display = 'none';
     return;
   }
   // Load person data from People sheet (accessible to all users)
