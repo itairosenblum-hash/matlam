@@ -1363,6 +1363,10 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
   </div>
 </div>
 
+<div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
+  מטל"מ · גרסה <span id="version-stamp">06/07/2026 07:56</span><span id="version-update-hint"></span>
+</div>
+
 <div class="loading-overlay" id="loading">
   <div class="spinner" style="width:36px;height:36px;border-width:3px"></div>
   <div class="loading-text">אנא המתן...</div>
@@ -1372,6 +1376,9 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // =====================================================
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
+// Build stamp — updated automatically on every push
+const BUILD_STAMP = '06/07/2026 07:56';
+
 (function() {
   // בדוק גרסה ברקע — אם יש עדכון, מחק session
   fetch('https://api.github.com/repos/itairosenblum-hash/matlam/commits/main?per_page=1', {cache: 'no-store'})
@@ -1385,6 +1392,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
         sessionStorage.clear();
         if ('caches' in window) caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
         console.log('🔄 גרסה חדשה זוהתה, session נוקה');
+        const hint = document.getElementById('version-update-hint');
+        if (hint) hint.innerHTML = ' · <a href="javascript:location.reload(true)" style="color:var(--accent)">🔄 גרסה חדשה זמינה — רענן</a>';
       }
       localStorage.setItem('app_commit_sha', latestSha);
     })
