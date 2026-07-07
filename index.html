@@ -1376,7 +1376,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">07/07/2026 07:06</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">07/07/2026 19:24</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1389,8 +1389,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = '07/07/2026 07:06';
-const BUILD_EPOCH = 1783397172215; // ms — when this exact file was pushed
+const BUILD_STAMP = '07/07/2026 19:24';
+const BUILD_EPOCH = 1783441443126; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -1499,6 +1499,14 @@ async function api(params) {
   }
 
   const result = await apiJsonp(params);
+
+  // Global session-expiry handling: any 401 → back to login with a clear message
+  if (result && result.code === 401 && params.action !== 'login') {
+    doLogout();
+    showLoading(false);
+    showAlert('login-alert', '⏳ פג תוקף החיבור — יש להתחבר מחדש', 'info');
+    throw new Error('session expired');
+  }
 
   // Store in cache
   if (_CACHEABLE.includes(params.action) && result.success) {
