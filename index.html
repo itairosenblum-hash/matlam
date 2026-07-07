@@ -675,6 +675,25 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
     <div id="bottom-nav"></div>
 
     <div class="main">
+      <!-- USER: HOME TAB -->
+      <div id="tab-home" class="tab-content hidden">
+        <div class="section-header">
+          <div>
+            <div class="section-title" id="home-greeting">🏠 שלום!</div>
+            <div class="section-subtitle">סיכום התורנויות והאילוצים שלך</div>
+          </div>
+        </div>
+        <div id="home-constraint-card" class="card" style="margin-bottom:16px;display:none"></div>
+        <div class="card" style="margin-bottom:16px">
+          <div style="font-weight:700;font-size:15px;margin-bottom:10px" id="home-cur-title">📅 התורנויות שלי החודש</div>
+          <div id="home-cur-duties"><div class="empty-state" style="padding:16px"><p style="font-size:13px;color:var(--text2)">טוען...</p></div></div>
+        </div>
+        <div class="card">
+          <div style="font-weight:700;font-size:15px;margin-bottom:10px" id="home-next-title">📅 התורנויות שלי בחודש הבא</div>
+          <div id="home-next-duties"><div class="empty-state" style="padding:16px"><p style="font-size:13px;color:var(--text2)">טוען...</p></div></div>
+        </div>
+      </div>
+
       <!-- USER: CONSTRAINTS TAB -->
       <div id="tab-constraints" class="tab-content hidden">
         <div class="section-header">
@@ -1376,7 +1395,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">07/07/2026 19:24</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">07/07/2026 19:50</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1389,8 +1408,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = '07/07/2026 19:24';
-const BUILD_EPOCH = 1783441443126; // ms — when this exact file was pushed
+const BUILD_STAMP = '07/07/2026 19:50';
+const BUILD_EPOCH = 1783443047957; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -1591,7 +1610,7 @@ function impersonateUser(username) {
   const savedTab = currentTab;
   buildNavTabs();
   // Try to stay on same tab, else go to constraints
-  const userTabs = ['full-schedule','constraints','scores','swap','profile','guide'];
+  const userTabs = ['home','full-schedule','constraints','scores','swap','profile','guide'];
   if (savedTab && userTabs.includes(savedTab)) {
     switchTab(savedTab);
   } else {
@@ -1748,7 +1767,7 @@ async function initApp() {
     document.getElementById('admin-schedule-month').value = currentMonth;
     loadAdminSchedule();
   } else {
-    switchTab('full-schedule');
+    switchTab('home');
     // Auto-load current month for constraints
     const now = new Date();
     const currentMonth = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}`;
@@ -1938,7 +1957,7 @@ function buildNavTabs() {
     ? [['admin-schedule','📅','לוח'],['admin-constraints','🚫','אילוצים'],['admin-scores','📊','ניקוד'],['admin-users','👥','תורנים'],['admin-swaps','🔄','החלפות'],['admin-audit','📋','יומן'],['guide','📖','מדריך']]
     : currentUser.role === 'viewer'
     ? [['admin-schedule','📅','לוח'],['scores','📊','ניקוד'],['admin-users','👥','תורנים'],['profile','👤','פרופיל']]
-    : [['full-schedule','📅','לוח'],['constraints','🚫','אילוצים'],['scores','📊','ניקוד'],['swap','🔄','החלפה'],['profile','👤','פרופיל'],['guide','📖','מדריך']];
+    : [['home','🏠','בית'],['full-schedule','📅','לוח'],['constraints','🚫','אילוצים'],['scores','📊','ניקוד'],['swap','🔄','החלפה'],['profile','👤','פרופיל'],['guide','📖','מדריך']];
 
   // Desktop nav (hidden on mobile via CSS)
   container.innerHTML = tabs.map(([id,icon,label])=>
@@ -2013,6 +2032,7 @@ function switchTab(id) {
   if (id === 'admin-schedule') loadAdminSchedule();
   if (id === 'admin-scores') loadScores();
   if (id === 'admin-constraints') { loadAdminConstraints(); loadLockStatus(); }
+  if (id === 'home') { loadHomePage(); }
   if (id === 'full-schedule') { loadUserFullSchedule(); }
   if (id === 'scores') { loadUserScores(); }
   if (id === 'swap') { initSwapTab(); }
@@ -4295,6 +4315,132 @@ async function sendMonthlySchedule() {
 // =====================================================
 // USER: FULL SCHEDULE (read-only)
 // =====================================================
+// =====================================================
+// HOME PAGE (user)
+// =====================================================
+function nextMonthStr(month, add) {
+  const y = parseInt(month.substring(0,4)), m = parseInt(month.substring(4,6));
+  const total = (y * 12 + (m - 1)) + (add || 1);
+  return `${Math.floor(total/12)}${String((total%12)+1).padStart(2,'0')}`;
+}
+
+function renderHomeDuties(res, containerId, month) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const {year, mon} = parseMonth(month);
+  if (res && res.success && res.draft) {
+    el.innerHTML = '<div style="font-size:13px;color:var(--text2);padding:8px 0">🛠️ הלוח בהכנה ויפורסם בקרוב</div>';
+    return;
+  }
+  if (!res || !res.success || !res.schedule || !res.schedule.length) {
+    el.innerHTML = '<div style="font-size:13px;color:var(--text2);padding:8px 0">📭 אין עדיין לוח לחודש זה</div>';
+    return;
+  }
+  const me = currentUser.name;
+  const roleOf = e =>
+    e.v === me ? ['✅','מבצע','var(--success, #2ea043)'] :
+    e.v2 === me ? ['✅','מבצע שני','var(--success, #2ea043)'] :
+    e.a === me ? ['🅰️','עתודה א׳','var(--accent)'] :
+    e.b === me ? ['🅱️','עתודה ב׳','var(--text2)'] :
+    e.t === me ? ['🎓','תורנות הסמכה','#8957e5'] : null;
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  const rows = [];
+  res.schedule.forEach(e => {
+    const r = roleOf(e);
+    if (!r) return;
+    const d = parseInt(e.date.split('-')[2] || e.date.split('/')[0]) || 0;
+    const dow = HEB_DAYS[new Date(year, mon-1, d).getDay()];
+    const isToday = e.date === todayStr;
+    const isPast = e.date < todayStr;
+    rows.push(`<div style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--border);${isPast?'opacity:0.5;':''}${isToday?'background:rgba(46,160,67,0.08);border-radius:8px;':''}">
+      <div style="min-width:44px;text-align:center">
+        <div style="font-weight:800;font-size:17px">${d}</div>
+        <div style="font-size:10px;color:var(--text2)">${dow}</div>
+      </div>
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:13px;color:${r[2]}">${r[0]} ${r[1]}</div>
+        <div style="font-size:11px;color:var(--text2)">${e.notes || e.dutyType || e.dayType || ''}${isToday?' · היום!':''}</div>
+      </div>
+    </div>`);
+  });
+  if (rows.length) {
+    rows[rows.length-1] = rows[rows.length-1].replace('border-bottom:1px solid var(--border);','');
+    el.innerHTML = rows.join('');
+  } else {
+    el.innerHTML = '<div style="font-size:13px;color:var(--text2);padding:8px 0">🎉 אין לך תורנויות בחודש זה</div>';
+  }
+}
+
+function renderHomeConstraintCard(openMonth, submitted) {
+  const card = document.getElementById('home-constraint-card');
+  if (!card) return;
+  if (!openMonth) {
+    card.style.display = 'block';
+    card.innerHTML = '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:22px">🔒</span><div><div style="font-weight:700;font-size:14px">הגשת אילוצים</div><div style="font-size:12px;color:var(--text2)">אין כרגע חודש פתוח להגשת אילוצים</div></div></div>';
+    return;
+  }
+  const {year, mon} = parseMonth(openMonth);
+  const label = `${MONTHS[mon-1]} ${year}`;
+  card.style.display = 'block';
+  if (submitted) {
+    card.innerHTML = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:22px">✅</span>
+      <div style="flex:1;min-width:150px"><div style="font-weight:700;font-size:14px;color:var(--success, #2ea043)">האילוצים ל${label} הוגשו</div>
+      <div style="font-size:12px;color:var(--text2)">אפשר לעדכן אותם כל עוד ההגשה פתוחה</div></div>
+      <button class="btn btn-secondary btn-sm" onclick="goToConstraints('${openMonth}')">✏️ עדכון</button>
+    </div>`;
+  } else {
+    card.innerHTML = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:22px">⏳</span>
+      <div style="flex:1;min-width:150px"><div style="font-weight:700;font-size:14px;color:var(--warning, #d29922)">טרם הגשת אילוצים ל${label}</div>
+      <div style="font-size:12px;color:var(--text2)">ההגשה פתוחה — אל תשכח להגיש!</div></div>
+      <button class="btn btn-primary btn-sm" onclick="goToConstraints('${openMonth}')">🚫 להגשה</button>
+    </div>`;
+  }
+}
+
+function goToConstraints(month) {
+  const sel = document.getElementById('constraint-month-select');
+  if (sel) sel.value = month;
+  switchTab('constraints');
+}
+
+async function loadHomePage() {
+  const g = document.getElementById('home-greeting');
+  if (g) g.textContent = `🏠 שלום, ${currentUser.name}!`;
+  const now = new Date();
+  const cur = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}`;
+  const next = nextMonthStr(cur, 1);
+  const next2 = nextMonthStr(cur, 2);
+  const curP = parseMonth(cur), nextP = parseMonth(next);
+  const t1 = document.getElementById('home-cur-title');
+  const t2 = document.getElementById('home-next-title');
+  if (t1) t1.textContent = `📅 התורנויות שלי — ${MONTHS[curP.mon-1]} ${curP.year}`;
+  if (t2) t2.textContent = `📅 התורנויות שלי — ${MONTHS[nextP.mon-1]} ${nextP.year}`;
+
+  // Duties (parallel)
+  api({action:'getSchedule', month: cur}).then(r => renderHomeDuties(r, 'home-cur-duties', cur)).catch(()=>renderHomeDuties(null,'home-cur-duties',cur));
+  api({action:'getSchedule', month: next}).then(r => renderHomeDuties(r, 'home-next-duties', next)).catch(()=>renderHomeDuties(null,'home-next-duties',next));
+
+  // Constraint status: find an open month (next, then next+1, then current)
+  try {
+    const candidates = [next, next2, cur];
+    const locks = await Promise.all(candidates.map(m => api({action:'getLockStatus', month:m}).catch(()=>({locked:true}))));
+    let openMonth = null;
+    for (let i = 0; i < candidates.length; i++) {
+      if (locks[i] && locks[i].success && !locks[i].locked) { openMonth = candidates[i]; break; }
+    }
+    if (!openMonth) { renderHomeConstraintCard(null, false); return; }
+    const cRes = await api({action:'getConstraints', month: openMonth, viewAs: currentUser.username});
+    const submitted = !!(cRes && cRes.success && (
+      (cRes.constraints || []).some(c => c === 'X' || c === 'x' || c === 'V' || c === 'v' || c === true) ||
+      (cRes.notes && String(cRes.notes).trim())
+    ));
+    renderHomeConstraintCard(openMonth, submitted);
+  } catch(e) { renderHomeConstraintCard(null, false); }
+}
+
 async function loadUserFullSchedule() {
   const month = String(document.getElementById('user-schedule-month').value);
   showLoading(true);
