@@ -973,10 +973,22 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
           <p>תיעוד כל הפעולות במערכת — מי עשה מה ומתי (מנהל בלבד)</p>
         </div>
         <div class="card">
-          <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
-            <input id="audit-search" type="text" placeholder="🔍 חיפוש ביומן — שם, פעולה, חודש..." style="flex:1;min-width:200px" oninput="filterAuditLog()">
+          <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+            <input id="audit-search" type="text" placeholder="🔍 חיפוש חופשי — שם, פעולה, פרטים..." style="flex:1;min-width:200px" oninput="filterAuditLog()">
             <button class="btn btn-secondary btn-sm" onclick="loadAuditLog()">🔄 רענן</button>
           </div>
+          <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+            <select id="audit-filter-action" style="min-width:150px" onchange="filterAuditLog()">
+              <option value="">כל סוגי הפעולות</option>
+            </select>
+            <select id="audit-filter-user" style="min-width:150px" onchange="filterAuditLog()">
+              <option value="">כל המשתמשים</option>
+            </select>
+            <input id="audit-filter-from" type="date" title="מתאריך" onchange="filterAuditLog()">
+            <input id="audit-filter-to" type="date" title="עד תאריך" onchange="filterAuditLog()">
+            <button class="btn btn-secondary btn-sm" onclick="clearAuditFilters()">✖ נקה סינון</button>
+          </div>
+          <div id="audit-stats" style="font-size:12px;color:var(--text2);margin-bottom:8px"></div>
           <div id="audit-content"><div class="empty-state"><div class="icon">⏳</div><p>טוען...</p></div></div>
         </div>
       </div>
@@ -1364,7 +1376,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">07/07/2026 06:54</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">07/07/2026 07:06</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1377,8 +1389,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = '07/07/2026 06:54';
-const BUILD_EPOCH = 1783396460247; // ms — when this exact file was pushed
+const BUILD_STAMP = '07/07/2026 07:06';
+const BUILD_EPOCH = 1783397172215; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -1812,38 +1824,99 @@ async function loadAuditLog() {
     return;
   }
   _auditEntries = res.entries || [];
+  populateAuditFilters();
   filterAuditLog();
+}
+
+function populateAuditFilters() {
+  const actionSel = document.getElementById('audit-filter-action');
+  const userSel = document.getElementById('audit-filter-user');
+  if (!actionSel || !userSel) return;
+  const curAction = actionSel.value, curUser = userSel.value;
+  const actions = [...new Set(_auditEntries.map(e => e.action).filter(Boolean))].sort();
+  const users = [...new Set(_auditEntries.map(e => e.who).filter(Boolean))].sort();
+  actionSel.innerHTML = '<option value="">כל סוגי הפעולות</option>' +
+    actions.map(a => `<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join('');
+  userSel.innerHTML = '<option value="">כל המשתמשים</option>' +
+    users.map(u => `<option value="${escapeHtml(u)}">${escapeHtml(u)}</option>`).join('');
+  if (actions.includes(curAction)) actionSel.value = curAction;
+  if (users.includes(curUser)) userSel.value = curUser;
+}
+
+function clearAuditFilters() {
+  const s = document.getElementById('audit-search'); if (s) s.value = '';
+  const a = document.getElementById('audit-filter-action'); if (a) a.value = '';
+  const u = document.getElementById('audit-filter-user'); if (u) u.value = '';
+  const f = document.getElementById('audit-filter-from'); if (f) f.value = '';
+  const t = document.getElementById('audit-filter-to'); if (t) t.value = '';
+  filterAuditLog();
+}
+
+// Visual category (icon + color) per action, derived from the action label itself —
+// no backend change needed since AuditLog already stores a Hebrew action name per row.
+function auditActionMeta(action) {
+  const a = String(action || '');
+  if (a.includes('מחיקת') || a.includes('השבתה')) return {icon:'🗑️', color:'var(--danger)'};
+  if (a.includes('הוספת') || a.includes('הפעלה')) return {icon:'➕', color:'var(--accent)'};
+  if (a.includes('עדכון') || a.includes('עריכת') || a.includes('שינוי')) return {icon:'✏️', color:'#f0a020'};
+  if (a.includes('לוח') || a.includes('שיבוץ') || a.includes('פרסום')) return {icon:'📅', color:'#4f8ef0'};
+  if (a.includes('החלפה')) return {icon:'🔄', color:'#9b6bd6'};
+  if (a.includes('אילוצים')) return {icon:'🚫', color:'#e07070'};
+  if (a.includes('סיסמה')) return {icon:'🔑', color:'#888'};
+  if (a.includes('אתחול') || a.includes('איפוס')) return {icon:'⚙️', color:'#888'};
+  return {icon:'📌', color:'var(--text2)'};
 }
 
 function renderAuditLog(entries, total) {
   const container = document.getElementById('audit-content');
+  const statsEl = document.getElementById('audit-stats');
+  if (statsEl) statsEl.textContent = 'מוצגות ' + entries.length + ' רשומות מתוך ' + total + ' שנטענו';
   if (!entries.length) {
-    container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>אין רשומות ביומן</p></div>';
+    container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>אין רשומות תואמות לסינון</p></div>';
     return;
   }
   const p2 = n => String(n).padStart(2, '0');
   const fmtTs = iso => {
     const d = new Date(iso);
     if (isNaN(d)) return escapeHtml(String(iso));
-    return p2(d.getDate()) + '/' + p2(d.getMonth()+1) + '/' + d.getFullYear() + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
+    return p2(d.getDate()) + '/' + p2(d.getMonth()+1) + '/' + d.getFullYear() + ' ' +
+           p2(d.getHours()) + ':' + p2(d.getMinutes()) + ':' + p2(d.getSeconds());
   };
   container.innerHTML =
     '<div style="display:flex;flex-direction:column;gap:8px">' +
-    entries.map(e => `
-      <div style="display:flex;gap:10px;align-items:baseline;padding:10px 12px;background:rgba(128,128,128,.07);border-radius:10px;font-size:13.5px;flex-wrap:wrap">
-        <span style="color:var(--text2);font-size:12px;white-space:nowrap;direction:ltr">${fmtTs(e.ts)}</span>
-        <span style="font-weight:700">${escapeHtml(e.who)}</span>
-        <span style="color:var(--accent);font-weight:600">${escapeHtml(e.action)}</span>
-        <span style="color:var(--text2)">${escapeHtml(e.details)}</span>
-      </div>`).join('') +
+    entries.map(e => {
+      const meta = auditActionMeta(e.action);
+      return `
+      <div style="padding:10px 12px;background:rgba(128,128,128,.07);border-radius:10px;border-inline-start:3px solid ${meta.color}">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <span style="font-size:15px">${meta.icon}</span>
+          <span style="font-weight:700">${escapeHtml(e.who)}</span>
+          <span style="color:${meta.color};font-weight:600">${escapeHtml(e.action)}</span>
+          <span style="margin-inline-start:auto;color:var(--text2);font-size:11.5px;white-space:nowrap;direction:ltr">${fmtTs(e.ts)}</span>
+        </div>
+        ${e.details ? `<div style="color:var(--text2);font-size:13px;margin-top:4px;padding-inline-start:24px">${escapeHtml(e.details)}</div>` : ''}
+      </div>`;
+    }).join('') +
     '</div>' +
-    (total >= 300 ? '<div style="text-align:center;color:var(--text2);font-size:12px;margin-top:10px">מוצגות 300 הרשומות האחרונות — ההיסטוריה המלאה בלשונית AuditLog בגיליון</div>' : '');
+    (total >= 300 ? '<div style="text-align:center;color:var(--text2);font-size:12px;margin-top:10px">נטענו 300 הרשומות האחרונות — ההיסטוריה המלאה בלשונית AuditLog בגיליון</div>' : '');
 }
 
 function filterAuditLog() {
-  const q = (document.getElementById('audit-search')?.value || '').trim();
-  const list = !q ? _auditEntries
-    : _auditEntries.filter(e => (e.who + ' ' + e.action + ' ' + e.details).includes(q));
+  const q = (document.getElementById('audit-search')?.value || '').trim().toLowerCase();
+  const actionFilter = document.getElementById('audit-filter-action')?.value || '';
+  const userFilter = document.getElementById('audit-filter-user')?.value || '';
+  const fromVal = document.getElementById('audit-filter-from')?.value || '';
+  const toVal = document.getElementById('audit-filter-to')?.value || '';
+  const fromDate = fromVal ? new Date(fromVal + 'T00:00:00') : null;
+  const toDate = toVal ? new Date(toVal + 'T23:59:59') : null;
+
+  let list = _auditEntries;
+  if (actionFilter) list = list.filter(e => e.action === actionFilter);
+  if (userFilter) list = list.filter(e => e.who === userFilter);
+  if (fromDate) list = list.filter(e => { const d = new Date(e.ts); return !isNaN(d) && d >= fromDate; });
+  if (toDate) list = list.filter(e => { const d = new Date(e.ts); return !isNaN(d) && d <= toDate; });
+  if (q) list = list.filter(e => (e.who + ' ' + e.action + ' ' + e.details).toLowerCase().includes(q));
+
   renderAuditLog(list, _auditEntries.length);
 }
 
