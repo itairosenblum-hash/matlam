@@ -764,7 +764,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 
             <!-- 6. Quick actions -->
             <div class="home-actions-grid" style="margin-top:10px">
-              <button class="home-action-btn" onclick="switchTab('constraints')">
+              <button class="home-action-btn" onclick="goToConstraintsOpen()">
                 <span class="ab-icon">📅</span><span class="ab-label">הגשת אילוצים</span>
               </button>
               <button class="home-action-btn" onclick="switchTab('swap')">
@@ -1515,7 +1515,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">08/07/2026 10:41</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">08/07/2026 10:43</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1528,8 +1528,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = '08/07/2026 10:41';
-const BUILD_EPOCH = 1783496467169; // ms — when this exact file was pushed
+const BUILD_STAMP = '08/07/2026 10:43';
+const BUILD_EPOCH = 1783496639142; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
