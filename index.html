@@ -1442,7 +1442,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">08/07/2026 06:43</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">08/07/2026 10:11</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1455,8 +1455,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = '08/07/2026 06:43';
-const BUILD_EPOCH = 1783482197049; // ms — when this exact file was pushed
+const BUILD_STAMP = '08/07/2026 10:11';
+const BUILD_EPOCH = 1783494683855; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -2056,7 +2056,7 @@ function preloadAdjacentMonths(currentMonth) {
   const m = parseInt(currentMonth.substring(4,6));
   const next = m===12 ? `${y+1}01` : `${y}${String(m+1).padStart(2,'0')}`;
   // Only preload next month (most likely to be needed), with long delay so it doesn't compete with main render
-  setTimeout(() => api({action:'getSchedule', month: next}).catch(()=>{}), 8000);
+  setTimeout(() => api({action:'getSchedule', month: next}).then(r => { window._adjScheduleCache = r; }).catch(()=>{}), 8000);
 }
 
 function switchTab(id) {
@@ -3005,24 +3005,28 @@ function renderAdminWeekCard(res, month) {
   if (!card) return;
   const now = new Date(); now.setHours(0,0,0,0);
   const {year, mon} = parseMonth(month);
-  const title = `<div class="home-card-title">📅 לוח השבוע</div>`;
+  const title = `<div class="home-card-title">📅 היום + 4 ימים קדימה</div>`;
   if (!res || !res.success || res.draft || !res.schedule || !res.schedule.length) {
     card.innerHTML = title + '<div style="font-size:13px;color:var(--text2)">אין לוח לחודש הנוכחי</div>'; return;
   }
-  // Get Mon–Sun of current week (Sun=0)
-  const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay()); // Sun
-  const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);    // Sat
-  const week = res.schedule.filter(e => {
-    const d = parseInt(e.date.split('-')[2] || e.date.split('/')[0]) || 0;
-    const dt = new Date(year, mon-1, d);
-    return dt >= weekStart && dt <= weekEnd;
-  });
-  if (!week.length) { card.innerHTML = title + '<div style="font-size:13px;color:var(--text2)">אין ימים השבוע בלוח</div>'; return; }
+  // Build list of next 5 days starting from today (across month boundary if needed)
+  const next5Dates = [];
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(now); d.setDate(now.getDate() + i);
+    next5Dates.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
+  }
+  // Merge current + adjacent month schedules
+  let allEntries = [...(res.schedule || [])];
+  const pAdj = window._adjScheduleCache;
+  if (pAdj && pAdj.schedule) allEntries = allEntries.concat(pAdj.schedule);
+  const week = next5Dates.map(ds => allEntries.find(e => e.date === ds)).filter(Boolean);
+  if (!week.length) { card.innerHTML = title + '<div style="font-size:13px;color:var(--text2)">אין ימים קדימה בלוח</div>'; return; }
   const dayNames = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
   const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
   const rows = week.map(e => {
-    const d = parseInt(e.date.split('-')[2] || e.date.split('/')[0]) || 0;
-    const dt = new Date(year, mon-1, d);
+    const dateParts = e.date.includes('-') ? e.date.split('-') : [e.date.split('/')[2], e.date.split('/')[1], e.date.split('/')[0]];
+    const d = parseInt(dateParts[2]) || 0;
+    const dt = new Date(parseInt(dateParts[0]), parseInt(dateParts[1])-1, d);
     const dow = dayNames[dt.getDay()];
     const isToday = e.date === todayStr;
     const isPast = e.date < todayStr;
