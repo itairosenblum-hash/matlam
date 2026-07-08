@@ -757,12 +757,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
             <!-- Today's duty -->
             <div id="home-today-card" style="margin-top:10px;display:none"></div>
 
-            <!-- Stats row: constraints / month / score -->
-            <div class="home-stats-row" style="margin-top:10px" id="home-stats-row">
-              <div class="home-stat-card"><div class="sv accent" id="stat-constraints">—</div><div class="sl">אילוצים</div></div>
-              <div class="home-stat-card"><div class="sv" id="stat-month">—</div><div class="sl">חודש</div></div>
-              <div class="home-stat-card"><div class="sv" id="stat-score">—</div><div class="sl">נקודות</div></div>
-            </div>
+            <!-- Score card (replaces stats row) -->
+            <div id="home-score-card" style="margin-top:10px;display:none"></div>
 
             <!-- Quick actions -->
             <div class="home-actions-grid">
@@ -1517,7 +1513,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">08/07/2026 10:23</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">08/07/2026 10:35</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1530,8 +1526,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = '08/07/2026 10:23';
-const BUILD_EPOCH = 1783495403729; // ms — when this exact file was pushed
+const BUILD_STAMP = '08/07/2026 10:35';
+const BUILD_EPOCH = 1783496152759; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -4692,6 +4688,7 @@ function renderHomeConstraintCard(openMonth, submitted) {
   const {year: cyear, mon: cmon} = openMonth ? parseMonth(openMonth) : {};
   const label = openMonth ? `${MONTHS[cmon-1]} ${cyear}` : '';
   card.style.display = 'block';
+  if (openMonth) card.dataset.openMonth = openMonth;
   if (!openMonth) {
     card.innerHTML = `<div style="display:flex;align-items:center;gap:10px;background:var(--surface);border-radius:14px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.07)"><span style="font-size:20px">🔒</span><div style="font-size:13px;color:var(--text2)">אין כרגע חודש פתוח להגשת אילוצים</div></div>`;
     return;
@@ -4701,14 +4698,14 @@ function renderHomeConstraintCard(openMonth, submitted) {
       <span style="font-size:22px">✅</span>
       <div style="flex:1"><div style="font-weight:800;font-size:14px;color:var(--success,#2ea043)">אילוצים ל${label} הוגשו</div>
       <div style="font-size:12px;color:var(--text2)">אפשר לעדכן כל עוד ההגשה פתוחה</div></div>
-      <button class="btn btn-secondary btn-sm" onclick="goToConstraints('${openMonth}')">עדכון</button>
+      <button class="btn btn-secondary btn-sm" onclick="goToConstraintsOpen()">עדכון</button>
     </div>`;
   } else {
     card.innerHTML = `<div style="display:flex;align-items:center;gap:12px;background:rgba(210,153,34,.07);border-radius:14px;padding:14px;border:1px solid rgba(210,153,34,.3)">
       <span style="font-size:22px">⏰</span>
       <div style="flex:1"><div style="font-weight:800;font-size:14px;color:#d29922">הגשת אילוצים ל${label} עדיין פתוחה</div>
       <div style="font-size:12px;color:var(--text2)">אל תשכח להגיש עד הסגירה</div></div>
-      <button class="btn btn-primary btn-sm" onclick="goToConstraints('${openMonth}')">הגש עכשיו</button>
+      <button class="btn btn-primary btn-sm" onclick="goToConstraintsOpen()">הגש עכשיו</button>
     </div>`;
   }
 }
@@ -4717,6 +4714,13 @@ function goToConstraints(month) {
   const sel = document.getElementById('constraint-month-select');
   if (sel) sel.value = month;
   switchTab('constraints');
+}
+function goToConstraintsOpen() {
+  // Navigate to the open constraint month (stored on the card's dataset)
+  const card = document.getElementById('home-constraint-card');
+  const month = card && card.dataset.openMonth;
+  if (month) goToConstraints(month);
+  else switchTab('constraints');
 }
 
 function renderHomeHero(schedCur, schedNext, curMonth, nextMonth) {
@@ -4760,11 +4764,10 @@ function renderHomeHero(schedCur, schedNext, curMonth, nextMonth) {
         <div style="font-size:13px;color:var(--text2);margin-top:4px">יום ${dow}${dayInfo?' · '+dayInfo:''}</div>
       </div>
     </div>
-    <div style="margin-top:14px;display:flex;gap:8px">
-      <button class="btn btn-primary" style="flex:1" onclick="switchTab('schedule')">פרטים</button>
-      <button class="btn btn-secondary" style="flex:1" onclick="switchTab('swap')">בקש החלפה</button>
+    <div style="margin-top:14px">
+      <button class="btn btn-secondary" style="width:100%" onclick="switchTab('swap')">🔄 בקש החלפה</button>
     </div>
-    <div style="margin-top:10px;text-align:center;font-size:12px;color:${diff<=1?'var(--danger)':'var(--accent)'};font-weight:700">כניסה ${diff===0?'היום!':diff===1?'מחר':diff+' ימים'}</div>
+    <div style="margin-top:10px;text-align:center;font-size:12px;color:${diff<=1?'var(--danger)':'var(--accent)'};font-weight:700">${diff===0?'היום!':diff===1?'מחר':diff===2?'מחרתיים':'עוד '+diff+' ימים'}</div>
   </div>`;
 }
 
@@ -4864,21 +4867,6 @@ function renderHomeToday(res, month) {
   </div>`;
 }
 
-function populateStatScore(res) {
-  const el = document.getElementById('stat-score');
-  if (!el || !res || !res.success) return;
-  const MK = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
-  const all = (res.scores||[]).filter(s => s && s.name && s.name !== 'מנהל מערכת');
-  all.forEach(s => { let t = s.acc2025||0; MK.forEach(k => t += ((s[k]||{}).score||0)); s._total = t; });
-  const mine = all.find(s => s.name === currentUser.name);
-  if (mine) el.textContent = mine._total;
-}
-function populateStatMonth(res, month) {
-  // constraint count
-  const el = document.getElementById('stat-month');
-  if (el) { const {mon} = parseMonth(month); el.textContent = mon; }
-}
-
 async function loadHomePage() {
   // Header: avatar initials + greeting by time of day
   const nm = currentUser.name || '';
@@ -4910,9 +4898,9 @@ async function loadHomePage() {
   Promise.all([pCur, pNext]).then(([r1, r2]) => renderHomeHero(r1, r2, cur, next));
 
   // Score snapshot + pending swaps (parallel, non-blocking)
-  api({action:'getScores'}).then(r => { renderHomeScore(r); populateStatScore(r); }).catch(()=>{});
+  api({action:'getScores'}).then(renderHomeScore).catch(()=>{});
   api({action:'getSwaps'}).then(renderHomeSwaps).catch(()=>{});
-  pCur.then(r => populateStatMonth(r, cur));
+
 
   // Constraint status: find an open month (next, then next+1, then current)
   try {
@@ -4928,10 +4916,6 @@ async function loadHomePage() {
       (cRes.constraints || []).some(c => c === 'X' || c === 'x' || c === 'V' || c === 'v' || c === true) ||
       (cRes.notes && String(cRes.notes).trim())
     ));
-    // Fill constraints stat
-    const xCount = cRes && cRes.constraints ? cRes.constraints.filter(c => c==='X'||c==='x').length : 0;
-    const statC = document.getElementById('stat-constraints');
-    if (statC) statC.textContent = xCount + '/6';
     renderHomeConstraintCard(openMonth, submitted);
   } catch(e) { renderHomeConstraintCard(null, false); }
 }
