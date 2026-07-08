@@ -596,6 +596,41 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 .setup-banner ol{margin-right:20px;font-size:13px;color:var(--text2);line-height:2}
 .setup-banner code{background:var(--surface3);padding:2px 6px;border-radius:4px;font-family:monospace;font-size:12px;color:var(--text)}
 
+/* ===== Home page — new design ===== */
+.home-page-wrap{background:var(--bg,#f2f4f7);min-height:100vh;padding:0 0 80px}
+.home-header-block{background:var(--surface);padding:20px 16px 16px;border-bottom:1px solid var(--border)}
+.home-avatar{width:44px;height:44px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;flex-shrink:0}
+.home-status-pill{display:inline-block;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:rgba(46,160,67,.12);color:var(--success,#2ea043);border:1px solid rgba(46,160,67,.25)}
+.home-section{padding:12px 12px 0}
+.home-white-card{background:var(--surface);border-radius:16px;padding:18px 16px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.home-next-card{background:var(--surface);border-radius:16px;padding:20px 16px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.09)}
+.home-date-circle{min-width:58px;height:58px;border-radius:16px;background:var(--surface2);display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0}
+.home-date-circle.dark{background:#1c2a3a;color:#fff}
+.home-date-circle .dc-num{font-size:24px;font-weight:900;line-height:1}
+.home-date-circle .dc-mon{font-size:10px;font-weight:600;opacity:.7;margin-top:1px}
+.home-stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}
+.home-stat-card{background:var(--surface);border-radius:14px;padding:14px 10px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.home-stat-card .sv{font-size:28px;font-weight:900;line-height:1;color:var(--text)}
+.home-stat-card .sv.accent{color:var(--accent)}
+.home-stat-card .sv.warn{color:#d29922}
+.home-stat-card .sl{font-size:11px;color:var(--text2);margin-top:4px;font-weight:600}
+.home-actions-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.home-action-btn{background:var(--surface);border-radius:14px;padding:16px 12px;display:flex;align-items:center;gap:12px;border:none;width:100%;cursor:pointer;text-align:right;box-shadow:0 1px 4px rgba(0,0,0,.07);transition:background .15s}
+.home-action-btn:active{background:var(--surface2)}
+.home-action-btn .ab-icon{font-size:24px;flex-shrink:0}
+.home-action-btn .ab-label{font-size:13px;font-weight:700;color:var(--text)}
+.home-today-strip{background:var(--surface);border-radius:16px;padding:14px 16px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.07);border-right:4px solid var(--accent)}
+.home-swap-strip{background:var(--surface);border-radius:16px;padding:14px 16px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.07);border-right:4px solid #d29922}
+.home-duties-card{background:var(--surface);border-radius:16px;padding:16px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.home-duties-card .hdc-title{font-size:13px;font-weight:800;color:var(--text2);margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px}
+.hdc-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border)}
+.hdc-row:last-child{border-bottom:none}
+.hdc-row.past{opacity:.4}
+.hdc-row.today{background:rgba(46,160,67,.07);border-radius:10px;padding:9px 10px;margin:0 -4px}
+.hdc-dbox{min-width:38px;height:38px;border-radius:10px;background:var(--surface2);display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0}
+.hdc-dbox .dn{font-size:15px;font-weight:800;line-height:1}
+.hdc-dbox .dw{font-size:9px;color:var(--text2);margin-top:1px}
+
 /* ===== Home page polish ===== */
 .role-chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:3px 10px;border-radius:20px;font-weight:600;background:var(--surface2);color:var(--text2);white-space:nowrap}
 .role-chip.rv{background:rgba(46,160,67,.14);color:var(--success,#2ea043)}
@@ -698,24 +733,64 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
     <div class="main">
       <!-- USER: HOME TAB -->
       <div id="tab-home" class="tab-content hidden">
-        <div class="section-header">
-          <div>
-            <div class="section-title" id="home-greeting">🏠 שלום!</div>
-            <div class="section-subtitle" id="home-date"></div>
+        <div class="home-page-wrap">
+          <!-- Header -->
+          <div class="home-header-block">
+            <div style="display:flex;align-items:center;gap:12px">
+              <div class="home-avatar" id="home-avatar">א</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:12px;color:var(--text2);font-weight:600" id="home-greeting-sub">ערב טוב,</div>
+                <div style="font-size:20px;font-weight:900;line-height:1.2" id="home-greeting"></div>
+              </div>
+              <span class="home-status-pill" id="home-status-pill">תורן פעיל</span>
+            </div>
           </div>
-        </div>
-        <div id="home-today-card" class="card home-today" style="margin-bottom:14px;display:none"></div>
-        <div id="home-hero-card" class="card home-hero" style="margin-bottom:14px;display:none"></div>
-        <div id="home-swaps-card" class="card" style="margin-bottom:14px;display:none"></div>
-        <div id="home-constraint-card" class="card" style="margin-bottom:14px;display:none"></div>
-        <div id="home-score-card" class="card" style="margin-bottom:14px;display:none"></div>
-        <div class="card" style="margin-bottom:16px">
-          <div class="home-card-title" id="home-cur-title">📅 התורנויות שלי החודש</div>
-          <div id="home-cur-duties"><div class="empty-state" style="padding:16px"><p style="font-size:13px;color:var(--text2)">טוען...</p></div></div>
-        </div>
-        <div class="card">
-          <div class="home-card-title" id="home-next-title">📅 התורנויות שלי בחודש הבא</div>
-          <div id="home-next-duties"><div class="empty-state" style="padding:16px"><p style="font-size:13px;color:var(--text2)">טוען...</p></div></div>
+
+          <div class="home-section">
+            <!-- Alert strip (swaps / constraint reminder) -->
+            <div id="home-constraint-card" style="display:none;margin-top:10px"></div>
+            <div id="home-swaps-card" style="display:none;margin-top:10px"></div>
+
+            <!-- Next duty hero card -->
+            <div id="home-hero-card" style="margin-top:10px;display:none"></div>
+
+            <!-- Today's duty -->
+            <div id="home-today-card" style="margin-top:10px;display:none"></div>
+
+            <!-- Stats row: constraints / month / score -->
+            <div class="home-stats-row" style="margin-top:10px" id="home-stats-row">
+              <div class="home-stat-card"><div class="sv accent" id="stat-constraints">—</div><div class="sl">אילוצים</div></div>
+              <div class="home-stat-card"><div class="sv" id="stat-month">—</div><div class="sl">חודש</div></div>
+              <div class="home-stat-card"><div class="sv" id="stat-score">—</div><div class="sl">נקודות</div></div>
+            </div>
+
+            <!-- Quick actions -->
+            <div class="home-actions-grid">
+              <button class="home-action-btn" onclick="switchTab('constraints')">
+                <span class="ab-icon">📅</span><span class="ab-label">הגשת אילוצים</span>
+              </button>
+              <button class="home-action-btn" onclick="switchTab('swap')">
+                <span class="ab-icon">🔄</span><span class="ab-label">החלפת תורנות</span>
+              </button>
+              <button class="home-action-btn" onclick="switchTab('scores')">
+                <span class="ab-icon">📊</span><span class="ab-label">לוח ניקוד</span>
+              </button>
+              <button class="home-action-btn" onclick="switchTab('schedule')">
+                <span class="ab-icon">📋</span><span class="ab-label">לוח תורנות</span>
+              </button>
+            </div>
+
+            <!-- My duties this month -->
+            <div class="home-duties-card" id="home-duties-cur-wrap">
+              <div class="hdc-title" id="home-cur-title">התורנויות שלי החודש</div>
+              <div id="home-cur-duties"><div style="font-size:13px;color:var(--text2);padding:4px 0">טוען...</div></div>
+            </div>
+            <!-- My duties next month -->
+            <div class="home-duties-card" id="home-duties-next-wrap">
+              <div class="hdc-title" id="home-next-title">התורנויות שלי — חודש הבא</div>
+              <div id="home-next-duties"><div style="font-size:13px;color:var(--text2);padding:4px 0">טוען...</div></div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1442,7 +1517,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">08/07/2026 10:11</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">08/07/2026 10:23</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1455,8 +1530,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = '08/07/2026 10:11';
-const BUILD_EPOCH = 1783494683855; // ms — when this exact file was pushed
+const BUILD_STAMP = '08/07/2026 10:23';
+const BUILD_EPOCH = 1783495403729; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -4596,8 +4671,8 @@ function renderHomeDuties(res, containerId, month) {
     const dow = HEB_DAYS[new Date(year, mon-1, d).getDay()];
     const isToday = e.date === todayStr;
     const isPast = e.date < todayStr;
-    rows.push(`<div class="duty-row${isPast?' is-past':''}${isToday?' is-today':''}">
-      <div class="dnum-box"><div class="n">${d}</div><div class="w">${dow}</div></div>
+    rows.push(`<div class="hdc-row${isPast?' past':''}${isToday?' today':''}">
+      <div class="hdc-dbox"><div class="dn">${d}</div><div class="dw">${dow}</div></div>
       <div style="flex:1">
         <div style="font-weight:700;font-size:14px;color:${r[2]}">${r[0]} ${r[1]}</div>
         <div style="font-size:11px;color:var(--text2)">${e.notes || e.dutyType || e.dayType || ''}${isToday?' · <b style=\'color:var(--success,#2ea043)\'>היום!</b>':''}</div>
@@ -4614,27 +4689,26 @@ function renderHomeDuties(res, containerId, month) {
 function renderHomeConstraintCard(openMonth, submitted) {
   const card = document.getElementById('home-constraint-card');
   if (!card) return;
+  const {year: cyear, mon: cmon} = openMonth ? parseMonth(openMonth) : {};
+  const label = openMonth ? `${MONTHS[cmon-1]} ${cyear}` : '';
+  card.style.display = 'block';
   if (!openMonth) {
-    card.style.display = 'block';
-    card.innerHTML = '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:22px">🔒</span><div><div style="font-weight:700;font-size:14px">הגשת אילוצים</div><div style="font-size:12px;color:var(--text2)">אין כרגע חודש פתוח להגשת אילוצים</div></div></div>';
+    card.innerHTML = `<div style="display:flex;align-items:center;gap:10px;background:var(--surface);border-radius:14px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.07)"><span style="font-size:20px">🔒</span><div style="font-size:13px;color:var(--text2)">אין כרגע חודש פתוח להגשת אילוצים</div></div>`;
     return;
   }
-  const {year, mon} = parseMonth(openMonth);
-  const label = `${MONTHS[mon-1]} ${year}`;
-  card.style.display = 'block';
   if (submitted) {
-    card.innerHTML = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    card.innerHTML = `<div style="display:flex;align-items:center;gap:12px;background:rgba(46,160,67,.07);border-radius:14px;padding:14px;border:1px solid rgba(46,160,67,.2)">
       <span style="font-size:22px">✅</span>
-      <div style="flex:1;min-width:150px"><div style="font-weight:700;font-size:14px;color:var(--success, #2ea043)">האילוצים ל${label} הוגשו</div>
-      <div style="font-size:12px;color:var(--text2)">אפשר לעדכן אותם כל עוד ההגשה פתוחה</div></div>
-      <button class="btn btn-secondary btn-sm" onclick="goToConstraints('${openMonth}')">✏️ עדכון</button>
+      <div style="flex:1"><div style="font-weight:800;font-size:14px;color:var(--success,#2ea043)">אילוצים ל${label} הוגשו</div>
+      <div style="font-size:12px;color:var(--text2)">אפשר לעדכן כל עוד ההגשה פתוחה</div></div>
+      <button class="btn btn-secondary btn-sm" onclick="goToConstraints('${openMonth}')">עדכון</button>
     </div>`;
   } else {
-    card.innerHTML = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <span style="font-size:22px">⏳</span>
-      <div style="flex:1;min-width:150px"><div style="font-weight:700;font-size:14px;color:var(--warning, #d29922)">טרם הגשת אילוצים ל${label}</div>
-      <div style="font-size:12px;color:var(--text2)">ההגשה פתוחה — אל תשכח להגיש!</div></div>
-      <button class="btn btn-primary btn-sm" onclick="goToConstraints('${openMonth}')">🚫 להגשה</button>
+    card.innerHTML = `<div style="display:flex;align-items:center;gap:12px;background:rgba(210,153,34,.07);border-radius:14px;padding:14px;border:1px solid rgba(210,153,34,.3)">
+      <span style="font-size:22px">⏰</span>
+      <div style="flex:1"><div style="font-weight:800;font-size:14px;color:#d29922">הגשת אילוצים ל${label} עדיין פתוחה</div>
+      <div style="font-size:12px;color:var(--text2)">אל תשכח להגיש עד הסגירה</div></div>
+      <button class="btn btn-primary btn-sm" onclick="goToConstraints('${openMonth}')">הגש עכשיו</button>
     </div>`;
   }
 }
@@ -4674,16 +4748,23 @@ function renderHomeHero(schedCur, schedNext, curMonth, nextMonth) {
   const dow = HEB_DAYS[best.dt.getDay()];
   const dayInfo = best.e.notes || best.e.dutyType || best.e.dayType || '';
   card.style.display = 'block';
-  card.innerHTML = `<div style="display:flex;align-items:center;gap:14px">
-    <div class="home-date-badge">
-      <div class="dnum" style="color:var(--success,#2ea043)">${best.d}</div>
-      <div class="dmon">${MONTHS[best.mon-1]}</div>
+  card.innerHTML = `<div class="home-next-card">
+    <div style="font-size:11px;color:var(--text2);font-weight:700;margin-bottom:10px;letter-spacing:.4px">התורנות הבאה שלך</div>
+    <div style="display:flex;align-items:center;gap:14px">
+      <div class="home-date-circle dark">
+        <div class="dc-num">${best.d}</div>
+        <div class="dc-mon">${MONTHS[best.mon-1]}</div>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:900;font-size:19px;line-height:1.2">${best.role} — ${best.e.dutyType||best.e.dayType||'חול'}</div>
+        <div style="font-size:13px;color:var(--text2);margin-top:4px">יום ${dow}${dayInfo?' · '+dayInfo:''}</div>
+      </div>
     </div>
-    <div style="flex:1;min-width:0">
-      <div style="font-size:11px;color:var(--text2);font-weight:600;letter-spacing:.3px">⏭️ התורנות הבאה שלך</div>
-      <div style="font-weight:800;font-size:18px;margin:3px 0">${best.role} · יום ${dow}</div>
-      <div style="font-size:12px;color:var(--text2)">${dayInfo}${dayInfo?' · ':''}<b style="color:${diff<=1?'var(--danger)':'var(--success,#2ea043)'};font-size:13px">${when}</b></div>
+    <div style="margin-top:14px;display:flex;gap:8px">
+      <button class="btn btn-primary" style="flex:1" onclick="switchTab('schedule')">פרטים</button>
+      <button class="btn btn-secondary" style="flex:1" onclick="switchTab('swap')">בקש החלפה</button>
     </div>
+    <div style="margin-top:10px;text-align:center;font-size:12px;color:${diff<=1?'var(--danger)':'var(--accent)'};font-weight:700">כניסה ${diff===0?'היום!':diff===1?'מחר':diff+' ימים'}</div>
   </div>`;
 }
 
@@ -4748,7 +4829,7 @@ function renderHomeSwaps(res) {
     </div>`;
   }
   card.style.display = 'block';
-  card.innerHTML = html;
+  card.innerHTML = `<div class="home-swap-strip">${html}</div>`;
 }
 
 function renderHomeToday(res, month) {
@@ -4772,23 +4853,44 @@ function renderHomeToday(res, month) {
   const dow = HEB_DAYS[now.getDay()];
   const dayInfo = e.notes || e.dutyType || e.dayType || '';
   card.style.display = 'block';
-  card.innerHTML = `<div style="display:flex;align-items:flex-start;gap:12px">
-    <span style="font-size:24px;line-height:1">🪖</span>
-    <div style="flex:1;min-width:0">
-      <div style="font-weight:800;font-size:15px;margin-bottom:2px">תורני היום · יום ${dow} ${now.getDate()}/${now.getMonth()+1}</div>
-      ${dayInfo ? `<div style="font-size:12px;color:var(--text2);margin-bottom:8px">${escapeHtml(String(dayInfo))}</div>` : '<div style="margin-bottom:8px"></div>'}
-      <div style="display:flex;flex-wrap:wrap;gap:6px">${chips}</div>
+  card.innerHTML = `<div class="home-today-strip">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <span style="font-size:18px">🪖</span>
+      <span style="font-weight:800;font-size:14px">תורני היום</span>
+      <span style="font-size:12px;color:var(--text2);margin-right:4px">יום ${dow}, ${now.getDate()}/${now.getMonth()+1}</span>
+      ${dayInfo?`<span style="font-size:11px;background:var(--surface2);border-radius:8px;padding:2px 8px">${escapeHtml(String(dayInfo))}</span>`:''}
     </div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">${chips}</div>
   </div>`;
 }
 
+function populateStatScore(res) {
+  const el = document.getElementById('stat-score');
+  if (!el || !res || !res.success) return;
+  const MK = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+  const all = (res.scores||[]).filter(s => s && s.name && s.name !== 'מנהל מערכת');
+  all.forEach(s => { let t = s.acc2025||0; MK.forEach(k => t += ((s[k]||{}).score||0)); s._total = t; });
+  const mine = all.find(s => s.name === currentUser.name);
+  if (mine) el.textContent = mine._total;
+}
+function populateStatMonth(res, month) {
+  // constraint count
+  const el = document.getElementById('stat-month');
+  if (el) { const {mon} = parseMonth(month); el.textContent = mon; }
+}
+
 async function loadHomePage() {
-  const g = document.getElementById('home-greeting');
-  if (g) g.textContent = `🏠 שלום, ${currentUser.name}!`;
-  const hd = document.getElementById('home-date');
-  if (hd) {
-    const dNow = new Date();
-    hd.textContent = `יום ${HEB_DAYS[dNow.getDay()]}, ${dNow.getDate()}/${dNow.getMonth()+1}/${dNow.getFullYear()}`;
+  // Header: avatar initials + greeting by time of day
+  const nm = currentUser.name || '';
+  const av = document.getElementById('home-avatar');
+  if (av) av.textContent = nm.trim()[0] || 'א';
+  const gs = document.getElementById('home-greeting-sub');
+  const gr = document.getElementById('home-greeting');
+  if (gs && gr) {
+    const h = new Date().getHours();
+    const tod = h < 12 ? 'בוקר טוב,' : h < 17 ? 'צהריים טובים,' : h < 21 ? 'ערב טוב,' : 'לילה טוב,';
+    gs.textContent = tod;
+    gr.textContent = nm;
   }
   const now = new Date();
   const cur = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}`;
@@ -4808,8 +4910,9 @@ async function loadHomePage() {
   Promise.all([pCur, pNext]).then(([r1, r2]) => renderHomeHero(r1, r2, cur, next));
 
   // Score snapshot + pending swaps (parallel, non-blocking)
-  api({action:'getScores'}).then(renderHomeScore).catch(()=>{});
+  api({action:'getScores'}).then(r => { renderHomeScore(r); populateStatScore(r); }).catch(()=>{});
   api({action:'getSwaps'}).then(renderHomeSwaps).catch(()=>{});
+  pCur.then(r => populateStatMonth(r, cur));
 
   // Constraint status: find an open month (next, then next+1, then current)
   try {
@@ -4825,6 +4928,10 @@ async function loadHomePage() {
       (cRes.constraints || []).some(c => c === 'X' || c === 'x' || c === 'V' || c === 'v' || c === true) ||
       (cRes.notes && String(cRes.notes).trim())
     ));
+    // Fill constraints stat
+    const xCount = cRes && cRes.constraints ? cRes.constraints.filter(c => c==='X'||c==='x').length : 0;
+    const statC = document.getElementById('stat-constraints');
+    if (statC) statC.textContent = xCount + '/6';
     renderHomeConstraintCard(openMonth, submitted);
   } catch(e) { renderHomeConstraintCard(null, false); }
 }
