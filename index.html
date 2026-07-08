@@ -747,21 +747,23 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
           </div>
 
           <div class="home-section">
-            <!-- Alert strip (swaps / constraint reminder) -->
-            <div id="home-constraint-card" style="display:none;margin-top:10px"></div>
+            <!-- 1. Swaps alert -->
             <div id="home-swaps-card" style="display:none;margin-top:10px"></div>
 
-            <!-- Next duty hero card -->
-            <div id="home-hero-card" style="margin-top:10px;display:none"></div>
+            <!-- 2. Constraint status -->
+            <div id="home-constraint-card" style="display:none;margin-top:10px"></div>
 
-            <!-- Today's duty -->
+            <!-- 3. Today's duty -->
             <div id="home-today-card" style="margin-top:10px;display:none"></div>
 
-            <!-- Score card (replaces stats row) -->
+            <!-- 4. Next duty hero -->
+            <div id="home-hero-card" style="margin-top:10px;display:none"></div>
+
+            <!-- 5. Score card -->
             <div id="home-score-card" style="margin-top:10px;display:none"></div>
 
-            <!-- Quick actions -->
-            <div class="home-actions-grid">
+            <!-- 6. Quick actions -->
+            <div class="home-actions-grid" style="margin-top:10px">
               <button class="home-action-btn" onclick="switchTab('constraints')">
                 <span class="ab-icon">📅</span><span class="ab-label">הגשת אילוצים</span>
               </button>
@@ -776,13 +778,13 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
               </button>
             </div>
 
-            <!-- My duties this month -->
-            <div class="home-duties-card" id="home-duties-cur-wrap">
+            <!-- 7. My duties this month -->
+            <div class="home-duties-card" id="home-duties-cur-wrap" style="margin-top:10px">
               <div class="hdc-title" id="home-cur-title">התורנויות שלי החודש</div>
               <div id="home-cur-duties"><div style="font-size:13px;color:var(--text2);padding:4px 0">טוען...</div></div>
             </div>
-            <!-- My duties next month -->
-            <div class="home-duties-card" id="home-duties-next-wrap">
+            <!-- 8. My duties next month -->
+            <div class="home-duties-card" id="home-duties-next-wrap" style="margin-top:0">
               <div class="hdc-title" id="home-next-title">התורנויות שלי — חודש הבא</div>
               <div id="home-next-duties"><div style="font-size:13px;color:var(--text2);padding:4px 0">טוען...</div></div>
             </div>
@@ -1513,7 +1515,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">08/07/2026 10:35</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">08/07/2026 10:41</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1526,8 +1528,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = '08/07/2026 10:35';
-const BUILD_EPOCH = 1783496152759; // ms — when this exact file was pushed
+const BUILD_STAMP = '08/07/2026 10:41';
+const BUILD_EPOCH = 1783496467169; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -4764,10 +4766,7 @@ function renderHomeHero(schedCur, schedNext, curMonth, nextMonth) {
         <div style="font-size:13px;color:var(--text2);margin-top:4px">יום ${dow}${dayInfo?' · '+dayInfo:''}</div>
       </div>
     </div>
-    <div style="margin-top:14px">
-      <button class="btn btn-secondary" style="width:100%" onclick="switchTab('swap')">🔄 בקש החלפה</button>
-    </div>
-    <div style="margin-top:10px;text-align:center;font-size:12px;color:${diff<=1?'var(--danger)':'var(--accent)'};font-weight:700">${diff===0?'היום!':diff===1?'מחר':diff===2?'מחרתיים':'עוד '+diff+' ימים'}</div>
+    <div style="margin-top:10px;text-align:center;font-size:13px;color:${diff<=1?'var(--danger)':'var(--accent)'};font-weight:700">${diff===0?'היום!':diff===1?'מחר':diff===2?'מחרתיים':'עוד '+diff+' ימים'}</div>
   </div>`;
 }
 
