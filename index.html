@@ -840,6 +840,20 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
         </div>
         <div id="tornim-content"></div>
       </div>
+      <!-- ADMIN: HOME TAB -->
+      <div id="tab-admin-home" class="tab-content hidden">
+        <div class="section-header">
+          <div>
+            <div class="section-title" id="admin-home-greeting">🏠 לוח בקרה</div>
+            <div class="section-subtitle" id="admin-home-date"></div>
+          </div>
+        </div>
+        <div id="admin-home-swaps-card" class="card" style="margin-bottom:16px;display:none"></div>
+        <div id="admin-home-week-card" class="card" style="margin-bottom:16px"></div>
+        <div id="admin-home-constraints-card" class="card" style="margin-bottom:16px;display:none"></div>
+        <div id="admin-home-enddate-card" class="card" style="margin-bottom:16px;display:none"></div>
+      </div>
+
       <!-- ADMIN: SCHEDULE TAB -->
       <div id="tab-admin-schedule" class="tab-content hidden">
         <div class="section-header">
@@ -1398,7 +1412,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">08/07/2026 05:07</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">08/07/2026 05:22</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1411,8 +1425,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = '08/07/2026 05:07';
-const BUILD_EPOCH = 1783476467609; // ms — when this exact file was pushed
+const BUILD_STAMP = '08/07/2026 05:22';
+const BUILD_EPOCH = 1783477348452; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -1744,7 +1758,7 @@ async function initApp() {
       api({action:'getPeople'}),
     ]);
     if (pRes.success) allPeople = pRes.people;
-    switchTab('admin-schedule');
+    switchTab('admin-home');
     // Auto-load current month
     const now = new Date();
     const currentMonth = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}`;
@@ -1957,7 +1971,7 @@ function buildNavTabs() {
     setTimeout(loadImpersonateList, 500);
   }
   const tabs = currentUser.role === 'admin'
-    ? [['admin-schedule','📅','לוח'],['admin-constraints','🚫','אילוצים'],['admin-scores','📊','ניקוד'],['admin-users','👥','תורנים'],['admin-swaps','🔄','החלפות'],['admin-audit','📋','יומן'],['guide','📖','מדריך']]
+    ? [['admin-home','🏠','בית'],['admin-schedule','📅','לוח'],['admin-constraints','🚫','אילוצים'],['admin-scores','📊','ניקוד'],['admin-users','👥','תורנים'],['admin-swaps','🔄','החלפות'],['admin-audit','📋','יומן'],['guide','📖','מדריך']]
     : currentUser.role === 'viewer'
     ? [['admin-schedule','📅','לוח'],['scores','📊','ניקוד'],['admin-users','👥','תורנים'],['profile','👤','פרופיל']]
     : [['home','🏠','בית'],['full-schedule','📅','לוח'],['constraints','🚫','אילוצים'],['scores','📊','ניקוד'],['swap','🔄','החלפה'],['profile','👤','פרופיל'],['guide','📖','מדריך']];
@@ -2032,6 +2046,7 @@ function switchTab(id) {
   if (id === 'my-schedule') loadMySchedule();
   if (id === 'profile') loadProfile();
   if (id === 'admin-users') loadUsers();
+  if (id === 'admin-home') { loadAdminHome(); }
   if (id === 'admin-schedule') loadAdminSchedule();
   if (id === 'admin-scores') loadScores();
   if (id === 'admin-constraints') { loadAdminConstraints(); loadLockStatus(); }
@@ -2910,6 +2925,186 @@ async function publishSchedule() {
   } else {
     showAlert('admin-schedule-alert', res.error || 'שגיאה בפרסום', 'error');
   }
+}
+
+// =====================================================
+// ADMIN HOME PAGE
+// =====================================================
+async function loadAdminHome() {
+  const now = new Date();
+  const g = document.getElementById('admin-home-greeting');
+  const ds = document.getElementById('admin-home-date');
+  if (g) g.textContent = `🏠 שלום, ${currentUser.name}!`;
+  if (ds) {
+    const days = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+    ds.textContent = `יום ${days[now.getDay()]}, ${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()}`;
+  }
+
+  const cur = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}`;
+  const next = nextMonthStr(cur, 1);
+
+  // Parallel fetches
+  const [schedRes, swapRes, peopleRes] = await Promise.all([
+    api({action:'getSchedule', month: cur}).catch(()=>null),
+    api({action:'getSwaps'}).catch(()=>null),
+    api({action:'getPeople'}).catch(()=>null),
+  ]);
+
+  renderAdminWeekCard(schedRes, cur);
+  renderAdminSwapsCard(swapRes);
+  renderAdminEndDateCard(peopleRes);
+
+  // Constraints: find open month
+  const candidates = [next, nextMonthStr(cur,2), cur];
+  const locks = await Promise.all(candidates.map(m => api({action:'getLockStatus', month:m}).catch(()=>({locked:true}))));
+  let openMonth = null;
+  for (let i = 0; i < candidates.length; i++) {
+    if (locks[i] && locks[i].success && !locks[i].locked) { openMonth = candidates[i]; break; }
+  }
+  if (openMonth) {
+    const allC = await api({action:'getAllConstraints', month: openMonth}).catch(()=>null);
+    renderAdminConstraintsCard(allC, peopleRes, openMonth);
+  } else {
+    const card = document.getElementById('admin-home-constraints-card');
+    if (card) { card.style.display='block'; card.innerHTML=`<div style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">🔒</span><div><div style="font-weight:700;font-size:14px">הגשת אילוצים</div><div style="font-size:12px;color:var(--text2)">אין חודש פתוח להגשה כרגע</div></div></div>`; }
+  }
+}
+
+function renderAdminWeekCard(res, month) {
+  const card = document.getElementById('admin-home-week-card');
+  if (!card) return;
+  const now = new Date(); now.setHours(0,0,0,0);
+  const {year, mon} = parseMonth(month);
+  const title = `<div style="font-weight:700;font-size:15px;margin-bottom:12px">📅 לוח השבוע</div>`;
+  if (!res || !res.success || res.draft || !res.schedule || !res.schedule.length) {
+    card.innerHTML = title + '<div style="font-size:13px;color:var(--text2)">אין לוח לחודש הנוכחי</div>'; return;
+  }
+  // Get Mon–Sun of current week (Sun=0)
+  const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay()); // Sun
+  const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);    // Sat
+  const week = res.schedule.filter(e => {
+    const d = parseInt(e.date.split('-')[2] || e.date.split('/')[0]) || 0;
+    const dt = new Date(year, mon-1, d);
+    return dt >= weekStart && dt <= weekEnd;
+  });
+  if (!week.length) { card.innerHTML = title + '<div style="font-size:13px;color:var(--text2)">אין ימים השבוע בלוח</div>'; return; }
+  const dayNames = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  const rows = week.map(e => {
+    const d = parseInt(e.date.split('-')[2] || e.date.split('/')[0]) || 0;
+    const dt = new Date(year, mon-1, d);
+    const dow = dayNames[dt.getDay()];
+    const isToday = e.date === todayStr;
+    const isPast = e.date < todayStr;
+    const bg = isToday ? 'background:rgba(46,160,67,0.08);border-radius:8px;' : '';
+    const op = isPast ? 'opacity:0.5;' : '';
+    const badge = getDayBadge(e.dayType);
+    const typeChip = e.dayType ? `<span class="cal-day-type ${badge}" style="font-size:10px;padding:1px 6px;border-radius:10px;margin-right:4px">${e.notes||e.dayType}</span>` : '';
+    const names = [
+      e.v  ? `<span style="color:var(--success,#2ea043);font-weight:600">✅ ${e.v}</span>` : '',
+      e.v2 ? `<span style="color:var(--success,#2ea043)">✅ ${e.v2}</span>` : '',
+      e.a  ? `<span style="color:var(--accent)">🅰️ ${e.a}</span>` : '',
+      e.b  ? `<span style="color:var(--text2)">🅱️ ${e.b}</span>` : '',
+      e.t  ? `<span style="color:#8957e5">🎓 ${e.t}</span>` : '',
+    ].filter(Boolean).join(' &nbsp;·&nbsp; ');
+    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--border);${bg}${op}">
+      <div style="min-width:52px;text-align:center">
+        <div style="font-weight:800;font-size:17px">${d}</div>
+        <div style="font-size:10px;color:var(--text2)">${dow}${isToday?' · היום':''}</div>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="margin-bottom:3px">${typeChip}</div>
+        <div style="font-size:12px;flex-wrap:wrap;display:flex;gap:4px;row-gap:2px">${names||'<span style="color:var(--text3)">לא משובץ</span>'}</div>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="goToAdminDay('${e.date}')" style="white-space:nowrap;font-size:11px">✏️ עריכה</button>
+    </div>`;
+  });
+  if (rows.length) rows[rows.length-1] = rows[rows.length-1].replace('border-bottom:1px solid var(--border);','');
+  card.innerHTML = title + rows.join('');
+}
+
+function goToAdminDay(date) {
+  const m = date.substring(0,7).replace('-','');
+  const sel = document.getElementById('admin-schedule-month');
+  if (sel) sel.value = m;
+  switchTab('admin-schedule');
+}
+
+function renderAdminSwapsCard(res) {
+  const card = document.getElementById('admin-home-swaps-card');
+  if (!card) return;
+  if (!res || !res.success) return;
+  const pending = (res.swaps||[]).filter(s => s.status==='pending_admin'||s.status==='target_approved');
+  if (!pending.length) { card.style.display='none'; return; }
+  card.style.display='block';
+  card.innerHTML = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <span style="font-size:22px">🔄</span>
+    <div style="flex:1;min-width:150px">
+      <div style="font-weight:700;font-size:14px;color:var(--warning,#d29922)">${pending.length} בקשת${pending.length>1?'':'ות'} החלפה ממתינ${pending.length>1?'ות':'ת'} לאישורך</div>
+      <div style="font-size:12px;color:var(--text2)">${pending.map(s=>`${escapeHtml(s.fromName)} ↔ ${escapeHtml(s.withWho||'')}`).slice(0,3).join(' · ')}</div>
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="switchTab('admin-swaps')">לאישור</button>
+  </div>`;
+}
+
+function renderAdminConstraintsCard(allC, peopleRes, openMonth) {
+  const card = document.getElementById('admin-home-constraints-card');
+  if (!card) return;
+  const {year, mon} = parseMonth(openMonth);
+  const label = `${MONTHS[mon-1]} ${year}`;
+  const activePeople = (peopleRes&&peopleRes.success ? peopleRes.people : [])
+    .filter(p => p.activity !== '0' && p.activity !== 0);
+  const submitted = allC && allC.success ? Object.keys(allC.constraints||{}) : [];
+  const notSubmitted = activePeople.filter(p => !submitted.includes(p.name));
+  const total = activePeople.length;
+  const done = total - notSubmitted.length;
+  const pct = total ? Math.round(done/total*100) : 0;
+  const barColor = pct===100?'var(--success,#2ea043)':pct>=60?'var(--accent)':'var(--warning,#d29922)';
+  card.style.display='block';
+  card.innerHTML = `<div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+      <div style="font-weight:700;font-size:14px">🚫 אילוצים — ${label}</div>
+      <div style="font-size:13px;color:${barColor};font-weight:700">${done}/${total} הגישו (${pct}%)</div>
+    </div>
+    <div style="background:var(--surface2);border-radius:8px;height:8px;overflow:hidden;margin-bottom:10px">
+      <div style="background:${barColor};height:100%;width:${pct}%;border-radius:8px;transition:width .4s"></div>
+    </div>
+    ${notSubmitted.length ? `<div style="font-size:12px;color:var(--text2);margin-bottom:6px">טרם הגישו: ${notSubmitted.map(p=>`<span style="background:var(--surface2);border-radius:6px;padding:1px 6px;margin:1px;display:inline-block">${escapeHtml(p.name)}</span>`).join('')}</div>` : `<div style="font-size:12px;color:var(--success,#2ea043);font-weight:600">✅ כולם הגישו!</div>`}
+    <button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="switchTab('admin-constraints')">לניהול אילוצים</button>
+  </div>`;
+}
+
+function renderAdminEndDateCard(peopleRes) {
+  const card = document.getElementById('admin-home-enddate-card');
+  if (!card) return;
+  if (!peopleRes || !peopleRes.success) return;
+  const now = new Date(); now.setHours(0,0,0,0);
+  const in90 = new Date(now); in90.setDate(now.getDate()+90);
+  const expiring = peopleRes.people.filter(p => {
+    if (!p.endDate) return false;
+    const parts = p.endDate.includes('-') ? p.endDate.split('-') : p.endDate.split('/').reverse();
+    const dt = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+    return dt >= now && dt <= in90;
+  }).map(p => {
+    const parts = p.endDate.includes('-') ? p.endDate.split('-') : p.endDate.split('/').reverse();
+    const dt = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+    const diff = Math.round((dt-now)/86400000);
+    return {...p, _dt: dt, _diff: diff};
+  }).sort((a,b)=>a._dt-b._dt);
+  if (!expiring.length) { card.style.display='none'; return; }
+  card.style.display='block';
+  card.innerHTML = `<div>
+    <div style="font-weight:700;font-size:14px;margin-bottom:10px">⚠️ תורנים עם סיום שירות קרוב</div>
+    ${expiring.map(p => {
+      const color = p._diff<=30?'var(--danger)':'var(--warning,#d29922)';
+      const d = p._dt.getDate(), m = p._dt.getMonth()+1, y = p._dt.getFullYear();
+      return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)">
+        <div style="flex:1;font-weight:600;font-size:13px">${escapeHtml(p.name)}</div>
+        <div style="font-size:12px;color:${color};font-weight:700">${d}/${m}/${y}</div>
+        <div style="font-size:11px;color:${color}">בעוד ${p._diff} ימים</div>
+      </div>`;
+    }).join('')}
+  </div>`;
 }
 
 async function loadAdminSchedule() {
