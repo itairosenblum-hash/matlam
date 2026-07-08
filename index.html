@@ -740,22 +740,36 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 
       <!-- USER: PROFILE TAB -->
       <div id="tab-profile" class="tab-content hidden">
-        <div class="section-title" style="margin-bottom:20px">👤 הפרופיל שלי</div>
-        <div id="duty-type-banner" style="margin-bottom:16px;max-width:900px"></div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;max-width:900px">
+        <div class="section-header">
+          <div>
+            <div class="section-title">👤 הפרופיל שלי</div>
+            <div class="section-subtitle">פרטים אישיים והגדרות תורנות</div>
+          </div>
+        </div>
 
-          <!-- פרטים אישיים + עריכה -->
+        <!-- Avatar + name hero -->
+        <div id="profile-hero" class="card" style="margin-bottom:16px;max-width:680px">
+          <div style="display:flex;align-items:center;gap:16px">
+            <div id="profile-avatar" style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#8957e5);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;color:#fff;flex-shrink:0"></div>
+            <div style="flex:1;min-width:0">
+              <div id="profile-hero-name" style="font-weight:800;font-size:20px;margin-bottom:2px"></div>
+              <div id="profile-hero-username" style="font-size:12px;color:var(--text2);margin-bottom:6px"></div>
+              <div id="duty-type-banner" style="margin:0"></div>
+            </div>
+            <div id="profile-enddate-hero" style="text-align:center;min-width:70px;display:none">
+              <div style="font-size:10px;color:var(--text2);margin-bottom:2px">סיום שירות</div>
+              <div id="profile-enddate-hero-val" style="font-weight:700;font-size:12px"></div>
+              <div id="profile-enddate-hero-days" style="font-size:10px;margin-top:2px"></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;max-width:680px">
+
+          <!-- פרטי קשר -->
           <div class="card">
-            <div class="card-title">פרטים אישיים</div>
+            <div class="card-title" style="display:flex;align-items:center;gap:8px">📞 פרטי קשר</div>
             <div id="profile-alert" style="margin-bottom:8px"></div>
-            <div class="form-group">
-              <label>שם מלא</label>
-              <input id="profile-name" type="text" disabled style="opacity:.7">
-            </div>
-            <div class="form-group">
-              <label>שם משתמש</label>
-              <input id="profile-username" type="text" disabled style="opacity:.7">
-            </div>
             <div class="form-group">
               <label>טלפון</label>
               <input id="profile-phone" type="tel" placeholder="050-000-0000" oninput="formatPhoneInput(this)">
@@ -765,45 +779,39 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
               <input id="profile-email" type="email" placeholder="your@email.com">
             </div>
             <div class="form-group">
-              <label>תאריך סיום שירות 📅</label>
+              <label>תאריך סיום שירות</label>
               <input id="profile-enddate" type="text" placeholder="dd/mm/yyyy" maxlength="10" oninput="maskDateInput(this)">
               <div id="profile-enddate-status" style="margin-top:6px;font-size:12px"></div>
             </div>
-            <button class="btn btn-primary" onclick="saveProfileDetails()">💾 שמור פרטים</button>
+            <!-- hidden fields still needed for save -->
+            <input id="profile-name" type="hidden">
+            <input id="profile-username" type="hidden">
+            <select id="profile-activity" style="display:none"><option value="1">פעיל</option><option value="0.5">חלקי</option><option value="0">לא פעיל</option></select>
+            <button class="btn btn-primary" style="width:100%" onclick="saveProfileDetails()">💾 שמור</button>
           </div>
 
-          <!-- סוג תורנות -->
+          <!-- הגדרות תורנות -->
           <div class="card">
-            <div class="card-title">הגדרות תורנות</div>
+            <div class="card-title">⚙️ הגדרות תורנות</div>
             <div id="duty-settings-alert" style="margin-bottom:8px"></div>
-            <div class="form-group">
-              <label>סטטוס</label>
-              <select id="profile-activity" disabled style="opacity:.7;width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;color:var(--text);font-family:inherit">
-                <option value="1">פעיל מלא</option>
-                <option value="0.5">פעיל חלקי</option>
-                <option value="0">לא פעיל</option>
-              </select>
-            </div>
-
             <div class="form-group">
               <label>סוג סוף שבוע</label>
               <select id="profile-weekend" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;color:var(--text);font-family:inherit;outline:none">
-                <option value="מלא">🗓️ סוף שבוע מלא (שישי + שבת יחד)</option>
-                <option value="בנפרד">📅 ימים בנפרד (שישי או שבת בנפרד)</option>
+                <option value="מלא">🗓️ מלא (שישי + שבת יחד)</option>
+                <option value="בנפרד">📅 בנפרד (שישי או שבת בנפרד)</option>
               </select>
             </div>
-            <p class="text-muted text-sm" style="margin-bottom:12px">סטטוס וקטגוריה מוגדרים על-ידי המנהל בלבד</p>
-            <button class="btn btn-primary" onclick="saveDutySettings()">💾 שמור הגדרות</button>
+            <p class="text-muted text-sm" style="margin-bottom:16px">סטטוס וקטגוריה מוגדרים על-ידי המנהל בלבד</p>
+            <button class="btn btn-primary" style="width:100%" onclick="saveDutySettings()">💾 שמור</button>
           </div>
 
-          <!-- היסטוריית תורנויות -->
-          <div class="card" id="profile-history-card">
-            <button class="btn btn-secondary" onclick="openToraniHistory(currentUser.name)" style="width:100%">📖 היסטוריית התורנויות שלי</button>
+          <!-- היסטוריה + סיסמה -->
+          <div class="card" id="profile-history-card" style="display:flex;flex-direction:column;gap:10px">
+            <button class="btn btn-secondary" onclick="openToraniHistory(currentUser.name)" style="width:100%;text-align:center">📖 היסטוריית התורנויות שלי</button>
           </div>
 
-          <!-- שינוי סיסמה -->
           <div class="card">
-            <div class="card-title">שינוי סיסמה</div>
+            <div class="card-title">🔑 שינוי סיסמה</div>
             <div id="change-pass-alert"></div>
             <div class="form-group">
               <label>סיסמה נוכחית</label>
@@ -814,10 +822,10 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
               <input id="new-pass" type="password">
             </div>
             <div class="form-group">
-              <label>אימות סיסמה חדשה</label>
+              <label>אימות</label>
               <input id="confirm-pass" type="password">
             </div>
-            <button class="btn btn-primary" onclick="changePassword()">שמור סיסמה</button>
+            <button class="btn btn-primary" style="width:100%" onclick="changePassword()">שמור סיסמה</button>
           </div>
 
         </div>
@@ -1412,7 +1420,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">08/07/2026 05:22</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">08/07/2026 05:24</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1425,8 +1433,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = '08/07/2026 05:22';
-const BUILD_EPOCH = 1783477348452; // ms — when this exact file was pushed
+const BUILD_STAMP = '08/07/2026 05:24';
+const BUILD_EPOCH = 1783477492554; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -5651,6 +5659,27 @@ async function loadProfile() {
 
   const p = _profilePerson || {};
 
+  // Hero section
+  const heroName = document.getElementById('profile-hero-name');
+  const heroUser = document.getElementById('profile-hero-username');
+  const avatar   = document.getElementById('profile-avatar');
+  const name = p.name || currentUser.name || '';
+  if (heroName) heroName.textContent = name;
+  if (heroUser) heroUser.textContent = '@' + (p.username || currentUser.username || '');
+  if (avatar)   avatar.textContent   = name.charAt(0) || '?';
+
+  // End-date hero pill
+  const heroEndDiv  = document.getElementById('profile-enddate-hero');
+  const heroEndVal  = document.getElementById('profile-enddate-hero-val');
+  const heroEndDays = document.getElementById('profile-enddate-hero-days');
+  if (heroEndDiv && p.endDate) {
+    heroEndDiv.style.display = 'block';
+    const eds = getEndDateStatus(p.endDate);
+    const days = Math.ceil((new Date(p.endDate) - new Date()) / (1000*60*60*24));
+    if (heroEndVal) { heroEndVal.textContent = isoToDdmm(p.endDate); heroEndVal.style.color = eds==='expired'?'var(--danger)':eds==='soon'?'var(--warning,#d29922)':'var(--accent)'; }
+    if (heroEndDays) { heroEndDays.textContent = eds==='expired'?'⚠️ עבר':eds==='soon'?`עוד ${days} יום`:'✓ פעיל'; heroEndDays.style.color = eds==='expired'?'var(--danger)':eds==='soon'?'var(--warning,#d29922)':'var(--success,#2ea043)'; }
+  } else if (heroEndDiv) { heroEndDiv.style.display='none'; }
+
   // Fill personal details - use data from both sources
   const nameEl = document.getElementById('profile-name');
   const userEl = document.getElementById('profile-username');
@@ -5686,18 +5715,11 @@ async function loadProfile() {
   const wkEl = document.getElementById('profile-weekend');
   if (wkEl) wkEl.value = p.weekendType || 'מלא';
 
-  // Duty type banner
+  // Duty type banner — inline chip in hero
   const dutyInfo = getDutyTypeInfo(p);
   const banner = document.getElementById('duty-type-banner');
   if (banner) {
-    banner.innerHTML = `
-      <div class="duty-banner ${dutyInfo.cls}">
-        <div class="duty-banner-icon">${dutyInfo.icon}</div>
-        <div class="duty-banner-text">
-          <h3>${dutyInfo.title}</h3>
-          <p>${dutyInfo.desc}</p>
-        </div>
-      </div>`;
+    banner.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600">${dutyInfo.icon} ${dutyInfo.title}</span>`;
   }
 }
 
