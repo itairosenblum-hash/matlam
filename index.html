@@ -603,7 +603,19 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 .role-chip.rt{background:rgba(137,87,229,.14);color:#8957e5}
 .role-chip.me{box-shadow:0 0 0 2px var(--accent) inset}
 .home-card-title{display:flex;align-items:center;gap:8px;font-weight:800;font-size:15px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
-.home-today{background:linear-gradient(135deg,rgba(88,166,255,.10),rgba(88,166,255,.02));border:1px solid var(--border)}
+.home-today{background:linear-gradient(135deg,rgba(88,166,255,.12),rgba(88,166,255,.02));border:1px solid rgba(88,166,255,.35)}
+.home-hero{background:linear-gradient(135deg,rgba(46,160,67,.14),rgba(46,160,67,.02));border:1px solid rgba(46,160,67,.4)}
+.home-date-badge{min-width:56px;text-align:center;background:var(--surface2);border-radius:14px;padding:8px 6px;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.home-date-badge .dnum{font-size:24px;font-weight:800;line-height:1.1}
+.home-date-badge .dmon{font-size:10px;color:var(--text2);font-weight:600}
+.duty-row{display:flex;align-items:center;gap:12px;padding:10px 6px;border-bottom:1px solid var(--border)}
+.duty-row:last-child{border-bottom:none}
+.duty-row .dnum-box{min-width:42px;height:42px;border-radius:12px;background:var(--surface2);display:flex;flex-direction:column;align-items:center;justify-content:center}
+.duty-row .dnum-box .n{font-weight:800;font-size:16px;line-height:1}
+.duty-row .dnum-box .w{font-size:9px;color:var(--text2);margin-top:2px}
+.duty-row.is-today{background:rgba(46,160,67,.10);border-radius:12px;border-bottom:none}
+.duty-row.is-past{opacity:.45}
+.rank-pill{display:inline-block;background:var(--surface2);border-radius:20px;padding:2px 10px;font-size:12px;font-weight:700;color:var(--accent)}
 </style>
 </head>
 <body>
@@ -692,11 +704,11 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
             <div class="section-subtitle" id="home-date"></div>
           </div>
         </div>
-        <div id="home-hero-card" class="card" style="margin-bottom:16px;display:none"></div>
-        <div id="home-today-card" class="card home-today" style="margin-bottom:16px;display:none"></div>
-        <div id="home-swaps-card" class="card" style="margin-bottom:16px;display:none"></div>
-        <div id="home-constraint-card" class="card" style="margin-bottom:16px;display:none"></div>
-        <div id="home-score-card" class="card" style="margin-bottom:16px;display:none"></div>
+        <div id="home-today-card" class="card home-today" style="margin-bottom:14px;display:none"></div>
+        <div id="home-hero-card" class="card home-hero" style="margin-bottom:14px;display:none"></div>
+        <div id="home-swaps-card" class="card" style="margin-bottom:14px;display:none"></div>
+        <div id="home-constraint-card" class="card" style="margin-bottom:14px;display:none"></div>
+        <div id="home-score-card" class="card" style="margin-bottom:14px;display:none"></div>
         <div class="card" style="margin-bottom:16px">
           <div class="home-card-title" id="home-cur-title">📅 התורנויות שלי החודש</div>
           <div id="home-cur-duties"><div class="empty-state" style="padding:16px"><p style="font-size:13px;color:var(--text2)">טוען...</p></div></div>
@@ -1430,7 +1442,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">08/07/2026 06:30</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">08/07/2026 06:34</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1443,8 +1455,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = '08/07/2026 06:30';
-const BUILD_EPOCH = 1783481403024; // ms — when this exact file was pushed
+const BUILD_STAMP = '08/07/2026 06:34';
+const BUILD_EPOCH = 1783481655932; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -4580,19 +4592,15 @@ function renderHomeDuties(res, containerId, month) {
     const dow = HEB_DAYS[new Date(year, mon-1, d).getDay()];
     const isToday = e.date === todayStr;
     const isPast = e.date < todayStr;
-    rows.push(`<div style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--border);${isPast?'opacity:0.5;':''}${isToday?'background:rgba(46,160,67,0.08);border-radius:8px;':''}">
-      <div style="min-width:44px;text-align:center">
-        <div style="font-weight:800;font-size:17px">${d}</div>
-        <div style="font-size:10px;color:var(--text2)">${dow}</div>
-      </div>
+    rows.push(`<div class="duty-row${isPast?' is-past':''}${isToday?' is-today':''}">
+      <div class="dnum-box"><div class="n">${d}</div><div class="w">${dow}</div></div>
       <div style="flex:1">
-        <div style="font-weight:600;font-size:13px;color:${r[2]}">${r[0]} ${r[1]}</div>
-        <div style="font-size:11px;color:var(--text2)">${e.notes || e.dutyType || e.dayType || ''}${isToday?' · היום!':''}</div>
+        <div style="font-weight:700;font-size:14px;color:${r[2]}">${r[0]} ${r[1]}</div>
+        <div style="font-size:11px;color:var(--text2)">${e.notes || e.dutyType || e.dayType || ''}${isToday?' · <b style=\'color:var(--success,#2ea043)\'>היום!</b>':''}</div>
       </div>
     </div>`);
   });
   if (rows.length) {
-    rows[rows.length-1] = rows[rows.length-1].replace('border-bottom:1px solid var(--border);','');
     el.innerHTML = rows.join('');
   } else {
     el.innerHTML = '<div style="font-size:13px;color:var(--text2);padding:8px 0">🎉 אין לך תורנויות בחודש זה</div>';
@@ -4662,16 +4670,15 @@ function renderHomeHero(schedCur, schedNext, curMonth, nextMonth) {
   const dow = HEB_DAYS[best.dt.getDay()];
   const dayInfo = best.e.notes || best.e.dutyType || best.e.dayType || '';
   card.style.display = 'block';
-  card.style.cssText += ';background:linear-gradient(135deg,rgba(46,160,67,0.12),rgba(46,160,67,0.03));border:2px solid var(--accent)';
   card.innerHTML = `<div style="display:flex;align-items:center;gap:14px">
-    <div style="text-align:center;min-width:64px;background:var(--surface2);border-radius:12px;padding:8px 6px">
-      <div style="font-size:24px;font-weight:800;color:var(--accent)">${best.d}</div>
-      <div style="font-size:11px;color:var(--text2)">${MONTHS[best.mon-1]}</div>
+    <div class="home-date-badge">
+      <div class="dnum" style="color:var(--success,#2ea043)">${best.d}</div>
+      <div class="dmon">${MONTHS[best.mon-1]}</div>
     </div>
-    <div style="flex:1">
-      <div style="font-size:12px;color:var(--text2)">התורנות הבאה שלך</div>
-      <div style="font-weight:800;font-size:17px;margin:2px 0">${best.role} · יום ${dow}</div>
-      <div style="font-size:12px;color:var(--text2)">${dayInfo}${dayInfo?' · ':''}<b style="color:${diff<=1?'var(--danger)':'var(--accent)'}">${when}</b></div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:11px;color:var(--text2);font-weight:600;letter-spacing:.3px">⏭️ התורנות הבאה שלך</div>
+      <div style="font-weight:800;font-size:18px;margin:3px 0">${best.role} · יום ${dow}</div>
+      <div style="font-size:12px;color:var(--text2)">${dayInfo}${dayInfo?' · ':''}<b style="color:${diff<=1?'var(--danger)':'var(--success,#2ea043)'};font-size:13px">${when}</b></div>
     </div>
   </div>`;
 }
@@ -4688,12 +4695,18 @@ function renderHomeScore(res) {
   const avg = all.reduce((a,s) => a + s._total, 0) / all.length;
   const diff = Math.round((mine._total - avg) * 10) / 10;
   const diffTxt = diff > 0 ? `${diff} נק׳ מעל הממוצע` : diff < 0 ? `${Math.abs(diff)} נק׳ מתחת לממוצע` : 'בדיוק בממוצע';
+  const sorted = [...all].sort((a,b) => a._total - b._total);
+  const rank = sorted.findIndex(s => s.name === currentUser.name) + 1;
   card.style.display = 'block';
-  card.innerHTML = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-    <span style="font-size:22px">📊</span>
+  card.innerHTML = `<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+    <div class="home-date-badge">
+      <div class="dnum" style="color:var(--accent)">${mine._total}</div>
+      <div class="dmon">נקודות</div>
+    </div>
     <div style="flex:1;min-width:150px">
-      <div style="font-weight:700;font-size:14px">הניקוד שלי: <span style="color:var(--accent);font-size:17px">${mine._total}</span></div>
-      <div style="font-size:12px;color:var(--text2)">${diffTxt} (ממוצע: ${Math.round(avg*10)/10})</div>
+      <div style="font-weight:800;font-size:15px;margin-bottom:3px">📊 הניקוד שלי <span class="rank-pill">מקום ${rank} מתוך ${all.length}</span></div>
+      <div style="font-size:12px;color:var(--text2)">${diffTxt} · ממוצע: ${Math.round(avg*10)/10}</div>
+      <div style="font-size:10px;color:var(--text3, var(--text2))">הדירוג מהניקוד הנמוך לגבוה</div>
     </div>
     <button class="btn btn-secondary btn-sm" onclick="switchTab('scores')">לניקוד המלא</button>
   </div>`;
