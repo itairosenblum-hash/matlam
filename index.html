@@ -683,6 +683,9 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
       <button class="btn btn-primary btn-full" id="login-btn" onclick="doLogin()">
         <span>התחבר</span>
       </button>
+      <div style="text-align:center;margin-top:12px">
+        <a href="#" onclick="openForgotModal();return false" style="color:var(--text2);font-size:13px;text-decoration:underline">שכחתי סיסמה 🔑</a>
+      </div>
 
     </div>
   </div>
@@ -1327,6 +1330,43 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <!-- MODALS -->
+<div id="modal-forgot-pass" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🔑 שחזור סיסמה</div>
+      <button class="modal-close" onclick="closeModal('modal-forgot-pass')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="forgot-alert"></div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px">לאימות זהותך, הזן את הפרטים כפי שהם רשומים במערכת:</p>
+      <div class="form-group">
+        <label>שם משתמש</label>
+        <input id="forgot-user" type="text" placeholder="שם משתמש" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label>מספר טלפון</label>
+        <input id="forgot-phone" type="tel" placeholder="050-1234567">
+      </div>
+      <div class="form-group">
+        <label>כתובת אימייל</label>
+        <input id="forgot-email" type="email" placeholder="name@example.com">
+      </div>
+      <div class="form-group">
+        <label>סיסמה חדשה (לפחות 6 תווים)</label>
+        <input id="forgot-newpass" type="password" placeholder="סיסמה חדשה" autocomplete="new-password">
+      </div>
+      <div class="form-group">
+        <label>אימות סיסמה חדשה</label>
+        <input id="forgot-newpass2" type="password" placeholder="הקלד שוב את הסיסמה" autocomplete="new-password">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-forgot-pass')">ביטול</button>
+      <button class="btn btn-primary" id="forgot-submit-btn" onclick="submitForgotPassword()">אפס סיסמה</button>
+    </div>
+  </div>
+</div>
+
 <div id="modal-add-torani" class="modal-overlay">
   <div class="modal">
     <div class="modal-header">
@@ -1509,7 +1549,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">09/07/2026 22:11</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">13/07/2026 06:57</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1522,8 +1562,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = '09/07/2026 22:11';
-const BUILD_EPOCH = 1783624300441; // ms — when this exact file was pushed
+const BUILD_STAMP = '13/07/2026 06:57';
+const BUILD_EPOCH = 1783915044829; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -1764,6 +1804,42 @@ function toggleLoginPass() {
   const btn = document.getElementById('login-pass-eye');
   if (inp.type === 'password') { inp.type = 'text'; btn.textContent = '🙈'; }
   else { inp.type = 'password'; btn.textContent = '👁'; }
+}
+
+function openForgotModal() {
+  ['forgot-user','forgot-phone','forgot-email','forgot-newpass','forgot-newpass2'].forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('forgot-alert').innerHTML = '';
+  const u = document.getElementById('login-user').value.trim();
+  if (u) document.getElementById('forgot-user').value = u;
+  document.getElementById('modal-forgot-pass').classList.add('open');
+}
+
+async function submitForgotPassword() {
+  const username = document.getElementById('forgot-user').value.trim();
+  const phone = document.getElementById('forgot-phone').value.trim();
+  const email = document.getElementById('forgot-email').value.trim();
+  const newPassword = document.getElementById('forgot-newpass').value;
+  const newPassword2 = document.getElementById('forgot-newpass2').value;
+  if (!username || !phone || !email || !newPassword) return showAlert('forgot-alert','יש למלא את כל השדות','error');
+  if (newPassword.length < 6) return showAlert('forgot-alert','הסיסמה חייבת להכיל לפחות 6 תווים','error');
+  if (newPassword !== newPassword2) return showAlert('forgot-alert','הסיסמאות אינן תואמות','error');
+  const btn = document.getElementById('forgot-submit-btn');
+  btn.disabled = true;
+  try {
+    const res = await api({action:'forgotPassword', username, phone, email, newPassword});
+    if (res.success) {
+      closeModal('modal-forgot-pass');
+      showAlert('login-alert', '✓ ' + (res.message || 'הסיסמה עודכנה בהצלחה'), 'success');
+      document.getElementById('login-user').value = username;
+      document.getElementById('login-pass').value = '';
+      document.getElementById('login-pass').focus();
+    } else {
+      showAlert('forgot-alert', res.error || 'שגיאה באיפוס הסיסמה', 'error');
+    }
+  } catch(e) {
+    showAlert('forgot-alert', 'שגיאת חיבור. נסה שוב.', 'error');
+  }
+  btn.disabled = false;
 }
 
 async function doLogin() {
