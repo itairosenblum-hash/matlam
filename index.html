@@ -792,6 +792,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
             </div>
             <button class="btn btn-primary" onclick="saveConstraints()">💾 שמור אילוצים</button>
             <button class="btn btn-secondary" onclick="saveNoConstraints()" title="סימון שאין לך אילוצים החודש">✋ אין לי אילוצים</button>
+            <button class="btn btn-secondary" id="btn-av-skip-month" style="display:none;border-color:rgba(218,54,51,.4);color:var(--danger)" onclick="markNotServingThisMonth()" title="למשרתי אב: אילוץ מלא על כל החודש">🚫 לא מבצע החודש</button>
           </div>
         </div>
         <div id="constraint-alert"></div>
@@ -1550,7 +1551,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">14/07/2026 16:59</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">14/07/2026 17:06</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1563,8 +1564,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = '14/07/2026 16:59';
-const BUILD_EPOCH = 1784037585960; // ms — when this exact file was pushed
+const BUILD_STAMP = '14/07/2026 17:06';
+const BUILD_EPOCH = 1784037964144; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -2279,6 +2280,12 @@ async function loadConstraints() {
     document.getElementById('constraint-notes').value = res.notes || '';
   }
   renderConstraintGrid(year, mon, days);
+  // "לא מבצע החודש" button — only for משרת אב (activity 0.5)
+  try {
+    const me = (allPeople || []).find(p => p.name === currentUser.name);
+    const avBtn = document.getElementById('btn-av-skip-month');
+    if (avBtn) avBtn.style.display = (me && String(me.activity) === '0.5') ? 'inline-block' : 'none';
+  } catch(e) {}
 }
 
 function renderConstraintGrid(year, mon, days) {
@@ -2448,6 +2455,22 @@ async function saveNoConstraints() {
   const res = await api({action:'saveConstraints', month, constraints: constraintData, notes, viewAs: currentUser.username});
   showLoading(false);
   showAlert('constraint-alert', res.success ? '✓ נרשם שאין לך אילוצים לחודש זה!' : res.error, res.success?'success':'error');
+  if (res.success) loadConstraints();
+}
+
+async function markNotServingThisMonth() {
+  const {days, s: month} = parseMonth(document.getElementById('constraint-month-select').value);
+  if (!confirm('לסמן שאינך מבצע תורנות החודש?\n\nכל ימי החודש יסומנו כאילוץ (X) ולא תשובץ כלל.')) return;
+  constraintData = new Array(days).fill('X');
+  const NOT_SERVING_MARK = '[לא מבצע החודש]';
+  let notes = document.getElementById('constraint-notes').value || '';
+  notes = notes.replace('[ללא אילוצים החודש]', '').trim();
+  if (!notes.includes(NOT_SERVING_MARK)) notes = (NOT_SERVING_MARK + ' ' + notes).trim();
+  document.getElementById('constraint-notes').value = notes;
+  showLoading(true);
+  const res = await api({action:'saveConstraints', month, constraints: constraintData, notes, viewAs: currentUser.username});
+  showLoading(false);
+  showAlert('constraint-alert', res.success ? '✓ נרשם שאינך מבצע תורנות החודש — לא תשובץ.' : res.error, res.success?'success':'error');
   if (res.success) loadConstraints();
 }
 
@@ -4204,6 +4227,8 @@ async function loadAdminConstraints() {
         ${name}
         <span class="x-count-badge" style="color:var(--danger);font-size:11px"> ✕<span class="xc">${xCount}</span></span>
         <span class="v-count-badge" style="color:var(--accent);font-size:11px"> ✓<span class="vc">${vCount}</span></span>
+        ${(!vCount && !xCount && String(c.notes||'').includes('[ללא אילוצים החודש]')) ? '<span style="color:var(--accent);font-size:10px;background:rgba(46,160,67,0.12);border:1px solid rgba(46,160,67,0.3);border-radius:8px;padding:1px 6px">✋ ללא אילוצים</span>' : ''}
+        ${String(c.notes||'').includes('[לא מבצע החודש]') ? '<span style="color:var(--danger);font-size:10px;background:rgba(218,54,51,0.12);border:1px solid rgba(218,54,51,0.3);border-radius:8px;padding:1px 6px">🚫 לא מבצע החודש</span>' : ''}
       </td>`;
     for (let d = 0; d < days; d++) {
       const v = c.constraints[d];
