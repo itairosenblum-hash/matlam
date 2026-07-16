@@ -82,83 +82,76 @@ function route(req) {
   if (action === 'login') return actionLogin(req);
   if (action === 'bootstrap') return actionBootstrap();
   if (action === 'getLockStatus') return actionGetLockStatus(req);
-  if (action === 'debugUsers') return actionDebugUsers();
-  if (action === 'debugPeople') return actionGetPeople();
-  if (action === 'debugSchedule') return actionDebugSchedule(req);
 
   const user = validateToken(req.token);
   if (!user) return {success: false, error: 'אין הרשאה', code: 401};
 
+  // Viewer (צופה) accounts are strictly read-only: schedule, scores, tornim,
+  // notifications + changing their own password. Everything else is blocked.
+  if (user.role === 'viewer') {
+    var viewerAllowed = ['getSchedule','getScores','getAllTornim','getPeople','getProfile',
+                         'getDutyTypes','getNotifications','clearNotification','clearAllNotifications','changePassword'];
+    if (viewerAllowed.indexOf(action) === -1) {
+      return {success:false, error:'לחשבון צפייה אין הרשאה לפעולה זו'};
+    }
+  }
+
   // User actions
   if (action === 'getProfile') return {success: true, user};
   if (action === 'getConstraints') return actionGetConstraints(req, user);
-  if (action === 'saveConstraints') return actionSaveConstraints(req, user);
+  if (action === 'saveConstraints') return withAudit(user, 'הגשת אילוצים', String(req.month||'') + (req.viewAs ? ' עבור ' + req.viewAs : '') + (Array.isArray(req.constraints) ? ' | X: ' + req.constraints.filter(function(c){return c==='X';}).length + ' | V: ' + req.constraints.filter(function(c){return c==='V';}).length : ''), actionSaveConstraints(req, user));
   if (action === 'getSchedule') return actionGetSchedule(req, user);
-  if (action === 'changePassword') return actionChangePassword(req, user);
+  if (action === 'changePassword') return withAudit(user, 'שינוי סיסמה', String(user.username||''), actionChangePassword(req, user));
 
-  // Available to viewer + all authenticated users
-  if (action === 'getSchedule') return actionGetSchedule(req, user);
-  if (action === 'getAllTornim') return actionGetAllTornim();
-
-  // Viewer role: read-only access to schedule and tornim only
-  if (user.role === 'viewer') return {success: false, error: 'אין הרשאה לפעולה זו', code: 403};
-
-  // Available to all authenticated users (non-viewer)
+  // Available to all authenticated users
   if (action === 'getPeople') return actionGetPeople();
-  if (action === 'submitSwap') return actionSubmitSwap(req, user);
+  if (action === 'submitSwap') return withAudit(user, 'בקשת החלפה', String(req.date||'') + ' ⇄ ' + String(req.withWho||'') + (req.note ? ' | הערה: ' + req.note : ''), actionSubmitSwap(req, user));
   if (action === 'getSwaps') return actionGetSwaps(req, user);
   if (action === 'getScores') return actionGetScores(); // all users can see scores
+  if (action === 'getToraniHistory') return actionGetToraniHistory(req, user);
   if (action === 'getNotifications') return actionGetNotificationsPersonal(req, user);
-  // duty_agent.py sync (token-based, no login required)
-  if (action === 'writeSchedule') return writeScheduleFromAgent(req);
-  if (action === 'updateSwap') return actionUpdateSwap(req);  // users approve/reject their own swaps
-  if (action === 'deleteSwap' && user.role === 'admin') return actionDeleteSwap(req);
+  if (action === 'updateSwap') return withAudit(user, 'עדכון החלפה: ' + String(req.status||''), 'בקשה ' + String(req.id||''), actionUpdateSwap(req, user));
+  if (action === 'deleteSwap' && user.role === 'admin') return withAudit(user, 'מחיקת בקשת החלפה', String(req.id||''), actionDeleteSwap(req));
 
   // Admin only
   if (user.role !== 'admin') return {success: false, error: 'אין הרשאת מנהל', code: 403};
   if (action === 'getUsers') return actionGetUsers();
-  if (action === 'debugUsers') return actionDebugUsers();
-  if (action === 'addUser') return actionAddUser(req);
-  if (action === 'updateUser') return actionUpdateUser(req);
-  if (action === 'toggleUser') return actionToggleUser(req);
+  if (action === 'getAuditLog') return actionGetAuditLog(req);
+  if (action === 'addUser') return withAudit(user, 'הוספת משתמש', String(req.username||'') + ' | ' + auditFields({'שם':req.name, 'תפקיד':req.role||'user'}), actionAddUser(req));
+  if (action === 'updateUser') return withAudit(user, 'עדכון משתמש', String(req.username||'') + (auditFields({'שם חדש':req.name, 'תפקיד':req.role, 'סיסמה':req.newPassword?'שונתה':''}) ? ' | ' + auditFields({'שם חדש':req.name, 'תפקיד':req.role, 'סיסמה':req.newPassword?'שונתה':''}) : ''), actionUpdateUser(req));
+  if (action === 'toggleUser') return withAudit(user, 'הפעלה/השבתה של משתמש', String(req.username||''), actionToggleUser(req));
   if (action === 'getAllConstraints') return actionGetAllConstraints(req);
-  if (action === 'generateSchedule') return actionGenerateSchedule(req);  // fixed version with proper filters
-  if (action === 'generateScheduleLegacy') return actionGenerateScheduleV2(req);
-  if (action === 'initMonth') return actionInitMonth(req);
-  if (action === 'resetSchedule') return actionResetSchedule(req);
-  if (action === 'setLockStatus') return actionSetLockStatus(req);
-  if (action === 'updatePerson') return actionUpdatePerson(req);
-  if (action === 'sendReminder') return actionSendReminder(req);
-  if (action === 'sendScheduleEmails') return actionSendScheduleEmails(req);
+  if (action === 'generateSchedule') return withAudit(user, 'הפקת שיבוץ', String(req.month||'') + (req.dayCategories && auditDayCatCount(req.dayCategories) ? ' | ' + auditDayCatCount(req.dayCategories) : ''), actionGenerateScheduleV2(req));  // uses duty_agent logic
+  if (action === 'generateScheduleLegacy') return withAudit(user, 'הפקת שיבוץ (ישן)', String(req.month||''), actionGenerateSchedule(req));
+  if (action === 'initMonth') return withAudit(user, 'יצירת לוח חודש', String(req.month||'') || (String(req.year||'')+'-'+String(req.mon||'')), actionInitMonth(req));
+  if (action === 'resetSchedule') return withAudit(user, 'איפוס לוח', String(req.month||''), actionResetSchedule(req));
+  if (action === 'setLockStatus') return withAudit(user, 'סטטוס הגשת אילוצים', String(req.month||'') + ' → ' + String(req.locked), actionSetLockStatus(req));
+  if (action === 'updatePerson') return withAudit(user, 'עדכון פרטי תורן', String(req.name||'') + (auditFields({'פעילות':req.activity, 'קטגוריה':req.dutyCategory, 'סופ"ש':req.weekendType}) ? ' | ' + auditFields({'פעילות':req.activity, 'קטגוריה':req.dutyCategory, 'סופ"ש':req.weekendType}) : ''), actionUpdatePerson(req));
+  if (action === 'sendReminder') return withAudit(user, 'שליחת תזכורת אילוצים', String(req.month||''), actionSendReminder(req));
+  if (action === 'sendScheduleEmails') return withAudit(user, 'שליחת לוח במייל', String(req.month||''), actionSendScheduleEmails(req));
 
-  if (action === 'reApplySwap') return actionReApplySwap(req);
-  if (action === 'fixV2Score') return actionFixV2Score(req);
+  if (action === 'reApplySwap') return withAudit(user, 'ביצוע חוזר של החלפה', String(req.id||''), actionReApplySwap(req));
+  if (action === 'fixV2Score') return withAudit(user, 'תיקון ניקוד', String(req.month||'') + ' ' + String(req.name||'') + (auditFields({'ניקוד':req.score!==undefined?('+'+req.score):undefined, 'סוג':req.dutyType}) ? ' | ' + auditFields({'ניקוד':req.score!==undefined?('+'+req.score):undefined, 'סוג':req.dutyType}) : ''), actionFixV2Score(req));
   if (action === 'sendSchedule') return actionSendSchedule(req);
   if (action === 'sendAdminMessage') return actionSendAdminMessage(req);
-  if (action === 'sendCredentialsOne') return actionSendCredentialsOne(req);
   if (action === 'debugSwap') return actionDebugSwap(req);
-  if (action === 'resetPassword' && user.role === 'admin') return actionResetPassword(req);
+  if (action === 'resetPassword' && user.role === 'admin') return withAudit(user, 'איפוס סיסמה', String(req.username||''), actionResetPassword(req));
   if (action === 'getAllTornim') return actionGetAllTornim();
-  if (action === 'addTorani') return actionAddTorani(req);
-  if (action === 'updateTorani') return actionUpdateTorani(req);
-  if (action === 'toggleTorani') return actionToggleTorani(req);
-  if (action === 'deleteTorani') return actionDeleteTorani(req);
-  if (action === 'updateScheduleEntry') return actionUpdateScheduleEntry(req);
-  if (action === 'initSheets') return actionInitSheets();
+  if (action === 'addTorani') return withAudit(user, 'הוספת תורן', String(req.name||'') + ' | ' + auditFields({'תפקיד':req.role||'user', 'פעילות':req.activity, 'קטגוריה':req.dutyCategory, 'סופ"ש':req.weekendType, 'סיום שירות':req.endDate}), actionAddTorani(req));
+  if (action === 'updateTorani') return withAudit(user, 'עריכת תורן', String(req.username||'') + (auditFields({'שם חדש':req.name, 'תפקיד':req.role, 'פעילות':req.activity, 'קטגוריה':req.dutyCategory, 'סופ"ש':req.weekendType, 'טלפון':req.phone, 'אימייל':req.email, 'סיום שירות':req.endDate, 'פעיל':req.active!==undefined?(req.active?'כן':'לא'):undefined, 'סיסמה':req.newPassword?'שונתה':undefined}) ? ' | ' + auditFields({'שם חדש':req.name, 'תפקיד':req.role, 'פעילות':req.activity, 'קטגוריה':req.dutyCategory, 'סופ"ש':req.weekendType, 'טלפון':req.phone, 'אימייל':req.email, 'סיום שירות':req.endDate, 'פעיל':req.active!==undefined?(req.active?'כן':'לא'):undefined, 'סיסמה':req.newPassword?'שונתה':undefined}) : ''), actionUpdateTorani(req));
+  if (action === 'toggleTorani') return withAudit(user, 'הפעלה/השבתה של תורן', String(req.username||''), actionToggleTorani(req));
+  if (action === 'deleteTorani') return withAudit(user, 'מחיקת תורן', String(req.username||''), actionDeleteTorani(req));
+  if (action === 'updateScheduleEntry') return withAudit(user, 'עריכת לוח ידנית', String(req.month||'') + ' ' + String(req.date||'') + (auditFields({'מבצע':req.v!==undefined?(req.v||'-'):undefined, 'עתודה א':req.a!==undefined?(req.a||'-'):undefined, 'עתודה ב':req.b!==undefined?(req.b||'-'):undefined, 'סוג תורנות':req.dutyType, 'חניך':req.trainee!==undefined?(req.trainee||'-'):undefined, 'הערה':req.notes}) ? ' | ' + auditFields({'מבצע':req.v!==undefined?(req.v||'-'):undefined, 'עתודה א':req.a!==undefined?(req.a||'-'):undefined, 'עתודה ב':req.b!==undefined?(req.b||'-'):undefined, 'סוג תורנות':req.dutyType, 'חניך':req.trainee!==undefined?(req.trainee||'-'):undefined, 'הערה':req.notes}) : ''), actionUpdateScheduleEntry(req));
+  if (action === 'initSheets') return withAudit(user, 'אתחול גיליונות', '', actionInitSheets());
+  if (action === 'publishSchedule') return withAudit(user, 'סטטוס לוח: ' + (req.status === 'draft' ? 'טיוטה' : 'פורסם'), String(req.month||''), actionPublishSchedule(req, user));
 
   return {success: false, error: 'פעולה לא מוכרת: ' + action};
 }
 
 // ===== UTILS =====
-// Cache ss and sheets for the lifetime of one request execution
-let _ss = null;
-const _sheetCache = {};
 function getSheet(name) {
-  if (!_ss) _ss = SpreadsheetApp.getActiveSpreadsheet();
-  if (!_sheetCache[name]) {
-    _sheetCache[name] = _ss.getSheetByName(name) || _ss.insertSheet(name);
-  }
-  return _sheetCache[name];
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  return ss.getSheetByName(name) || ss.insertSheet(name);
 }
 
 function hashPass(pw) {
@@ -186,36 +179,33 @@ function actionLogin(req) {
     if (String(uname).toLowerCase() === String(username).toLowerCase() && pwd === hash) {
       if (!active) return {success: false, error: 'החשבון מושבת'};
       const token = Utilities.getUuid();
-      const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
-      getSheet(SH.SESSIONS).appendRow([token, username, name, role, new Date().toISOString(), expiry.toISOString()]);
+      // Session length: admins 24h, everyone else 30 days
+      const sessionDays = (role === 'admin') ? 1 : 30;
+      const expiry = new Date(Date.now() + sessionDays * 24 * 60 * 60 * 1000);
+      const canonUser = normUser(uname); // canonical form from the sheet, lowercased
+      getSheet(SH.SESSIONS).appendRow([token, canonUser, name, role, new Date().toISOString(), expiry.toISOString()]);
       if (Math.random() < 0.1) cleanSessions();
-      return {success: true, token, name, username, role, expiry: expiry.toISOString()};
+      return {success: true, token, name, username: canonUser, role, expiry: expiry.toISOString()};
     }
   }
   return {success: false, error: 'שם משתמש או סיסמה שגויים'};
 }
 
+// Canonical username form: trimmed + lowercase. Usernames are case-insensitive
+// everywhere — Mikahela.Cohen and mikahela.cohen are the same user.
+function normUser(u) {
+  return String(u || '').trim().toLowerCase();
+}
+
 function validateToken(token) {
   if (!token) return null;
-  const sheet = getSheet(SH.SESSIONS);
-  const rows = sheet.getDataRange().getValues();
+  const rows = getSheet(SH.SESSIONS).getDataRange().getValues();
   const now = new Date();
-  let found = null;
-  const toDelete = [];
   for (let i = 1; i < rows.length; i++) {
     const [tok, username, name, role, , expiry] = rows[i];
-    const expired = new Date(expiry) <= now;
-    if (expired) { toDelete.push(i + 1); continue; }
-    if (tok === token) found = {username, name, role};
+    if (tok === token && new Date(expiry) > now) return {username, name, role};
   }
-  // Clean expired sessions in batch (reverse order to preserve row indices)
-  if (toDelete.length > 0) {
-    for (let i = toDelete.length - 1; i >= 0; i--) {
-      sheet.deleteRow(toDelete[i]);
-    }
-    _sheetCache[SH.SESSIONS] = null; // invalidate cache after structural change
-  }
-  return found;
+  return null;
 }
 
 function cleanSessions() {
@@ -227,6 +217,63 @@ function cleanSessions() {
   }
 }
 
+// ===== AUDIT LOG =====
+// Builds a compact "key: value | key: value" string from an object,
+// skipping any field that's undefined/null/empty — used to enrich audit details
+// with the actual data the request carried, without needing extra sheet reads.
+function auditFields(obj) {
+  var parts = [];
+  Object.keys(obj).forEach(function(k) {
+    var v = obj[k];
+    if (v === undefined || v === null || v === '') return;
+    parts.push(k + ': ' + v);
+  });
+  return parts.join(' | ');
+}
+
+function auditDayCatCount(dayCategories) {
+  try {
+    var obj = (typeof dayCategories === 'string') ? JSON.parse(dayCategories) : dayCategories;
+    var n = obj ? Object.keys(obj).length : 0;
+    return n > 0 ? (n + ' ימים הוגדרו ידנית') : '';
+  } catch(e) { return ''; }
+}
+
+function withAudit(user, label, details, result) {
+  try {
+    if (result && result.success) logAudit(user, label, details);
+  } catch(e) { Logger.log('withAudit error: ' + e); }
+  return result;
+}
+
+function logAudit(user, action, details) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sh = ss.getSheetByName('AuditLog');
+    if (!sh) {
+      sh = ss.insertSheet('AuditLog');
+      sh.setRightToLeft(true);
+      sh.getRange(1,1,1,4).setValues([['תאריך','משתמש','פעולה','פרטים']]);
+    }
+    const who = (user && (user.name || user.username)) ? String(user.name || user.username) : String(user || '');
+    sh.appendRow([new Date().toISOString(), who, String(action || ''), String(details || '')]);
+    if (Math.random() < 0.02) cleanAuditLog(sh);
+  } catch(e) { Logger.log('logAudit error: ' + e); }
+}
+
+function cleanAuditLog(sh) {
+  try {
+    sh = sh || SpreadsheetApp.getActiveSpreadsheet().getSheetByName('AuditLog');
+    if (!sh) return;
+    const cutoff = new Date(Date.now() - 183 * 24 * 60 * 60 * 1000); // ~6 months
+    const rows = sh.getDataRange().getValues();
+    for (let i = rows.length - 1; i >= 1; i--) {
+      const d = new Date(rows[i][0]);
+      if (d && !isNaN(d) && d < cutoff) sh.deleteRow(i + 1);
+    }
+  } catch(e) { Logger.log('cleanAuditLog error: ' + e); }
+}
+
 function actionChangePassword(req, user) {
   const {oldPassword, newPassword} = req;
   if (!oldPassword || !newPassword) return {success: false, error: 'חסרים שדות'};
@@ -234,7 +281,7 @@ function actionChangePassword(req, user) {
   const rows = sheet.getDataRange().getValues();
   const oldHash = hashPass(oldPassword);
   for (let i = 1; i < rows.length; i++) {
-    if (rows[i][2] === user.username && rows[i][3] === oldHash) {
+    if (normUser(rows[i][2]) === normUser(user.username) && rows[i][3] === oldHash) {
       sheet.getRange(i + 1, 4).setValue(hashPass(newPassword));
       return {success: true};
     }
@@ -262,7 +309,7 @@ function actionAddUser(req) {
     if (String(rows[i][2]).toLowerCase() === String(username).toLowerCase())
       return {success: false, error: 'שם המשתמש כבר קיים'};
   }
-  sheet.appendRow([Utilities.getUuid().substring(0, 8), name, username, hashPass(password), role || 'user', true]);
+  sheet.appendRow([Utilities.getUuid().substring(0, 8), name, normUser(username), hashPass(password), role || 'user', true]);
   return {success: true};
 }
 
@@ -271,7 +318,7 @@ function actionUpdateUser(req) {
   const sheet = getSheet(SH.USERS);
   const rows = sheet.getDataRange().getValues();
   for (let i = 1; i < rows.length; i++) {
-    if (rows[i][2] === username) {
+    if (normUser(rows[i][2]) === normUser(username)) {
       if (name) sheet.getRange(i + 1, 2).setValue(name);
       if (role) sheet.getRange(i + 1, 5).setValue(role);
       if (newPassword) sheet.getRange(i + 1, 4).setValue(hashPass(newPassword));
@@ -281,94 +328,11 @@ function actionUpdateUser(req) {
   return {success: false, error: 'משתמש לא נמצא'};
 }
 
-function actionDebugSchedule(req) {
-  const month = String(req.month || '202507');
-  const year = parseInt(month.substring(0, 4));
-  const mon  = parseInt(month.substring(4, 6));
-  const daysInMonth = new Date(year, mon, 0).getDate();
-
-  const allPeople = actionGetPeople().people;
-  const usersRows = getSheet(SH.USERS).getDataRange().getValues();
-  const activeUserNames = new Set();
-  for (let i = 1; i < usersRows.length; i++) {
-    const [, uName, , , , uActive] = usersRows[i];
-    const isActive = uActive !== false && uActive !== 0 && uActive !== '0' &&
-                     String(uActive).toUpperCase() !== 'FALSE' && uActive !== '';
-    if (uName && isActive) activeUserNames.add(String(uName));
-  }
-
-  const activePeople = allPeople.filter(p =>
-    p.activity !== '0' &&
-    p.dutyCategory !== 'פטור' &&
-    p.dutyCategory !== 'טרם הוסמך' &&
-    p.name !== 'מנהל מערכת' &&
-    p.name !== 'בדיקה בדיקה' &&
-    p.name !== 'מטלמ' &&
-    activeUserNames.has(p.name)
-  );
-
-  const days = [];
-  const tzDbg = Session.getScriptTimeZone();
-  for (let d = 1; d <= daysInMonth; d++) {
-    const date = new Date(year, mon - 1, d);
-    const dowISO = parseInt(Utilities.formatDate(date, tzDbg, 'u'));
-    const dow = dowISO === 7 ? 0 : dowISO;
-    const cat = dow === 4 ? 'חמישי' : (dow === 5 || dow === 6) ? 'סוף שבוע' : 'חול';
-    days.push({day: d, dow, cat});
-  }
-
-  // Count by weekendType
-  const mala = activePeople.filter(p => p.weekendType !== 'בנפרד' && p.dutyCategory !== 'אב');
-  const sep = activePeople.filter(p => p.weekendType === 'בנפרד' && p.dutyCategory !== 'אב');
-  const av = activePeople.filter(p => p.dutyCategory === 'אב');
-
-  const weekends = days.filter(d => d.dow === 5 && days.find(d2 => d2.day === d.day+1 && d2.cat === 'סוף שבוע'));
-  const standaloneFri = days.filter(d => d.dow === 5 && d.cat === 'סוף שבוע' && !weekends.find(w => w.day === d.day));
-  const standaloneSat = days.filter(d => d.dow === 6 && d.cat === 'סוף שבוע' && !weekends.find(w => w.day === d.day-1));
-  const thursdays = days.filter(d => d.cat === 'חמישי');
-  const weekdays = days.filter(d => d.cat === 'חול');
-
-  return {success: true, debug: {
-    totalActive: activePeople.length,
-    מלא: mala.length,
-    בנפרד: sep.length,
-    אב: av.length,
-    malaNames: mala.map(p => p.name),
-    sepNames: sep.map(p => p.name),
-    avNames: av.map(p => p.name),
-    daysNeedingMala: weekends.length,
-    weekendPairs: weekends.map(d => `${d.day}+${d.day+1}`),
-    standaloneFri: standaloneFri.map(d => d.day),
-    standaloneSat: standaloneSat.map(d => d.day),
-    thursdays: thursdays.map(d => d.day),
-    weekdays: weekdays.map(d => d.day)
-  }};
-}
-
-
-function actionDebugUsers() {
-  const rows = getSheet(SH.USERS).getDataRange().getValues();
-  const result = [];
-  for (let i = 1; i < rows.length; i++) {
-    const [id, uName, uUsername, , uRole, uActive] = rows[i];
-    result.push({
-      row: i+1,
-      name: String(uName),
-      username: String(uUsername),
-      active: uActive,
-      activeType: typeof uActive,
-      activeStr: String(uActive)
-    });
-  }
-  return {success: true, users: result};
-}
-
-
 function actionToggleUser(req) {
   const sheet = getSheet(SH.USERS);
   const rows = sheet.getDataRange().getValues();
   for (let i = 1; i < rows.length; i++) {
-    if (rows[i][2] === req.username) {
+    if (normUser(rows[i][2]) === normUser(req.username)) {
       const current = !!rows[i][5];
       sheet.getRange(i + 1, 6).setValue(!current);
       return {success: true, active: !current};
@@ -414,74 +378,102 @@ function actionUpdatePerson(req) {
 
 // ===== SCORES =====
 function actionGetScores() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheets = ss.getSheets();
   const monthNames = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
 
+  // Get all people
   const peopleRes = actionGetPeople();
   const people = peopleRes.people;
 
+  // Base scores from Score sheet (2025 accumulation)
+  const baseScores = {};
   const scoreSheet = getSheet(SH.SCORES);
   const scoreRows = scoreSheet.getDataRange().getValues();
-
-  // Build a map from name -> scores row data
-  const scoreMap = {};
   for (let i = 1; i < scoreRows.length; i++) {
-    const row = scoreRows[i];
-    if (!row[0]) continue;
-    const name = String(row[0]).trim();
-    const entry = {
-      acc2025: Number(row[2]) || 0,
-      acc2026: Number(row[3]) || 0,
-      activity: String(row[1] || '1')
+    if (!scoreRows[i][0]) continue;
+    baseScores[String(scoreRows[i][0])] = {
+      acc2025: Number(scoreRows[i][2]) || 0,
+      activity: String(scoreRows[i][1] || '1')
     };
-    monthNames.forEach((mKey, idx) => {
-      const typeCol = 4 + idx * 2;     // col index 0-based: jan=4,5  feb=6,7 ...
-      const scoreCol = typeCol + 1;
-      entry[mKey] = {
-        type:  String(row[typeCol]  || ''),
-        score: Number(row[scoreCol] || 0)
-      };
-    });
-    scoreMap[name] = entry;
   }
 
-  // Build set of active user names from Users sheet
-  const usersSheet = getSheet(SH.USERS);
-  const usersRows = usersSheet.getDataRange().getValues();
-  const activeUserSet = new Set();
-  for (let i = 1; i < usersRows.length; i++) {
-    const [, uName, , , , uActive] = usersRows[i];
-    const isActive = uActive !== false && uActive !== 0 && uActive !== '0' &&
-                     String(uActive).toUpperCase() !== 'FALSE' && uActive !== '';
-    if (uName && isActive) activeUserSet.add(String(uName));
-  }
+  // Find all Schedule_YYYYMM sheets
+  const scheduleSheets = sheets.filter(s => /^Schedule_\d{6}$/.test(s.getName()));
 
-  // Build result - same filters as before
+  // Compute scores per person per month from actual schedules
+  const personMonthScores = {}; // name -> { '202601': {score, type}, ... }
+
+  scheduleSheets.forEach(sheet => {
+    const monthCode = sheet.getName().replace('Schedule_',''); // e.g. '202606'
+    const year = monthCode.substring(0,4);
+    const mon = parseInt(monthCode.substring(4,6));
+    const rows = sheet.getDataRange().getValues();
+
+    // Headers: תאריך, יום, סוג יום, מבצע, עתודה א, עתודה ב, הערות, סוג תורנות, ניקוד, מבצע שני, עתודה א שנייה, עתודה ב שנייה
+    for (let i = 1; i < rows.length; i++) {
+      const vName  = String(rows[i][3] || '').trim();
+      const v2Name = String(rows[i][9] || '').trim();
+      const dutyType = String(rows[i][7] || rows[i][2] || '');
+      const sc = Number(rows[i][8]) || 0;
+
+      // Add score for V (main)
+      if (vName && sc > 0) {
+        if (!personMonthScores[vName]) personMonthScores[vName] = {};
+        if (!personMonthScores[vName][monthCode])
+          personMonthScores[vName][monthCode] = {score: 0, type: dutyType};
+        personMonthScores[vName][monthCode].score += sc;
+        personMonthScores[vName][monthCode].type = dutyType;
+      }
+
+      // Add score for V2 (second shift) - same score as main duty
+      if (v2Name && sc > 0) {
+        if (!personMonthScores[v2Name]) personMonthScores[v2Name] = {};
+        if (!personMonthScores[v2Name][monthCode])
+          personMonthScores[v2Name][monthCode] = {score: 0, type: dutyType};
+        personMonthScores[v2Name][monthCode].score += sc;
+      }
+    }
+  });
+
+  // Build result
   const scores = people.filter(p => {
-    if (p.name === 'מנהל מערכת' || p.name === 'בדיקה בדיקה' || p.name === 'מטלמ') return false;
-    if (p.dutyCategory === 'מנהל מערכת') return false;
+    // Skip admin and אב from scores
+    if (p.name === 'מנהל מערכת' || p.dutyCategory === 'מנהל מערכת' || p.dutyCategory === 'אב') return false;
     if (p.role === 'admin') return false;
-    if (p.dutyCategory === 'טרם הוסמך' || p.dutyCategory === 'פטור') return false;
-    if (p.activity === '0') return false;
-    if (!activeUserSet.has(p.name)) return false;
     return true;
   }).map(p => {
-    const s = scoreMap[p.name] || {};
+    const base = baseScores[p.name] || {};
+    const monthData = personMonthScores[p.name] || {};
+
+    // Compute 2026 accumulated total from schedules
+    let acc2026 = 0;
+    const monthScores = {};
+    monthNames.forEach((mKey, idx) => {
+      const mon = idx + 1;
+      const code2026 = '2026' + String(mon).padStart(2,'0');
+      const md = monthData[code2026] || {score:0, type:''};
+      monthScores[mKey] = {score: md.score, type: md.type};
+      acc2026 += md.score;
+    });
+
     const result = {
       name: p.name,
       activity: p.activity,
       dutyCategory: p.dutyCategory || '',
       weekendType: p.weekendType || '',
-      acc2025: s.acc2025 || 0,
-      acc2026: s.acc2026 || 0
+      acc2025: base.acc2025 || 0,
+      acc2026: Math.round(acc2026)
     };
     monthNames.forEach(m => {
-      result[m] = s[m] || {score: 0, type: ''};
+      result[m] = monthScores[m] || {score:0, type:''};
     });
     return result;
   });
 
   return {success: true, scores};
 }
+
 function updateScoreForMonth(name, monthIdx, dutyType, score) {
   // monthIdx: 0=Jan, 4=May, etc.
   const sheet = getSheet(SH.SCORES);
@@ -527,10 +519,11 @@ function actionGetConstraints(req, user) {
 }
 
 function getNameByUsername(username) {
-  const target = String(username || '').trim().toLowerCase();
+  // Case-insensitive + trimmed — a silent mismatch here falls back to the raw
+  // username and creates duplicate constraint rows keyed by username.
   const rows = getSheet(SH.USERS).getDataRange().getValues();
   for (let i = 1; i < rows.length; i++) {
-    if (String(rows[i][2] || '').trim().toLowerCase() === target) return String(rows[i][1]);
+    if (normUser(rows[i][2]) === normUser(username)) return String(rows[i][1]);
   }
   return username;
 }
@@ -546,10 +539,6 @@ function actionSaveConstraints(req, user) {
     const lockRes = actionGetLockStatus({month});
     if (lockRes.locked) {
       return {success: false, error: 'הגשת אילוצים לחודש זה נעולה. פנה למנהל.'};
-    }
-    const xCount = (constraints || []).filter(c => c === 'X' || c === 'x').length;
-    if (xCount > 6) {
-      return {success: false, error: 'ניתן לסמן עד 6 ימי אילוץ (X) בלבד בחודש.'};
     }
   }
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -608,6 +597,60 @@ function createConstraintSheet(month, ss) {
 }
 
 // ===== SCHEDULE =====
+// Active, non-exempt, full-duty tornim (מבצע/עתודה) who did NOT serve as מבצע
+// this month. Used to surface a "מדולגים" line above the admin schedule so
+// fairness gaps are visible whenever the month is viewed — not only right
+// after generation. Excludes: admin, deactivated/viewer accounts, service
+// already ended, exempt (activity '0'), and paternity/אב (activity '0.5') —
+// the latter only serve occasionally so a quiet month for them is expected.
+function computeSkippedTornim(month) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const schedSheet = ss.getSheetByName('Schedule_' + month);
+  if (!schedSheet) return [];
+
+  const peopleRows = ss.getSheetByName('People').getDataRange().getValues();
+  let usersRows = [];
+  try { usersRows = ss.getSheetByName('Users').getDataRange().getValues(); } catch(e) {}
+
+  const usersActive = {}, usersRole = {};
+  for (let u = 1; u < usersRows.length; u++) {
+    const un = String(usersRows[u][1]||'').trim();
+    if (un) { usersActive[un] = !!usersRows[u][5]; usersRole[un] = String(usersRows[u][4]||'').trim(); }
+  }
+
+  const mon = parseInt(String(month).substring(4,6));
+  const yr  = parseInt(String(month).substring(0,4));
+  const monthStart = new Date(yr, mon-1, 1);
+
+  const eligible = {};
+  for (let i = 1; i < peopleRows.length; i++) {
+    const nm = String(peopleRows[i][0]||'').trim();
+    if (!nm) continue;
+    const activity = String(peopleRows[i][1]||'1').trim();
+    const dutyCategory = String(peopleRows[i][2]||'').trim();
+    const endDate = peopleRows[i][6] || null;
+    if (dutyCategory === 'מנהל מערכת') continue;
+    if (usersActive[nm] === false) continue;
+    if (usersRole[nm] === 'viewer') continue;
+    if (activity === '0' || activity === '0.5') continue;
+    if (dutyCategory === 'פטור' || dutyCategory === 'לא מוסמך' || dutyCategory === 'טרם הוסמך' || dutyCategory === 'אב') continue;
+    if (endDate) {
+      const edd = (endDate instanceof Date) ? endDate : new Date(String(endDate));
+      if (!isNaN(edd) && edd < monthStart) continue;
+    }
+    eligible[nm] = true;
+  }
+
+  const served = {};
+  const schedRows = schedSheet.getDataRange().getValues();
+  for (let r = 1; r < schedRows.length; r++) {
+    const v = String(schedRows[r][3]||'').trim();
+    if (v) served[v] = true;
+  }
+
+  return Object.keys(eligible).filter(function(n){ return !served[n]; }).sort();
+}
+
 function actionGetSchedule(req, user) {
   const month = String(req.month || '');
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -621,15 +664,23 @@ function actionGetSchedule(req, user) {
       date: fmtDate(rows[i][0]), day: rows[i][1], dayType: rows[i][2],
       v: rows[i][3] || '', a: rows[i][4] || '', b: rows[i][5] || '',
       notes: rows[i][6] || '', dutyType: rows[i][7] || '', score: rows[i][8] || 0,
-      v2: rows[i][9] || '', a2: rows[i][10] || '', b2: rows[i][11] || ''
+      v2: rows[i][9] || '', a2: rows[i][10] || '', b2: rows[i][11] || '',
+      t: rows[i][12] || ''  // 🎓 תורנות הסמכה — manual only, no score, no reserves
     });
   }
-  return {success: true, schedule, month};
+  const schedStatus = getScheduleStatus(month);
+  if (schedStatus === 'draft' && (!user || user.role !== 'admin')) {
+    // Month is still a draft — hide it from non-admin users
+    return {success: true, schedule: [], month, draft: true};
+  }
+  // מדולגים: admin-only, so regular tornim don't see who's under-scheduled
+  const skippedNames = (user && user.role === 'admin') ? computeSkippedTornim(month) : undefined;
+  return {success: true, schedule, month, draft: schedStatus === 'draft', skippedNames};
 }
 
 function actionUpdateScheduleEntry(req) {
   const month = String(req.month || '').trim();
-  const {date, v, a, b, notes, dutyType, v2, a2, b2} = req;
+  const {date, v, a, b, notes, dutyType, v2, a2, b2, trainee} = req;
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const TZ = ss.getSpreadsheetTimeZone();
   const sheet = ss.getSheetByName('Schedule_' + month);
@@ -651,18 +702,27 @@ function actionUpdateScheduleEntry(req) {
     const oldScore = Number(rows[i][8])||0;
     const oldDutyType = String(rows[i][7]||'חול');
 
-    // Update main shift
-    if (v !== undefined) sheet.getRange(i+1, 4).setValue(v);
-    if (a !== undefined) sheet.getRange(i+1, 5).setValue(a);
-    if (b !== undefined) sheet.getRange(i+1, 6).setValue(b);
-    if (notes !== undefined) sheet.getRange(i+1, 7).setValue(notes);
+    // ---- Compute the final row ONCE, write it in a SINGLE batched call ----
+    // (individual setValue calls are ~0.5-1.5s each on Apps Script; batching
+    //  ten of them into one setValues cuts save time from ~20s to ~3s)
+    const finalV     = v     !== undefined ? v     : rows[i][3];
+    const finalA     = a     !== undefined ? a     : rows[i][4];
+    const finalB     = b     !== undefined ? b     : rows[i][5];
+    const finalNotes = notes !== undefined ? notes : rows[i][6];
+    let   finalType  = rows[i][7];
+    let   finalScore = rows[i][8];
+    const finalV2    = v2 !== undefined ? v2 : rows[i][9];
+    const finalA2    = a2 !== undefined ? a2 : rows[i][10];
+    const finalB2    = b2 !== undefined ? b2 : rows[i][11];
+    const oldTrainee = String(rows[i][12]||'').trim();
+    const finalT     = trainee !== undefined ? String(trainee||'').trim() : oldTrainee;
 
-    // Update duty type + score
+    // Duty type + score computation (side effects on Scores handled below)
     if (dutyType) {
       const dutyScores = getDutyTypesMap();
       const newScore = dutyScores[dutyType] || oldScore;
-      sheet.getRange(i+1, 8).setValue(dutyType);
-      sheet.getRange(i+1, 9).setValue(newScore);
+      finalType = dutyType;
+      finalScore = newScore;
       // Adjust score if V changed or dutyType changed
       const newV = v !== undefined ? String(v||'').trim() : oldV;
       if (newV && (newV !== oldV || newScore !== oldScore)) {
@@ -688,11 +748,23 @@ function actionUpdateScheduleEntry(req) {
       }
     }
 
-    // Update second shift + score for V2
+    // ---- ONE batched write for the whole row (cols D..M) ----
+    sheet.getRange(i+1, 4, 1, 10).setValues([[
+      finalV, finalA, finalB, finalNotes, finalType, finalScore,
+      finalV2, finalA2, finalB2, finalT
+    ]]);
+
+    // 🎓 trainee bell notification (after the write)
+    if (trainee !== undefined && finalT && finalT !== oldTrainee) {
+      try {
+        const mentor = String(finalV||'').trim();
+        addSwapNotification(finalT,
+          '🎓 שובצת לתורנות הסמכה בתאריך ' + rowDate +
+          (mentor ? ' — מצטרף/ת למבצע ' + mentor : ''));
+      } catch(e) { Logger.log('trainee notify: ' + e); }
+    }
+
     const oldV2 = String(rows[i][9]||'').trim();
-    if (v2 !== undefined) sheet.getRange(i+1, 10).setValue(v2);
-    if (a2 !== undefined) sheet.getRange(i+1, 11).setValue(a2);
-    if (b2 !== undefined) sheet.getRange(i+1, 12).setValue(b2);
 
     // Score for V2: always recalculate when v2 changes
     var newV2 = v2 !== undefined ? String(v2||'').trim() : oldV2;
@@ -772,59 +844,12 @@ function actionGenerateSchedule(req) {
   const daysInMonth = new Date(year, mon, 0).getDate();
 
   // Load people (active, non-exempt)
-  // Build set of active (non-disabled) users from Users sheet
-  const usersRowsForGen = getSheet(SH.USERS).getDataRange().getValues();
-  const activeUserNames = new Set();
-  for (let i = 1; i < usersRowsForGen.length; i++) {
-    const [, uName, , , , uActive] = usersRowsForGen[i];
-    const isActive = uActive !== false && uActive !== 0 && uActive !== '0' &&
-                     String(uActive).toUpperCase() !== 'FALSE' && uActive !== '';
-    if (uName && isActive) activeUserNames.add(String(uName));
-  }
-
   const allPeople = actionGetPeople().people;
-  const activePeople = allPeople.filter(p =>
-    p.activity !== '0' &&
-    p.dutyCategory !== 'פטור' &&
-    p.dutyCategory !== 'טרם הוסמך' &&
-    p.name !== 'מנהל מערכת' &&
-    p.name !== 'בדיקה בדיקה' &&
-    p.name !== 'מטלמ' &&
-    activeUserNames.has(p.name)
-  );
+  const activePeople = allPeople.filter(p => p.activity !== '0' && p.dutyCategory !== 'פטור');
 
   // Load accumulated scores as working copy
   const scoresData = actionGetScores().scores;
   const workingScores = {};
-  // Build lastWeekendMonth by scanning actual Schedule sheets (more accurate than Scores columns)
-  // lastWeekendMonth[name] = months ago (1-12) of last weekend/חג duty
-  const lastWeekendMonth = {};
-  {
-    const ss2 = SpreadsheetApp.getActiveSpreadsheet();
-    for (let back = 1; back <= 6; back++) {
-      let prevMon = mon - back, prevYear = year;
-      while (prevMon < 1) { prevMon += 12; prevYear--; }
-      const shName = 'Schedule_' + prevYear + String(prevMon).padStart(2,'0');
-      const sh = ss2.getSheetByName(shName);
-      if (!sh) continue;
-      const rows = sh.getDataRange().getValues();
-      for (let i = 1; i < rows.length; i++) {
-        const dtype = String(rows[i][7]||'').trim(); // col H = סוג תורנות
-        const isWkd = dtype.includes('סוף שבוע') || dtype.includes('חג') || dtype === 'שבת';
-        if (!isWkd) continue;
-        const names = [
-          String(rows[i][3]||'').trim(), // V
-          String(rows[i][4]||'').trim(), // A
-          String(rows[i][5]||'').trim()  // B
-        ];
-        names.forEach(n => {
-          if (n && lastWeekendMonth[n] === undefined) {
-            lastWeekendMonth[n] = back; // months ago
-          }
-        });
-      }
-    }
-  }
   scoresData.forEach(s => { workingScores[s.name] = Number(s.acc2026) || 0; });
 
   // Load constraints for this month
@@ -905,38 +930,25 @@ function actionGenerateSchedule(req) {
   }
 
   // Check current month assignments count
-  var monthAssignmentCount = {}; // name → count as V this month
-  var monthACount = {};          // name → count as A this month
-  var monthBCount = {};          // name → count as B this month
+  var monthAssignmentCount = {}; // name → count this month
 
-  // Check if person did weekend/חג in last N months (using Scores sheet)
+  // Check if person did weekend in last N months
   function didWeekendInLastMonths(name, months) {
-    const monthsAgo = lastWeekendMonth[name]; // how many months ago (1-6), or undefined
-    if (monthsAgo === undefined) return false;
-    return monthsAgo <= months;
+    var hist = getRecentAssignments(name, months);
+    return hist.some(function(h) {
+      return h.dutyType.includes('סוף שבוע') || h.dutyType === 'שבת';
+    });
   }
 
   // Returns list sorted by score (lowest first), respecting hard constraints
-  // slot: 'V', 'A', or 'B'
-  function getEligible(day, cat, slot) {
-    const isWeekendOrHoliday = cat === 'סוף שבוע' || cat.includes('חג');
+  // Bonus: people who prefer this day are sorted higher (lower in list = preferred)
+  function getEligible(day, cat) {
     return activePeople
-      .filter(p => {
-        if (isHardBlocked(p.name, day)) return false;
-        if (!canDoType(p, cat)) return false;
-        // Max per month: V=1, A=1 (fallback 2), B=1 (fallback 2)
-        if (slot === 'V' && (monthAssignmentCount[p.name] || 0) >= 1) return false;
-        if (slot === 'A' && (monthACount[p.name] || 0) >= 2) return false;
-        if (slot === 'B' && (monthBCount[p.name] || 0) >= 2) return false;
-        // 6-month gap for מלא people on weekend/holiday days
-        if (isWeekendOrHoliday && p.weekendType !== 'בנפרד' && didWeekendInLastMonths(p.name, 6)) return false;
-        // 3-month gap for בנפרד people on weekend/holiday days
-        if (isWeekendOrHoliday && p.weekendType === 'בנפרד' && didWeekendInLastMonths(p.name, 3)) return false;
-        return true;
-      })
+      .filter(p => !isHardBlocked(p.name, day) && canDoType(p, cat))
       .sort((a, b) => {
         const scoreDiff = (workingScores[a.name] || 0) - (workingScores[b.name] || 0);
         if (scoreDiff !== 0) return scoreDiff;
+        // Tiebreak: prefer those who marked V for this day
         const aV = prefersDay(a.name, day) ? -1 : 0;
         const bV = prefersDay(b.name, day) ? -1 : 0;
         return aV - bV;
@@ -945,272 +957,73 @@ function actionGenerateSchedule(req) {
 
   // ── Build day list ────────────────────────────────
   const days = [];
-  const tz = Session.getScriptTimeZone();
   for (let d = 1; d <= daysInMonth; d++) {
     const date = new Date(year, mon - 1, d);
-    // Use GAS Utilities to get correct day of week in local timezone
-    const dowISO = parseInt(Utilities.formatDate(date, tz, 'u')); // 1=Mon,7=Sun
-    const dow = dowISO === 7 ? 0 : dowISO; // convert to JS: 0=Sun,1=Mon,...,6=Sat
+    const dow = date.getDay();
     const cat = String(dayCategories[String(d)] || (dow === 4 ? 'חמישי' : (dow === 5 || dow === 6) ? 'סוף שבוע' : 'חול'));
-    days.push({day: d, dow, cat, hebrewDay: HEBREW_DAYS[dow]});
-  }
-  function isHoliday(cat) { return cat === 'חג' || cat === 'ערב חג' || cat === 'יומיים חג' || (typeof cat === 'string' && cat.includes('חג')); }
-  function isWeekend(cat) { return cat === 'סוף שבוע' || isHoliday(cat); }
-
-  // Who can serve as V on this day type
-  function eligibleV(cat, excludeNames, standalone) {
-    // standalone=true: שישי/שבת בודד → only בנפרד
-    // standalone=false: שישי+שבת pair → only מלא
-    // standalone=undefined: other days
-    return activePeople.filter(p => {
-      if (excludeNames && excludeNames.has(p.name)) return false;
-      if (p.dutyCategory === 'אב') return cat === 'חמישי' || cat.includes('חמישי');
-      if (isWeekend(cat)) {
-        if (standalone === true) {
-          // שישי/שבת בודד: only בנפרד, gap 3 months
-          if (p.weekendType !== 'בנפרד') return false;
-          if (didWeekendInLastMonths(p.name, 3)) return false;
-        } else if (standalone === false) {
-          // שישי+שבת: only מלא, gap 6 months
-          if (p.weekendType === 'בנפרד') return false;
-          if (didWeekendInLastMonths(p.name, 6)) return false;
-        } else {
-          // holiday or other weekend: both types allowed
-          if (p.weekendType !== 'בנפרד' && didWeekendInLastMonths(p.name, 6)) return false;
-          if (p.weekendType === 'בנפרד' && didWeekendInLastMonths(p.name, 3)) return false;
-        }
-      }
-      return true;
-    });
+    days.push({day: d, date, dow, cat, hebrewDay: HEBREW_DAYS[dow]});
   }
 
-  // Who can serve as A/B - prefer once, allow twice as fallback
-  function eligibleAB(cat, excludeNames, countMap, vName) {
-    // First try: served 0 times as this slot
-    const fresh = activePeople.filter(p => {
-      if (excludeNames && excludeNames.has(p.name)) return false;
-      if (vName && p.name === vName) return false;
-      if (p.dutyCategory === 'אב') return cat === 'חמישי' || cat.includes('חמישי');
-      if ((countMap[p.name] || 0) >= 1) return false;
-      return true;
-    });
-    if (fresh.length > 0) return fresh;
-    // Fallback: allow up to 2 times
-    return activePeople.filter(p => {
-      if (excludeNames && excludeNames.has(p.name)) return false;
-      if (vName && p.name === vName) return false;
-      if (p.dutyCategory === 'אב') return cat === 'חמישי' || cat.includes('חמישי');
-      if ((countMap[p.name] || 0) >= 2) return false;
-      return true;
-    });
-  }
-
-  function byScore(arr, day) {
-    return arr.slice().sort((a, b) => {
-      const aP = prefersDay(a.name, day) ? -5 : 0;
-      const bP = prefersDay(b.name, day) ? -5 : 0;
-      if (aP !== bP) return aP - bP;
-      return (workingScores[a.name]||0) - (workingScores[b.name]||0);
-    });
-  }
-
-  function pick(pool, day, blockedNames) {
-    const filtered = pool.filter(p =>
-      !isHardBlocked(p.name, day) && (!blockedNames || !blockedNames.has(p.name))
-    );
-    return byScore(filtered, day)[0] || null;
-  }
-
-  // ── STEP 1: Sort days by priority ────────────────
-  function dayPriority({day, dow, cat}) {
-    if (isHoliday(cat)) return 0;
-    const nextDay = days.find(d => d.day === day + 1);
-    const prevDay = days.find(d => d.day === day - 1);
-    if (dow === 5 && nextDay && isWeekend(nextDay.cat)) return 1;
-    if (dow === 6 && prevDay && isWeekend(prevDay.cat)) return 2;
-    if (cat === 'סוף שבוע') return 3;
-    if (cat === 'חמישי') return 4;
-    return 5;
-  }
-  const daysSorted = [...days].sort((a, b) => dayPriority(a) - dayPriority(b));
-
-  // ── STEP 2: Assign V ──────────────────────────────
-  const vSlot = {};
-  const usedV = new Set();
-  const fullPairs = {};
-
-  daysSorted.forEach(({day, dow, cat}) => {
-    if (vSlot[day]) return;
-
-    const nextDay = days.find(d => d.day === day + 1);
-    const isFriWithSat = dow === 5 && isWeekend(cat) && nextDay && isWeekend(nextDay.cat);
-
-    if (isFriWithSat) {
-      // Build eligible pools for both מלא and נפרד, with fallback ignoring gap
-      let malaPool = activePeople.filter(p =>
-        !usedV.has(p.name) && p.weekendType !== 'בנפרד' && p.dutyCategory !== 'אב' &&
-        !isHardBlocked(p.name, day) && !isHardBlocked(p.name, day+1) &&
-        (!didWeekendInLastMonths(p.name, 6) || true) // always include, sort by score
-      );
-      // Apply gap first, fallback to all if empty
-      const malaWithGap = malaPool.filter(p => !didWeekendInLastMonths(p.name, 6));
-      if (malaWithGap.length > 0) malaPool = malaWithGap;
-
-      let sepPool = activePeople.filter(p =>
-        !usedV.has(p.name) && p.weekendType === 'בנפרד' && p.dutyCategory !== 'אב' &&
-        !isHardBlocked(p.name, day)
-      );
-      const sepWithGap = sepPool.filter(p => !didWeekendInLastMonths(p.name, 3));
-      if (sepWithGap.length > 0) sepPool = sepWithGap;
-
-      // Pick best from each by score
-      const bestMala = byScore(malaPool, day)[0] || null;
-      const bestSep  = byScore(sepPool, day)[0] || null;
-
-      // Compare scores: lowest wins regardless of type
-      const malaScore = bestMala ? (workingScores[bestMala.name] || 0) : Infinity;
-      const sepScore  = bestSep  ? (workingScores[bestSep.name]  || 0) : Infinity;
-
-      if (bestMala && malaScore <= sepScore) {
-        // מלא wins: covers both fri+sat
-        usedV.add(bestMala.name);
-        const score = dutyTypes['סוף שבוע מלא'] || 40;
-        workingScores[bestMala.name] = (workingScores[bestMala.name] || 0) + score;
-        vSlot[day]   = {name: bestMala.name, type: 'סוף שבוע מלא', score, cat};
-        vSlot[day+1] = {name: bestMala.name, type: 'סוף שבוע מלא', score: 0, cat: nextDay.cat};
-        fullPairs[day] = day+1;
-      } else if (bestSep) {
-        // נפרד wins friday; find separate person for saturday
-        usedV.add(bestSep.name);
-        const frScore = dutyTypes['סוף שבוע'] || 20;
-        workingScores[bestSep.name] = (workingScores[bestSep.name] || 0) + frScore;
-        vSlot[day] = {name: bestSep.name, type: 'סוף שבוע', score: frScore, cat};
-
-        // Saturday: pick best נפרד (excluding friday person)
-        let satPool = activePeople.filter(p =>
-          !usedV.has(p.name) && p.weekendType === 'בנפרד' && p.dutyCategory !== 'אב' &&
-          !isHardBlocked(p.name, day+1) && p.name !== bestSep.name
-        );
-        const satWithGap = satPool.filter(p => !didWeekendInLastMonths(p.name, 3));
-        if (satWithGap.length > 0) satPool = satWithGap;
-        const satChosen = byScore(satPool, day+1)[0] || null;
-        if (satChosen) {
-          usedV.add(satChosen.name);
-          const satScore = dutyTypes['סוף שבוע'] || 20;
-          workingScores[satChosen.name] = (workingScores[satChosen.name] || 0) + satScore;
-          vSlot[day+1] = {name: satChosen.name, type: 'סוף שבוע', score: satScore, cat: nextDay.cat};
-        }
-      } else if (bestMala) {
-        // Only מלא available (no נפרד at all)
-        usedV.add(bestMala.name);
-        const score = dutyTypes['סוף שבוע מלא'] || 40;
-        workingScores[bestMala.name] = (workingScores[bestMala.name] || 0) + score;
-        vSlot[day]   = {name: bestMala.name, type: 'סוף שבוע מלא', score, cat};
-        vSlot[day+1] = {name: bestMala.name, type: 'סוף שבוע מלא', score: 0, cat: nextDay.cat};
-        fullPairs[day] = day+1;
-      }
-      return;
-    }
-
-    // All other days (standalone sat, holidays, thu, חול)
-    const isStandaloneWeekend = isWeekend(cat) && !isFriWithSat;
-    let pool = eligibleV(cat, usedV, isStandaloneWeekend ? true : undefined);
-    // Fallback: ignore gap rules for weekends if pool empty
-    if (pool.length === 0 && isStandaloneWeekend) {
-      pool = activePeople.filter(p =>
-        !usedV.has(p.name) && p.weekendType === 'בנפרד' && p.dutyCategory !== 'אב' &&
-        !isHardBlocked(p.name, day)
-      );
-    }
-    // No fallback for חול/חמישי — each person serves as V exactly once
-    const chosen = pick(pool, day, null);
-    if (chosen) {
-      usedV.add(chosen.name);
-      const isWkd = isWeekend(cat);
-      const score = isWkd
-        ? (chosen.weekendType !== 'בנפרד' ? (dutyTypes['סוף שבוע מלא']||40) : (dutyTypes['סוף שבוע']||20))
-        : (dutyTypes[cat] || 10);
-      workingScores[chosen.name] = (workingScores[chosen.name]||0) + score;
-      vSlot[day] = {name: chosen.name, type: cat, score, cat};
-    }
-  });
-
-  // ── STEP 3: Assign A and B ────────────────────────
-  const aSlot = {};
-  const bSlot = {};
-  const usedA = new Set();
-  const usedB = new Set();
-
-  daysSorted.forEach(({day, cat}) => {
-    if (!vSlot[day]) return;
-    if (Object.values(fullPairs).map(Number).includes(day)) return;
-
-    const vName = vSlot[day].name;
-    const isFriPair = fullPairs[day] !== undefined;
-    const sat = isFriPair ? fullPairs[day] : null;
-
-    if (isFriPair) {
-      // Full weekend A/B: always cover both fri+sat
-      const aPool = eligibleAB('סוף שבוע', usedA, monthACount, vName).filter(p =>
-        !isHardBlocked(p.name, day)
-      );
-      const aChosen = byScore(aPool, day)[0];
-      if (aChosen) {
-        monthACount[aChosen.name] = (monthACount[aChosen.name] || 0) + 1;
-        usedA.add(aChosen.name);
-        aSlot[day] = aChosen.name;
-        aSlot[sat] = aChosen.name;
-      }
-      const bPool = eligibleAB('סוף שבוע', usedB, monthBCount, vName).filter(p =>
-        p.name !== (aChosen ? aChosen.name : '') && !isHardBlocked(p.name, day)
-      );
-      const bChosen = byScore(bPool, day)[0];
-      if (bChosen) {
-        monthBCount[bChosen.name] = (monthBCount[bChosen.name] || 0) + 1;
-        usedB.add(bChosen.name);
-        bSlot[day] = bChosen.name;
-        bSlot[sat] = bChosen.name;
-      }
-      return;
-    }
-
-    const aPool = eligibleAB(cat, usedA, monthACount, vName).filter(p =>
-      !isHardBlocked(p.name, day)
-    );
-    const aChosen = byScore(aPool, day)[0];
-    if (aChosen) {
-      monthACount[aChosen.name] = (monthACount[aChosen.name] || 0) + 1;
-      usedA.add(aChosen.name);
-      aSlot[day] = aChosen.name;
-    }
-
-    const bPool = eligibleAB(cat, usedB, monthBCount, vName).filter(p =>
-      p.name !== (aChosen ? aChosen.name : '') && !isHardBlocked(p.name, day)
-    );
-    const bChosen = byScore(bPool, day)[0];
-    if (bChosen) {
-      monthBCount[bChosen.name] = (monthBCount[bChosen.name] || 0) + 1;
-      usedB.add(bChosen.name);
-      bSlot[day] = bChosen.name;
-    }
-  });
-
-  // ── STEP 4: Build final assignment map ───────────
   const assignment = {};
-  days.forEach(({day, cat, hebrewDay}) => {
-    const vs = vSlot[day];
-    assignment[day] = {
-      V: vs?.name || '',
-      A: aSlot[day] || '',
-      B: bSlot[day] || '',
-      type: vs?.type || cat,
-      score: vs?.score || 0,
-      hebrewDay,
-      cat
-    };
+
+  // PURE SCORE-BASED: every day by lowest accumulated score
+  // מלא people get Fri+Sat together (score 40)
+  // בנפרד people get each day separately (score 20 each)
+  // The 3 picked per day are ALWAYS the lowest scorers regardless of type
+
+  days.forEach(({day, dow, cat, hebrewDay}) => {
+    if (assignment[day]) return; // already assigned (e.g. Sat after full weekend)
+
+    const nextDay = days.find(d => d.day === day + 1);
+    const isFriday = dow === 5 && cat === 'סוף שבוע' &&
+                     nextDay && nextDay.cat === 'סוף שבוע';
+
+    if (isFriday) {
+      // Build combined pool: מלא (eligible for full weekend) + בנפרד (Friday only)
+      const elFull = activePeople
+        .filter(p => p.weekendType !== 'בנפרד' &&
+          !isHardBlocked(p.name, day) && !isHardBlocked(p.name, day+1))
+        .map(p => ({name:p.name, full:true, score:workingScores[p.name]||0}));
+
+      const elSep = activePeople
+        .filter(p => p.weekendType === 'בנפרד' && !isHardBlocked(p.name, day))
+        .map(p => ({name:p.name, full:false, score:workingScores[p.name]||0}));
+
+      // Merge and sort by score (lowest first)
+      const all = [...elFull, ...elSep].sort((a,b) => a.score - b.score);
+      const top = all.slice(0, 3);
+
+      const vP = top[0], aP = top[1], bP = top[2];
+      const v = vP?.name || '', a = aP?.name || '', b = bP?.name || '';
+
+      if (vP?.full) {
+        // V does full weekend: same trio for both Fri+Sat, score 40
+        const score = dutyTypes['סוף שבוע מלא'] || 40;
+        assignment[day]   = {V:v, A:a, B:b, type:'סוף שבוע מלא', score, hebrewDay:HEBREW_DAYS[5], cat};
+        assignment[day+1] = {V:v, A:a, B:b, type:'סוף שבוע מלא', score:0, hebrewDay:HEBREW_DAYS[6], cat:'סוף שבוע'};
+        if (v) workingScores[v] = (workingScores[v]||0) + score;
+      } else {
+        // V is בנפרד — does Friday only, score 20
+        const score = dutyTypes['סוף שבוע'] || 20;
+        assignment[day] = {V:v, A:a, B:b, type:'סוף שבוע', score, hebrewDay:HEBREW_DAYS[5], cat};
+        if (v) workingScores[v] = (workingScores[v]||0) + score;
+        // Saturday left unassigned — will be picked up in the next iteration
+      }
+      return;
+    }
+
+    // All other days (incl. Saturday if not full-weekend): pure score
+    const score = dutyTypes[cat] || 10;
+    const el = getEligible(day, cat);
+    const v = el[0]?.name || '', a = el[1]?.name || '', b = el[2]?.name || '';
+    assignment[day] = {V:v, A:a, B:b, type:cat, score, hebrewDay, cat};
+    if (v) {
+      workingScores[v] = (workingScores[v]||0) + score;
+      monthAssignmentCount[v] = (monthAssignmentCount[v]||0) + 1;
+    }
   });
 
-    // ── Save to Sheet (preserve holidays/notes from existing sheet) ──────
+  // ── Save to Sheet (preserve holidays/notes from existing sheet) ──────
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheetName = 'Schedule_' + month;
   let sched = ss.getSheetByName(sheetName);
@@ -1238,31 +1051,21 @@ function actionGenerateSchedule(req) {
     const numRows = existingData.length - 1;
     if (numRows <= 0) return {success:false, error:'הלוח ריק'};
 
-    // Build batch arrays for cols 3 (dayType), 4,5,6 (V,A,B), 8 (dutyType), 9 (score)
-    const dayTypeUpdates = []; // [dayType] per row
-    const vabUpdates = [];     // [V, A, B] per row
-    const dutyTypeUpdates = []; // [dutyType] per row
-    const scoreUpdates = [];   // [score] per row
+    // Build batch arrays for cols 4,5,6 (V,A,B) and col 9 (score)
+    const vabUpdates = [];  // [V, A, B] per row
+    const scoreUpdates = []; // [score] per row
 
     for (let i = 1; i <= numRows; i++) {
       const rowDate = existingData[i][0];
       const dayNum = rowDate instanceof Date ? rowDate.getDate() :
         parseInt(String(rowDate).split('/')[0]);
       const ag = (dayNum && assignment[dayNum]) || {V:'',A:'',B:'',score:0};
-      const dayInfo = days.find(d => d.day === dayNum);
-      const cat = dayInfo ? dayInfo.cat : (existingData[i][2] || '');
-      dayTypeUpdates.push([cat]);
       vabUpdates.push([ag.V||'', ag.A||'', ag.B||'']);
-      dutyTypeUpdates.push([ag.type || cat]);
       scoreUpdates.push([ag.score||0]);
     }
 
-    // Write dayType (col 3)
-    sched.getRange(2, 3, numRows, 1).setValues(dayTypeUpdates);
     // Single batch write for V/A/B (cols 4-6)
     sched.getRange(2, 4, numRows, 3).setValues(vabUpdates);
-    // Write dutyType (col 8)
-    sched.getRange(2, 8, numRows, 1).setValues(dutyTypeUpdates);
     // Single batch write for score (col 9)
     sched.getRange(2, 9, numRows, 1).setValues(scoreUpdates);
   }
@@ -1345,6 +1148,7 @@ function initDutyTypes() {
     ['סוף שבוע',20],['סוף שבוע + חול',36],['סוף שבוע + חמישי',32],
     ['סוף שבוע מלא',40],['סוף שבוע מלא + חול',50],
     ['ערב חג',25],['פטור',10],['שבת הקפצה',30],
+    ['חול הקפצה',12],
   ];
   sh.getRange(2,1,types.length,2).setValues(types);
 }
@@ -1465,7 +1269,9 @@ function actionGetAllTornim() {
 }
 
 function actionAddTorani(req) {
-  const {name, username, password, role, activity, dutyCategory, phone, weekendType, email} = req;
+  const {username, password, role, activity, dutyCategory, phone, weekendType, email, endDate} = req;
+  // Strip geresh/apostrophes from names — they break single-quoted JS strings and HTML attributes
+  const name = String(req.name || '').replace(/['\u05f3\u2019]/g, '').trim();
   if (!name || !username || !password) return {success: false, error: 'חסרים שדות חובה: שם, שם משתמש, סיסמה'};
 
   // Check username unique
@@ -1478,7 +1284,7 @@ function actionAddTorani(req) {
 
   // Add to Users
   usersSheet.appendRow([
-    Utilities.getUuid().substring(0,8), name, username,
+    Utilities.getUuid().substring(0,8), name, normUser(username),
     hashPass(password), role || 'user', true
   ]);
 
@@ -1492,11 +1298,12 @@ function actionAddTorani(req) {
       peopleSheet.getRange(i+1,3).setValue(dutyCategory || '');
       peopleSheet.getRange(i+1,4).setValue(phone || '');
       peopleSheet.getRange(i+1,5).setValue(weekendType || 'מלא');
+      if (endDate !== undefined) peopleSheet.getRange(i+1,7).setValue(endDate || '');
       found = true; break;
     }
   }
   if (!found) {
-    peopleSheet.appendRow([name, activity||'1', dutyCategory||'', phone||'', weekendType||'מלא', email||'', '']);
+    peopleSheet.appendRow([name, activity||'1', dutyCategory||'', phone||'', weekendType||'מלא', email||'', endDate||'']);
   }
 
   // Set starting score = average of all active tornim (fair entry into rotation)
@@ -1531,7 +1338,9 @@ function calcAverageScore() {
 }
 
 function actionUpdateTorani(req) {
-  const {username, name, role, newPassword, activity, dutyCategory, phone, weekendType, email, active} = req;
+  const {username, role, newPassword, activity, dutyCategory, phone, weekendType, email, active, endDate} = req;
+  // Strip geresh/apostrophes from names — they break single-quoted JS strings and HTML attributes
+  const name = req.name ? String(req.name).replace(/['\u05f3\u2019]/g, '').trim() : req.name;
   if (!username) return {success: false, error: 'חסר שם משתמש'};
 
   // Update Users sheet
@@ -1539,7 +1348,7 @@ function actionUpdateTorani(req) {
   const usersRows = usersSheet.getDataRange().getValues();
   let oldName = '';
   for (let i = 1; i < usersRows.length; i++) {
-    if (String(usersRows[i][2]) === String(username)) {
+    if (normUser(usersRows[i][2]) === normUser(username)) {
       oldName = String(usersRows[i][1]);
       if (name) { usersSheet.getRange(i+1,2).setValue(name); }
       if (role) { usersSheet.getRange(i+1,5).setValue(role); }
@@ -1562,12 +1371,12 @@ function actionUpdateTorani(req) {
       if (phone !== undefined) peopleSheet.getRange(i+1,4).setValue(phone);
       if (weekendType !== undefined) peopleSheet.getRange(i+1,5).setValue(weekendType);
       if (email !== undefined) peopleSheet.getRange(i+1,6).setValue(email);
-      if (req.endDate !== undefined) peopleSheet.getRange(i+1,7).setValue(req.endDate);
+      if (endDate !== undefined) peopleSheet.getRange(i+1,7).setValue(endDate);
       found = true; break;
     }
   }
   if (!found && lookupName) {
-    peopleSheet.appendRow([name||lookupName, activity||'1', dutyCategory||'', phone||'', weekendType||'מלא', '', '']);
+    peopleSheet.appendRow([name||lookupName, activity||'1', dutyCategory||'', phone||'', weekendType||'מלא', email||'', endDate||'']);
   }
 
   return {success: true};
@@ -1577,7 +1386,7 @@ function actionToggleTorani(req) {
   const sheet = getSheet(SH.USERS);
   const rows = sheet.getDataRange().getValues();
   for (let i = 1; i < rows.length; i++) {
-    if (rows[i][2] === req.username) {
+    if (normUser(rows[i][2]) === normUser(req.username)) {
       const current = !!rows[i][5];
       sheet.getRange(i+1,6).setValue(!current);
       return {success: true, active: !current};
@@ -1660,46 +1469,6 @@ function initAllTornim() {
 
   Logger.log('✅ נוספו ' + added + ' תורנים. סיסמה ברירת מחדל: Tornut2026');
   return 'נוספו ' + added + ' תורנים בהצלחה!';
-}
-
-// ===== אתחול לוח יוני 2026 - הרץ מעורך Apps Script =====
-function initJuneSchedule2026() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheetName = 'Schedule_202606';
-  const existing = ss.getSheetByName(sheetName);
-  if (existing) ss.deleteSheet(existing);
-  const sheet = ss.insertSheet(sheetName);
-  sheet.setRightToLeft(true);
-
-  const headers = ['תאריך','יום','סוג יום','מבצע','עתודה א','עתודה ב','הערות','סוג תורנות','ניקוד','מבצע שני','עתודה א שנייה','עתודה ב שנייה'];
-  sheet.getRange(1,1,1,headers.length).setValues([headers]);
-
-  const HEB_DAYS = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
-
-  // June 2026 day types from Excel
-  const dayTypes = {
-    1:'חול',2:'חול',3:'חול',4:'חמישי',5:'סוף שבוע',6:'סוף שבוע',
-    7:'חול',8:'חול',9:'חול',10:'חול 24 שעות',11:'חמישי 24 שעות',
-    12:'סוף שבוע',13:'סוף שבוע',14:'חול',15:'חול',16:'חול',17:'חול',
-    18:'חמישי',19:'סוף שבוע',20:'סוף שבוע',21:'חול',22:'חול',23:'חול',
-    24:'חול',25:'חמישי',26:'סוף שבוע',27:'סוף שבוע',28:'חול',29:'חול',30:'חול'
-  };
-
-  const rows = [];
-  for (let d = 1; d <= 30; d++) {
-    const date = new Date(2026, 5, d); // June = month 5
-    const dow = date.getDay();
-    rows.push([
-      Utilities.formatDate(date, 'Asia/Jerusalem', 'dd/MM/yyyy'),
-      HEB_DAYS[dow],
-      dayTypes[d] || 'חול',
-      '', '', '', '', dayTypes[d] || 'חול', 0
-    ]);
-  }
-
-  sheet.getRange(2,1,rows.length,headers.length).setValues(rows);
-  Logger.log('✅ לוח יוני 2026 נוצר עם ' + rows.length + ' ימים. ערוך דרך האתר!');
-  return 'לוח יוני נוצר!';
 }
 
 // ===== לוח יוני 2026 - קריאה אוטומטית מהתמונה =====
@@ -1906,6 +1675,9 @@ function actionInitMonth(req) {
   if (!year || !month) return {success:false, error:'חסרים year ו-month'};
   try {
     const msg = initMonthScheduleEx(year, month);
+    // A newly created month starts as a DRAFT — hidden from tornim until published
+    const monthKey = String(year) + String(month).padStart(2, '0');
+    setScheduleStatus(monthKey, 'draft');
     return {success:true, message: msg};
   } catch(e) {
     return {success:false, error: e.toString()};
@@ -2119,7 +1891,7 @@ function actionResetSchedule(req) {
     const mon  = parseInt(req.mon  || month.substring(4,6));
     if (!year || !mon) return {success:false, error:'חסר חודש'};
     // Clear sheet cache so next read gets fresh data
-    Object.keys(_sheetCache).forEach(k => delete _sheetCache[k]); _ss = null;
+    _sheetCache = {};
     const msg = initMonthScheduleEx(year, mon);
     
     // Also clear this month's scores from Scores sheet
@@ -2251,6 +2023,107 @@ function actionSetLockStatus(req) {
   return {success: true, locked, month};
 }
 
+// ===== TORANI DUTY HISTORY =====
+// Regular users may only view their own history; admins may view anyone's.
+function actionGetToraniHistory(req, user) {
+  var name = String(req.name || '').trim();
+  if (!user || user.role !== 'admin') name = String((user && user.name) || '').trim();
+  if (!name) return {success: false, error: 'חסר שם'};
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var TZ = ss.getSpreadsheetTimeZone();
+  var entries = [];
+  var sheets = ss.getSheets();
+  for (var s = 0; s < sheets.length; s++) {
+    var shName = sheets[s].getName();
+    if (!/^Schedule_\d{6}$/.test(shName)) continue;
+    var sh = sheets[s];
+    if (sh.getLastRow() < 2) continue;
+    var rows = sh.getRange(2, 1, sh.getLastRow() - 1, 10).getValues();
+    for (var i = 0; i < rows.length; i++) {
+      var isV  = String(rows[i][3] || '').trim() === name;
+      var isV2 = String(rows[i][9] || '').trim() === name;
+      if (!isV && !isV2) continue;
+      var d = rows[i][0];
+      var dateStr = d instanceof Date ? Utilities.formatDate(d, TZ, 'yyyy-MM-dd') : String(d || '');
+      entries.push({
+        date: dateStr,
+        month: shName.substring(9),
+        dayType: String(rows[i][2] || ''),
+        dutyType: String(rows[i][7] || ''),
+        score: Number(rows[i][8]) || 0,
+        role: isV ? 'מבצע' : 'מבצע 2'
+      });
+    }
+  }
+  entries.sort(function(a, b){ return a.date < b.date ? 1 : (a.date > b.date ? -1 : 0); }); // newest first
+  return {success: true, name: name, entries: entries};
+}
+
+// ===== AUDIT LOG: READ (admin only, routed behind role check) =====
+function actionGetAuditLog(req) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName('AuditLog');
+  if (!sh || sh.getLastRow() < 2) return {success: true, entries: []};
+  const limit = Math.min(parseInt(req.limit) || 300, 1000);
+  const lastRow = sh.getLastRow();
+  const startRow = Math.max(2, lastRow - limit + 1);
+  const rows = sh.getRange(startRow, 1, lastRow - startRow + 1, 4).getValues();
+  const entries = [];
+  for (let i = rows.length - 1; i >= 0; i--) { // newest first
+    entries.push({
+      ts: rows[i][0] instanceof Date ? rows[i][0].toISOString() : String(rows[i][0]||''),
+      who: String(rows[i][1]||''),
+      action: String(rows[i][2]||''),
+      details: String(rows[i][3]||'')
+    });
+  }
+  return {success: true, entries};
+}
+
+// ===== SCHEDULE DRAFT/PUBLISHED STATUS =====
+function getScheduleStatus(month) {
+  const sh = getSettingsSheet();
+  const rows = sh.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === 'sched_' + month) return String(rows[i][1]) === 'draft' ? 'draft' : 'published';
+  }
+  return 'published'; // default: months without a record are published
+}
+
+function setScheduleStatus(month, status) {
+  const sh = getSettingsSheet();
+  const rows = sh.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === 'sched_' + month) {
+      sh.getRange(i+1, 2).setValue(status);
+      sh.getRange(i+1, 3).setValue(new Date().toISOString());
+      return;
+    }
+  }
+  sh.appendRow(['sched_' + month, status, new Date().toISOString()]);
+}
+
+function actionPublishSchedule(req, user) {
+  const month = String(req.month || '').trim();
+  if (!month) return {success:false, error:'חסר חודש'};
+  const status = (req.status === 'draft') ? 'draft' : 'published';
+  setScheduleStatus(month, status);
+  if (status === 'published') {
+    // Bell notification to all active tornim
+    try {
+      const monthName = MONTH_NAMES[parseInt(month.substring(4,6)) - 1] + ' ' + month.substring(0,4);
+      const rows = getSheet(SH.PEOPLE).getDataRange().getValues();
+      for (let i = 1; i < rows.length; i++) {
+        const nm = String(rows[i][0] || '').trim();
+        const act = String(rows[i][1] || '').trim();
+        if (nm && act !== '0') addSwapNotification(nm, '🗓️ לוח ' + monthName + ' פורסם! היכנסו למערכת לצפייה.');
+      }
+    } catch(e) { Logger.log('publish notify error: ' + e); }
+  }
+  return {success:true, month, status};
+}
+
 // ===== EMAIL: REMINDER =====
 function actionSendReminder(req) {
   const month = String(req.month || '');
@@ -2329,10 +2202,10 @@ function actionSendScheduleEmails(req) {
     const duties = personSchedule[p.name];
     const rows_html = duties.map(d => `
       <tr>
-        <td style="padding:8px;border:1px solid #ddd">${d.date}</td>
-        <td style="padding:8px;border:1px solid #ddd">${d.day}</td>
-        <td style="padding:8px;border:1px solid #ddd">${d.dutyType}</td>
-        <td style="padding:8px;border:1px solid #ddd;font-weight:bold;color:${d.role==='מבצע'?'#1a7f37':'#0969da'}">${d.role}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee">${d.date}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee">${d.day}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee">${d.dutyType}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold;color:${d.role==='מבצע'?'#1a7f37':'#0969da'}">${d.role}</td>
       </tr>`).join('');
     
     try {
@@ -2342,12 +2215,12 @@ function actionSendScheduleEmails(req) {
         htmlBody: `<div dir="rtl" style="font-family:Arial;padding:20px;max-width:600px">
           <h3>שלום ${p.name},</h3>
           <p>להלן התורנויות שלך לחודש <strong>${monthName}</strong>:</p>
-          <table style="width:100%;border-collapse:collapse;margin:16px 0;border:1px solid #ddd">
-            <thead><tr style="background:#2d4a3e;color:white">
-              <th style="padding:8px;text-align:right;border:1px solid #ddd">תאריך</th>
-              <th style="padding:8px;text-align:right;border:1px solid #ddd">יום</th>
-              <th style="padding:8px;text-align:right;border:1px solid #ddd">סוג</th>
-              <th style="padding:8px;text-align:right;border:1px solid #ddd">תפקיד</th>
+          <table style="width:100%;border-collapse:collapse;margin:16px 0">
+            <thead><tr style="background:#f0f0f0">
+              <th style="padding:8px;text-align:right">תאריך</th>
+              <th style="padding:8px;text-align:right">יום</th>
+              <th style="padding:8px;text-align:right">סוג</th>
+              <th style="padding:8px;text-align:right">תפקיד</th>
             </tr></thead>
             <tbody>${rows_html}</tbody>
           </table>
@@ -2416,7 +2289,7 @@ function actionGetSwaps(req, user) {
   return {success:true, swaps};
 }
 
-function actionUpdateSwap(req) {
+function actionUpdateSwap(req, user) {
   const {id, status} = req;
   const sheet = getSwapsSheet();
   const rows  = sheet.getDataRange().getValues();
@@ -2440,7 +2313,17 @@ function actionUpdateSwap(req) {
     const withWho   = String(rows[i][4]).trim();
     const theirDate = normDateVal(rows[i][5]);
     const curStatus = String(rows[i][7]).trim();
-    
+
+    // Authorization: non-admins may only respond as the target of the request
+    if (user && user.role !== 'admin') {
+      if (status !== 'target_approved' && status !== 'target_rejected') {
+        return {success:false, error:'אין הרשאה לפעולה זו'};
+      }
+      if (String(user.name || '').trim() !== withWho) {
+        return {success:false, error:'רק התורן המבוקש יכול לאשר או לדחות את הבקשה'};
+      }
+    }
+
     Logger.log('updateSwap: id='+id+' month='+month+' date='+date+' theirDate='+theirDate+
                ' from='+fromName+' to='+withWho+' status='+curStatus+'->'+status);
 
@@ -2493,9 +2376,8 @@ function actionUpdateSwap(req) {
       addSwapNotification(withWho, '❌ בקשת ההחלפה עם ' + fromName + ' נדחתה על ידי המנהל.');
       return {success:true};
     }
-    // Fallback
-    sheet.getRange(i+1,8).setValue(status);
-    return {success:true};
+    // Unknown status — reject instead of writing blindly
+    return {success:false, error:'סטטוס לא חוקי: ' + String(status)};
   }
   return {success:false, error:'בקשה לא נמצאה'};
 }
@@ -3013,48 +2895,6 @@ function debugLogin() {
   Logger.log('Hash of Tornut2026: '+hashPass('Tornut2026'));
 }
 
-// ===== שליחת פרטי כניסה לתורן =====
-function actionSendCredentialsOne(req) {
-  var username = String(req.username || '').trim();
-  if (!username) return {success: false, error: 'חסר שם משתמש'};
-
-  var usersSheet = getSheet(SH.USERS);
-  var usersRows = usersSheet.getDataRange().getValues();
-  var userRow = null;
-  for (var i = 1; i < usersRows.length; i++) {
-    if (String(usersRows[i][2]).trim() === username) { userRow = usersRows[i]; break; }
-  }
-  if (!userRow) return {success: false, error: 'משתמש לא נמצא'};
-
-  var name     = String(userRow[1] || '');
-  var password = String(userRow[3] || '');
-
-  // Get email from People sheet
-  var peopleRows = getSheet(SH.PEOPLE).getDataRange().getValues();
-  var email = '';
-  for (var j = 0; j < peopleRows.length; j++) {
-    if (String(peopleRows[j][0]).trim() === name) { email = String(peopleRows[j][5] || '').trim(); break; }
-  }
-  if (!email) return {success: false, error: 'לא נמצאה כתובת מייל עבור ' + name};
-
-  var html = '<div dir="rtl" style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:20px">' +
-    '<h2 style="color:#2d4a3e">🔐 פרטי כניסה למערכת תורן מטל"מ</h2>' +
-    '<p>שלום ' + name + ',</p>' +
-    '<p>להלן פרטי הכניסה שלך למערכת:</p>' +
-    '<div style="background:#f5f5f5;border-right:4px solid #2d4a3e;padding:16px;border-radius:4px;margin:16px 0">' +
-    '<p><strong>שם משתמש:</strong> ' + username + '</p>' +
-    '</div>' +
-    '<a href="https://itairosenblum-hash.github.io/matlam/" style="background:#2d4a3e;color:#fff;padding:10px 20px;text-decoration:none;border-radius:6px;display:inline-block;margin-top:8px">כניסה למערכת</a>' +
-    '<p style="color:#999;font-size:11px;margin-top:24px">מפקד תורן מטל"מ</p></div>';
-
-  try {
-    MailApp.sendEmail({to: email, subject: '🔐 פרטי כניסה למערכת תורן מטל"מ', htmlBody: html});
-    return {success: true, ok: true};
-  } catch(e) {
-    return {success: false, error: 'שגיאה בשליחה: ' + e.message};
-  }
-}
-
 // ===== איפוס סיסמה ידני (מנהל בלבד) =====
 function actionResetPassword(req) {
   var {targetUsername, newPassword} = req;
@@ -3159,58 +2999,6 @@ function resetAdminPassword() {
 }
 
 // ===== קבלת שיבוץ מ-duty_agent.py =====
-function writeScheduleFromAgent(data) {
-  // Verify secret token
-  if (String(data.token||'') !== 'matlam_duty_2026') {
-    return {success:false, error:'unauthorized'};
-  }
-  
-  var month       = String(data.month || '').trim();   // e.g. '202606'
-  var assignments = data.assignments || {};             // {"1":{V,A,B,score,type},...}
-  var scores      = data.scores || {};                  // {"name": newScore}
-  
-  if (!month) return {success:false, error:'missing month'};
-  
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var TZ = ss.getSpreadsheetTimeZone();
-  var schedSheet = ss.getSheetByName('Schedule_' + month);
-  if (!schedSheet) return {success:false, error:'Schedule_' + month + ' not found'};
-  
-  var lastRow = schedSheet.getLastRow();
-  if (lastRow < 2) return {success:false, error:'empty sheet'};
-  
-  var rows = schedSheet.getRange(1, 1, lastRow, 12).getValues();
-  var vabData = [], scoreData = [];
-  
-  for (var i = 1; i < rows.length; i++) {
-    var dateCell = rows[i][0];
-    var dayNum = dateCell instanceof Date ? dateCell.getDate() :
-                 parseInt(String(dateCell||'').split('/')[0]);
-    if (!dayNum) { vabData.push(['','','']); scoreData.push([0]); continue; }
-    
-    var ag = assignments[String(dayNum)] || {};
-    vabData.push([ag.V||'', ag.A||'', ag.B||'']);
-    scoreData.push([ag.score||0]);
-    if (ag.type) schedSheet.getRange(i+1, 8).setValue(ag.type);
-  }
-  
-  schedSheet.getRange(2, 4, vabData.length, 3).setValues(vabData);
-  schedSheet.getRange(2, 9, scoreData.length, 1).setValues(scoreData);
-  
-  // Update Scores sheet
-  var scoreSheet = getSheet(SH.SCORES);
-  var srows = scoreSheet.getDataRange().getValues();
-  for (var j = 1; j < srows.length; j++) {
-    var name = String(srows[j][0]||'').trim();
-    if (name && scores[name] !== undefined) {
-      scoreSheet.getRange(j+1, 4).setValue(Number(scores[name]));
-    }
-  }
-  
-  Logger.log('writeScheduleFromAgent: ' + month + ', ' + Object.keys(assignments).length + ' days');
-  return {success:true, message:'Schedule_' + month + ' updated — ' + Object.keys(assignments).length + ' days'};
-}
-
 // ===================================================================
 // DUTY AGENT ALGORITHM — translated from duty_agent.py
 // ===================================================================
@@ -3219,11 +3007,7 @@ var DUTY_SCORES_MAP = {
   'חול':10, 'חמישי':12, 'סוף שבוע':20,
   'סוף שבוע מלא':40, 'ערב חג':30, 'חג':30,
   'חג + סוף שבוע':50, 'דולג':0, 'פטור':10,
-  'חול 24 שעות':15, 'חמישי 24 שעות':16, 'הדממה':18,
-  'חמישי הדממה':19, 'יומיים חג':50,
-  'חול + שבת':30, 'שבת הקפצה':30,
-  'חמישי הקפצה':12, 'סוף שבוע הקפצה':20,
-  'חול 24 שעות + שבת':35
+  'חול 24 שעות':15, 'חמישי 24 שעות':16, 'הדממה':18
 };
 
 function actionGenerateScheduleV2(req) {
@@ -3231,6 +3015,9 @@ function actionGenerateScheduleV2(req) {
   var year  = parseInt(month.substring(0,4));
   var mon   = parseInt(month.substring(4,6));
   if (!year || !mon) return {success:false, error:'חסר חודש'};
+
+  // Newly generated schedules start as draft — hidden from tornim until published
+  setScheduleStatus(month, 'draft');
 
   var ss  = SpreadsheetApp.getActiveSpreadsheet();
   var TZ  = ss.getSpreadsheetTimeZone();
@@ -3243,13 +3030,49 @@ function actionGenerateScheduleV2(req) {
   var peopleMap = {};
   for (var i = 1; i < peopleRows.length; i++) {
     var nm = String(peopleRows[i][0]||'').trim();
-    if (nm) peopleMap[nm] = {
-      name:        nm,
-      activity:    String(peopleRows[i][1]||'1').trim(),
-      dutyCategory:String(peopleRows[i][2]||'').trim(),
-      weekendType: String(peopleRows[i][4]||'מלא').trim()
-    };
+    if (nm) {
+      peopleMap[nm] = {
+        name:        nm,
+        activity:    String(peopleRows[i][1]||'1').trim(),
+        dutyCategory:String(peopleRows[i][2]||'').trim(),
+        weekendType: String(peopleRows[i][4]||'מלא').trim(),
+        endDate:     peopleRows[i][6] || null
+      };
+      // משרת אב is identified by CATEGORY in the UI — normalize to activity 0.5
+      // so every paternity protection (Thursday-only, 2-month gap) applies.
+      if (peopleMap[nm].dutyCategory === 'אב') peopleMap[nm].activity = '0.5';
+    }
   }
+
+  // Users sheet is the authority on who is active: a torani deactivated in the
+  // tornim page must never be scheduled, regardless of the People activity column.
+  var usersActive = {}, usersRole = {};
+  try {
+    var uRowsAct = ss.getSheetByName('Users').getDataRange().getValues();
+    for (var ua = 1; ua < uRowsAct.length; ua++) {
+      var uan = String(uRowsAct[ua][1]||'').trim();
+      if (uan) {
+        usersActive[uan] = !!uRowsAct[ua][5];
+        usersRole[uan] = String(uRowsAct[ua][4]||'').trim();
+      }
+    }
+  } catch(e) { Logger.log('users load: ' + e); }
+
+  var monthStart = new Date(year, mon-1, 1);
+  var excludedNames = {};
+  Object.keys(peopleMap).forEach(function(exn){
+    var pmx = peopleMap[exn];
+    if (pmx.dutyCategory === 'מנהל מערכת') return;
+    if (usersActive[exn] === false) { excludedNames[exn] = 'לא פעיל'; return; }
+    if (usersRole[exn] === 'viewer') { excludedNames[exn] = 'צפייה בלבד'; return; }
+    if (pmx.endDate) {
+      var edd = (pmx.endDate instanceof Date) ? pmx.endDate : new Date(String(pmx.endDate));
+      if (!isNaN(edd)) {
+        if (edd < monthStart) { excludedNames[exn] = 'סיים שירות'; return; }
+        pmx.endDateObj = edd; // ends mid-month: block days after the end date
+      }
+    }
+  });
 
   // Build scores map + history
   var scores = {}, people = {};
@@ -3259,22 +3082,32 @@ function actionGenerateScheduleV2(req) {
     // Skip admin - not a torni
     var pm_check = peopleMap[sname] || {};
     if (pm_check.dutyCategory === 'מנהל מערכת') continue;
-    var acc2026 = Number(scoreRows[j][3])||0;
+    // Skip deactivated tornim and those whose service ended before this month
+    if (excludedNames[sname]) continue;
+    // IDEMPOTENT accumulated total: base-2025 (col C) + sum of monthly score columns
+    // EXCLUDING the month being generated — so re-running never double-counts.
+    var base2025 = Number(scoreRows[j][2])||0;
+    var acc2026 = base2025;
+    for (var accM = 1; accM <= 12; accM++) {
+      if (accM === mon) continue;
+      acc2026 += Number(scoreRows[j][5 + (accM-1)*2])||0; // 0-indexed monthly SCORE col (F=5 for jan)
+    }
     var pm      = peopleMap[sname] || {name:sname,activity:'1',dutyCategory:'',weekendType:'מלא'};
-    
-    // Check last full-weekend and last weekend from monthly columns
+
+    // Check last full-weekend, last weekend, and last duty of any kind from monthly columns
     // Scores sheet: col E(5)=ינואר סוג, F(6)=ינואר ניקוד, G(7)=פברואר סוג...
-    var lastFW = null, lastWeekend = null;
+    var lastFW = null, lastWeekend = null, lastDuty = null;
     for (var back = 1; back <= 12; back++) {
       var mNum = mon - back;
       if (mNum < 1) break;
-      var colIdx = 4 + (mNum-1)*2; // 0-indexed: col E=4 for ינואר(1)
+      var colIdx = 4 + (mNum-1)*2;
       var dtype = String(scoreRows[j][colIdx]||'').trim();
       if (!dtype) continue;
+      if (lastDuty === null && dtype !== 'פטור' && dtype !== 'דולג') lastDuty = mNum;
       if (lastFW === null && dtype.indexOf('סוף שבוע מלא') !== -1) lastFW = mNum;
       if (lastWeekend === null && (dtype.indexOf('סוף שבוע') !== -1 || dtype.indexOf('שבת') !== -1))
         lastWeekend = mNum;
-      if (lastFW !== null && lastWeekend !== null) break;
+      if (lastFW !== null && lastWeekend !== null && lastDuty !== null) break;
     }
     
     // Check if prev month had חג
@@ -3289,6 +3122,7 @@ function actionGenerateScheduleV2(req) {
       last_fw:      lastFW,
       last_weekend: lastWeekend,
       prev_hag:     prevMonDuty.indexOf('חג') !== -1,
+      last_duty:    lastDuty,
       no_skip:      false,
       duty_type:    pm.weekendType === 'מלא' ? 'סוף שבוע מלא' : null
     });
@@ -3323,6 +3157,27 @@ function actionGenerateScheduleV2(req) {
   if (!schedSheet) return {success:false, error:'Schedule_' + month + ' לא נמצא. צור לוח קודם.'};
   
   var schedRows = schedSheet.getRange(1,1,schedSheet.getLastRow(),12).getValues();
+
+  // Apply day-category overrides from the generate modal: persist them to col C
+  // so the schedule sheet, the algorithm and the UI all stay consistent.
+  var dayCats = null;
+  try {
+    if (req.dayCategories) {
+      dayCats = (typeof req.dayCategories === 'string') ? JSON.parse(req.dayCategories) : req.dayCategories;
+    }
+  } catch(e) { dayCats = null; }
+  if (dayCats) {
+    var colCVals = [];
+    for (var dc = 1; dc < schedRows.length; dc++) {
+      var dcCell = schedRows[dc][0];
+      var dcDay = dcCell instanceof Date ? dcCell.getDate() : parseInt(String(dcCell).split('/')[0]);
+      var newCat = dcDay ? dayCats[String(dcDay)] : null;
+      if (newCat) schedRows[dc][2] = newCat;
+      colCVals.push([schedRows[dc][2]]);
+    }
+    if (colCVals.length) schedSheet.getRange(2, 3, colCVals.length, 1).setValues(colCVals);
+  }
+
   var DAY_CAT = {}, WEEKEND_PAIRS = [];
   for (var si2 = 1; si2 < schedRows.length; si2++) {
     var dateCell = schedRows[si2][0];
@@ -3377,8 +3232,9 @@ function actionGenerateScheduleV2(req) {
     var cat = DAY_CAT[day] || 'חול';
     if ((calInfo[name]||{}).constraints && calInfo[name].constraints[day]) return false;
     if (p.activity === '0') return false;
-    if (p.dutyCategory === 'פטור' || p.dutyCategory === 'לא מוסמך') return false;
+    if (p.dutyCategory === 'פטור' || p.dutyCategory === 'לא מוסמך' || p.dutyCategory === 'טרם הוסמך') return false;
     if (p.activity === '0.5' && cat !== 'חמישי' && cat !== 'ערב חג') return false;
+    if (p.endDateObj && new Date(year, mon-1, day) > p.endDateObj) return false;
     // מלא gets FULL weekend pair or holiday pair (both days together)
     // נפרד can do any single day including weekend/holiday - no restrictions here
     return true;
@@ -3397,43 +3253,26 @@ function actionGenerateScheduleV2(req) {
   // ── 5. Schedule algorithm ────────────────────────────────────────
   
   var activeNames = Object.keys(people).filter(function(n){return people[n].activity !== '0';});
-  activeNames.sort(function(a,b){
-    var an = people[a].no_skip?0:1, bn = people[b].no_skip?0:1;
-    if (an !== bn) return an-bn;
-    return scores[a] - scores[b];
-  });
+  activeNames.sort(function(a,b){ return scores[a] - scores[b]; });
 
   var usedV = {}, dayToV = {}, slotPrimary = {}, fwCovered = {};
+  var relaxNotes = []; // transparency: records every rule relaxation applied
 
-  function pickCandidate(days, isFW, slotType, minWeekendGap) {
-    var candidates = [];
-    for (var ni = 0; ni < activeNames.length; ni++) {
-      var n = activeNames[ni];
-      if (usedV[n]) continue;
-      var p = people[n];
-      if (p.activity === '0.5') continue;
-      if (isFW) {
-        if (p.duty_type !== 'סוף שבוע מלא') continue;
-        if (!fwEligible(p)) continue;
-      }
-      if (!isFW && (slotType === 'סוף שבוע' || slotType === 'חג + סוף שבוע')) {
-        if (p.prev_hag) continue;
-      }
-      if (minWeekendGap !== undefined && minWeekendGap !== null) {
-        var lw = p.last_weekend;
-        if (lw !== null && (mon - lw) < minWeekendGap) continue;
-      }
-      var ok = days.every(function(day){return canDoDay(n, day, isFW);});
-      if (!ok) continue;
-      var noSkipFlag = p.no_skip ? 0 : 1;
-      var prefFlag   = prefMatches(p, slotType) ? 0 : 1;
-      candidates.push([noSkipFlag, prefFlag, scores[n], n]);
+  // Does any torani have a V (forced) mark on this day?
+  function dayHasV(day) {
+    var names = Object.keys(calInfo);
+    for (var vi = 0; vi < names.length; vi++) {
+      if (calInfo[names[vi]].forced_v && calInfo[names[vi]].forced_v[day]) return true;
     }
-    if (!candidates.length) return null;
-    candidates.sort(function(a,b){
-      for(var k=0;k<3;k++){if(a[k]!==b[k])return a[k]-b[k];}return 0;
+    return false;
+  }
+  // Process V-marked days first within each priority group
+  function sortVFirst(daysArr) {
+    return daysArr.sort(function(a,b){
+      var av = dayHasV(a)?0:1, bv = dayHasV(b)?0:1;
+      if (av !== bv) return av - bv;
+      return a - b;
     });
-    return candidates[0][3];
   }
 
   // ── Priority-based V assignment ──────────────────────────────────
@@ -3446,7 +3285,11 @@ function actionGenerateScheduleV2(req) {
     if (DAY_CAT[d3]==='חמישי'||DAY_CAT[d3]==='ערב חג') thuDays.push(d3);
   }
   var paternityPeople = activeNames.filter(function(n){return people[n].activity==='0.5';});
+  paternityPeople.sort(function(a,b){ return scores[a]-scores[b]; });
   paternityPeople.forEach(function(pat){
+    // Policy: משרת אב does one Thursday duty every TWO months
+    var ld = people[pat].last_duty;
+    if (ld !== null && (mon - ld) < 2) return;
     for(var ti=0;ti<thuDays.length;ti++){
       var thu=thuDays[ti];
       if(dayToV[thu]) continue;
@@ -3459,62 +3302,93 @@ function actionGenerateScheduleV2(req) {
     }
   });
 
-  // Revised pickCandidate - picks LOWEST SCORE regardless of מלא/נפרד
+  // Candidate selection. Policy: score fairness FIRST — preferences only steer placement.
+  // Sort order: score → "לא לדלג" → V mark on this day → text preference.
+  // prev_hag (did a חג last month) is a SOFT block on weekends: ignored only if nobody else qualifies.
   function pickLowest(days, slotType, minWeekendGap) {
     var isHagSlot = slotType === 'חג' || slotType === 'ערב חג' || slotType === 'חג + סוף שבוע';
-    var candidates = [];
-    for (var ni=0; ni<activeNames.length; ni++) {
-      var n = activeNames[ni];
-      if (usedV[n]) continue;
-      var p = people[n];
-      if (p.activity === '0.5') continue; // paternity handled separately
-      // Weekend gap check (not for holidays)
-      if (!isHagSlot && minWeekendGap) {
-        var lw = p.last_weekend;
-        if (lw !== null && (mon - lw) < minWeekendGap) continue;
+    var isWeekendSlot = !isHagSlot && String(slotType).indexOf('סוף שבוע') !== -1;
+
+    function collect(allowPrevHag, allowMalaSingle) {
+      var candidates = [];
+      for (var ni=0; ni<activeNames.length; ni++) {
+        var n = activeNames[ni];
+        if (usedV[n]) continue;
+        var p = people[n];
+        if (p.activity === '0.5') continue; // paternity handled separately
+        // Weekend-type enforcement:
+        // a full-weekend PAIR belongs to מלא tornim only;
+        // a SINGLE weekend day belongs to נפרד tornim (מלא allowed only as reported fallback)
+        if (isWeekendSlot && days.length > 1 && p.weekendType !== 'מלא') continue;
+        if (isWeekendSlot && days.length === 1 && p.weekendType === 'מלא' && !allowMalaSingle) continue;
+        // Soft rule: חג last month → skip weekends this month (unless nobody else can)
+        if (isWeekendSlot && !allowPrevHag && p.prev_hag) continue;
+        // Weekend gap check (not for holidays)
+        if (!isHagSlot && minWeekendGap) {
+          var lw = p.last_weekend;
+          if (lw !== null && (mon - lw) < minWeekendGap) continue;
+        }
+        // Full-weekend gap check: ONLY for actual weekends, NOT holidays
+        if (!isHagSlot && days.length > 1 && p.weekendType === 'מלא') {
+          if (!fwEligible(p)) continue;
+        }
+        var ok = days.every(function(day){return canDoDay(n, day, days.length>1);});
+        if (!ok) continue;
+        var noSkipFlag = p.no_skip ? 0 : 1;
+        var vFlag = days.some(function(day){
+          return (calInfo[n]||{}).forced_v && calInfo[n].forced_v[day];
+        }) ? 0 : 1;
+        var prefFlag = prefMatches(p, slotType) ? 0 : 1;
+        candidates.push([scores[n], noSkipFlag, vFlag, prefFlag, n]);
       }
-      // Full-weekend gap check: ONLY for actual weekends, NOT holidays
-      if (!isHagSlot && days.length > 1 && p.weekendType === 'מלא') {
-        if (!fwEligible(p)) continue;
+      candidates.sort(function(a,b){
+        for(var k=0;k<4;k++){if(a[k]!==b[k])return a[k]-b[k];}return 0;
+      });
+      return candidates;
+    }
+
+    var candidates = collect(false, false);
+    if (!candidates.length && isWeekendSlot) {
+      candidates = collect(true, false);
+      if (candidates.length) {
+        relaxNotes.push('יום ' + days[0] + ': שובץ תורן שעשה חג בחודש הקודם (לא היה מועמד אחר)');
       }
-      var ok = days.every(function(day){return canDoDay(n, day, days.length>1);});
-      if (!ok) continue;
-      var noSkipFlag = p.no_skip ? 0 : 1;
-      var prefFlag   = prefMatches(p, slotType) ? 0 : 1;
-      candidates.push([noSkipFlag, prefFlag, scores[n], n]);
+    }
+    if (!candidates.length && isWeekendSlot && days.length === 1) {
+      candidates = collect(true, true);
+      if (candidates.length) {
+        relaxNotes.push('יום ' + days[0] + ': שובץ תורן מסוג "מלא" ליום סופ"ש בודד (לא היה תורן "נפרד" זמין)');
+      }
     }
     if (!candidates.length) return null;
-    candidates.sort(function(a,b){
-      for(var k=0;k<3;k++){if(a[k]!==b[k])return a[k]-b[k];}return 0;
-    });
-    return candidates[0][3];
+    return candidates[0][4];
   }
 
   // PRIORITY 1: Holiday pairs (ערב חג + חג, or חג + חג)
+  // Policy: only מלא tornim take both days; נפרד tornim take a single day (pair is split).
   HAG_PAIRS.forEach(function(pair){
     var d1=pair[0], d2=pair[1];
     if (fwCovered[d1]||fwCovered[d2]) return;
     var hagScore = Math.max(DUTY_SCORES_MAP[DAY_CAT[d1]]||30, DUTY_SCORES_MAP[DAY_CAT[d2]]||30);
-    // Try as pair first — lowest score, no fw gap restriction for holidays
-    var chosen = pickLowest([d1,d2], 'חג', null);
-    if (!chosen) chosen = pickLowest([d1], 'חג', null); // fallback to first day only
+    var chosen = pickLowest([d1], 'חג', null);
     if (chosen) {
       var isMala = people[chosen].weekendType === 'מלא';
       usedV[chosen]=true;
-      if (isMala) {
-        // מלא covers both days
+      if (isMala && canDoDay(chosen, d2, false)) {
+        // מלא covers both days for a single (max) holiday score
         dayToV[d1]=dayToV[d2]=chosen;
         slotPrimary[d1]=[chosen,'חג',hagScore];
         slotPrimary[d2]=[chosen,'חג',0];
         fwCovered[d1]=true; fwCovered[d2]=true;
+        scores[chosen]+=hagScore;
       } else {
-        // נפרד covers both days too (holiday pair = full coverage regardless of type)
-        dayToV[d1]=dayToV[d2]=chosen;
-        slotPrimary[d1]=[chosen,'חג',hagScore];
-        slotPrimary[d2]=[chosen,'חג',0];
-        fwCovered[d1]=true; fwCovered[d2]=true;
+        // נפרד (or blocked on d2): covers only the first day; d2 assigned separately below
+        dayToV[d1]=chosen;
+        var sc1 = DUTY_SCORES_MAP[DAY_CAT[d1]]||30;
+        slotPrimary[d1]=[chosen, DAY_CAT[d1]||'חג', sc1];
+        fwCovered[d1]=true;
+        scores[chosen]+=sc1;
       }
-      scores[chosen]+=hagScore;
       people[chosen].last_weekend=mon;
     }
     // Assign second day separately if still uncovered
@@ -3529,26 +3403,31 @@ function actionGenerateScheduleV2(req) {
     }
   });
 
-  // PRIORITY 1b: Single holiday days not part of a pair
+  // PRIORITY 1b: Single holiday days not part of a pair (V-marked days first)
+  var hagSingles = [];
   for (var hd=1;hd<=daysInMonth2;hd++){
     if (fwCovered[hd]||dayToV[hd]) continue;
-    var hcat=DAY_CAT[hd]||'';
-    if (hcat==='חג'||hcat==='ערב חג') {
-      var hchosen=pickLowest([hd],'חג',null);
-      if (hchosen){
-        usedV[hchosen]=true; dayToV[hd]=hchosen;
-        var hsc=DUTY_SCORES_MAP[hcat]||30;
-        slotPrimary[hd]=[hchosen,hcat,hsc];
-        scores[hchosen]+=hsc; fwCovered[hd]=true;
-      }
-    }
+    var hcat0=DAY_CAT[hd]||'';
+    if (hcat0==='חג'||hcat0==='ערב חג') hagSingles.push(hd);
   }
+  sortVFirst(hagSingles).forEach(function(hd2){
+    if (fwCovered[hd2]||dayToV[hd2]) return;
+    var hcat=DAY_CAT[hd2]||'';
+    var hchosen=pickLowest([hd2],'חג',null);
+    if (hchosen){
+      usedV[hchosen]=true; dayToV[hd2]=hchosen;
+      var hsc=DUTY_SCORES_MAP[hcat]||30;
+      slotPrimary[hd2]=[hchosen,hcat,hsc];
+      scores[hchosen]+=hsc; fwCovered[hd2]=true;
+    }
+  });
 
   // PRIORITY 2: Weekend pairs (Fri+Sat) — מלא covers both, נפרד covers one
   WEEKEND_PAIRS.forEach(function(pair){
     var fri=pair[0], sat=pair[1];
     if (fwCovered[fri]&&fwCovered[sat]) return;
-    // Try as full pair first
+    // Try as full pair first — pickLowest now only returns מלא candidates for pairs,
+    // so a low-score נפרד torani no longer blocks the pair
     var chosen = pickLowest([fri,sat], 'סוף שבוע מלא', null);
     if (chosen && people[chosen].weekendType === 'מלא') {
       // מלא: covers both fri+sat
@@ -3570,14 +3449,20 @@ function actionGenerateScheduleV2(req) {
   for (var wd=1;wd<=daysInMonth2;wd++){
     if (!fwCovered[wd] && !dayToV[wd] && DAY_CAT[wd]==='סוף שבוע') weekendSingles.push(wd);
   }
-  weekendSingles.forEach(function(day){
+  // Policy: separate-weekend tornim do one weekend per 3 months.
+  // Relax the gap (3 → 2 → 1 → none) only when nobody qualifies, and report it.
+  sortVFirst(weekendSingles).forEach(function(day){
     if (dayToV[day]) return;
-    var chosen = null;
-    for (var gap=4;gap>=2;gap--){
-      chosen = pickLowest([day], 'סוף שבוע', gap);
-      if (chosen) break;
+    var chosen = null, usedGap = null;
+    var gapSteps = [3, 2, 1, null];
+    for (var gi=0; gi<gapSteps.length; gi++){
+      chosen = pickLowest([day], 'סוף שבוע', gapSteps[gi]);
+      if (chosen) { usedGap = gapSteps[gi]; break; }
     }
     if (chosen) {
+      if (usedGap !== 3) {
+        relaxNotes.push('יום ' + day + ' (סוף שבוע): פער הסופ"שים הוקטן ל-' + (usedGap === null ? '0' : usedGap) + ' חודשים');
+      }
       usedV[chosen]=true; dayToV[day]=chosen;
       slotPrimary[day]=[chosen,'סוף שבוע',DUTY_SCORES_MAP['סוף שבוע']];
       scores[chosen]+=DUTY_SCORES_MAP['סוף שבוע'];
@@ -3599,7 +3484,7 @@ function actionGenerateScheduleV2(req) {
       var gc = DAY_CAT[gd]||'חול';
       if (!dayToV[gd] && !fwCovered[gd] && group.cats.indexOf(gc)!==-1) days.push(gd);
     }
-    days.forEach(function(day){
+    sortVFirst(days).forEach(function(day){
       if (dayToV[day]) return;
       var cat=DAY_CAT[day]||'חול';
       var chosen = pickLowest([day], cat, null);
@@ -3775,34 +3660,66 @@ function actionGenerateScheduleV2(req) {
     schedSheet.getRange(2,8,numR,1).setValues(typeData);
   }
 
-  // ── 8. Update Scores sheet ─────────────────────────────────────
+  // ── 8. Update Scores sheet (IDEMPOTENT: current-month columns are always
+  //       overwritten — including cleared — so re-running never double-counts) ──
   var scoreSheet2=ss.getSheetByName('Scores');
   var monColType = 4 + (mon-1)*2 + 1; // 1-indexed for GS: col 5=ינואר סוג(E), 6=ינואר ניקוד(F)...
   var monColScore = monColType + 1;
 
-  // Score updates: +10 for inactive
-  Object.keys(people).forEach(function(n){
-    if(people[n].activity==='0') scores[n]+=10;
-  });
-
   for(var sui=1;sui<scoreRows.length;sui++){
     var sn=String(scoreRows[sui][0]||'').trim();
     if(!sn) continue;
-    if(scores[sn]!==undefined){
-      scoreSheet2.getRange(sui+1,4).setValue(scores[sn]);
+    if(scores[sn]===undefined) {
+      if (excludedNames[sn]) {
+        // Deactivated/ended: clear this month's columns and keep the total consistent
+        var exBase = Number(scoreRows[sui][2])||0;
+        for (var exM = 1; exM <= 12; exM++) {
+          if (exM === mon) continue;
+          exBase += Number(scoreRows[sui][5 + (exM-1)*2])||0;
+        }
+        scoreSheet2.getRange(sui+1,monColType).setValue('');
+        scoreSheet2.getRange(sui+1,monColScore).setValue('');
+        scoreSheet2.getRange(sui+1,4).setValue(exBase);
+      }
+      continue; // admin / non-torani rows untouched
     }
-    // Write monthly type+score
+    // What did this person get THIS month?
     var ag2=null;
     Object.keys(result).forEach(function(d){if(result[d].V===sn&&result[d].score>0)ag2=result[d];});
+    var mType='', mScore='';
     if(ag2){
-      scoreSheet2.getRange(sui+1,monColType).setValue(ag2.type||'');
-      scoreSheet2.getRange(sui+1,monColScore).setValue(ag2.score);
+      mType=ag2.type||''; mScore=ag2.score;
     } else if(people[sn]&&people[sn].activity==='0'){
-      scoreSheet2.getRange(sui+1,monColType).setValue('פטור');
-      scoreSheet2.getRange(sui+1,monColScore).setValue(10);
+      mType='פטור'; mScore=10; scores[sn]+=10;
     }
+    scoreSheet2.getRange(sui+1,monColType).setValue(mType);
+    scoreSheet2.getRange(sui+1,monColScore).setValue(mScore);
+    // Accumulated total = clean base (computed at load, excl. this month) + this run's additions
+    scoreSheet2.getRange(sui+1,4).setValue(scores[sn]);
   }
 
+  // ── 9. Transparency summary ─────────────────────────────────────
+  var totalDays=0, unassigned=[], noReserve=[];
+  for(var td=1; td<=daysInMonth2; td++){
+    if(DAY_CAT[td]===undefined) continue;
+    totalDays++;
+    if(!dayToV[td]) { unassigned.push(td); continue; }
+    var rr=result[td];
+    if(rr && (!rr.A || !rr.B)) noReserve.push(td);
+  }
+  var msg='השיבוץ הופק: ' + (totalDays-unassigned.length) + '/' + totalDays + ' ימים שובצו';
+  if(unassigned.length) msg += '\n❗ ימים ללא מבצע: ' + unassigned.join(', ');
+  if(noReserve.length) msg += '\n⚠️ ימים ללא עתודה מלאה: ' + noReserve.join(', ');
+  if(relaxNotes.length) msg += '\n⚠️ הקלות שהופעלו:\n• ' + relaxNotes.join('\n• ');
+  // Report only surprising exclusions (service ended); inactive/viewer accounts are expected
+  var exList = Object.keys(excludedNames).filter(function(n){return excludedNames[n] === 'סיים שירות';});
+  if(exList.length) msg += '\nℹ️ סיימו שירות ולא שובצו: ' + exList.join(', ');
+
+  // מדולגים: active/eligible tornim who got zero מבצע duty this month (same
+  // list shown as a standing line above the schedule via getSchedule).
+  var skippedNames = computeSkippedTornim(month);
+  if(skippedNames.length) msg += '\n🚫 מדולגים החודש (לא שובצו כמבצע): ' + skippedNames.join(', ');
+
   Logger.log('generateScheduleV2: ' + month + ' done, ' + Object.keys(result).length + ' days scheduled');
-  return {success:true, message:'השיבוץ הופק בהצלחה (' + Object.keys(result).length + ' ימים)'};
+  return {success:true, message:msg, skippedNames:skippedNames};
 }
