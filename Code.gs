@@ -367,9 +367,14 @@ function actionUpdatePerson(req) {
   const rows = sheet.getDataRange().getValues();
   for (let i = 1; i < rows.length; i++) {
     if (rows[i][0] === name) {
+      const oldDutyCategory = String(rows[i][2]||'').trim();
       if (activity !== undefined) sheet.getRange(i+1, 2).setValue(activity);
       if (dutyCategory !== undefined) sheet.getRange(i+1, 3).setValue(dutyCategory);
       if (weekendType !== undefined) sheet.getRange(i+1, 5).setValue(weekendType);
+      if (dutyCategory !== undefined && justGraduated(oldDutyCategory, dutyCategory)) {
+        const avg = setBaseScoreToAverage(name, activity);
+        Logger.log(name + ' סיים הסמכה → ניקוד אופס לממוצע: ' + avg);
+      }
       return {success: true};
     }
   }
@@ -1330,20 +1335,14 @@ function actionAddTorani(req) {
   }
 
   // Set starting score = average of all active tornim (fair entry into rotation)
-  const avgScore = calcAverageScore();
-  const scoreSheet = getSheet(SH.SCORES);
-  const scoreRows = scoreSheet.getDataRange().getValues();
-  let foundInScores = false;
-  for (let i = 1; i < scoreRows.length; i++) {
-    if (String(scoreRows[i][0]||'').trim() === String(name).trim()) {
-      foundInScores = true;
-      break;
-    }
+  // — but only if they don't already have score history (avoid wiping it on re-add).
+  const scoreSheetCheck = getSheet(SH.SCORES);
+  const scoreRowsCheck = scoreSheetCheck.getDataRange().getValues();
+  let alreadyHasScore = false;
+  for (let i = 1; i < scoreRowsCheck.length; i++) {
+    if (String(scoreRowsCheck[i][0]||'').trim() === String(name).trim()) { alreadyHasScore = true; break; }
   }
-  if (!foundInScores) {
-    scoreSheet.appendRow([name, activity||'1', 0, avgScore]);
-    Logger.log('New torani ' + name + ' → avg score: ' + avgScore);
-  }
+  const avgScore = alreadyHasScore ? calcAverageScore() : setBaseScoreToAverage(name, activity);
 
   return {success: true, message: 'תורן נוסף. ניקוד התחלתי: ' + avgScore};
 }
@@ -1358,6 +1357,40 @@ function calcAverageScore() {
     if (act !== '0' && sc > 0) { total += sc; count++; }
   }
   return count > 0 ? Math.round(total / count) : 0;
+}
+
+// Gives a torani a fair starting/reset point equal to the group average.
+// IMPORTANT: this must be written to col C (מצטבר 2025 / "base"), NOT col D
+// (מצטבר 2026) — col D is fully recomputed on every schedule generation as
+// base(col C) + this-year's monthly columns, so writing only to col D gets
+// silently wiped back to ~0 on the next run. Writing to col C is what
+// actually survives, because the formula always adds it back in.
+// Used for: (1) brand-new tornim entering the rotation, and (2) tornim who
+// just finished training (dutyCategory: לא מוסמך/טרם הוסמך → רגיל) and need
+// to start from the middle of the pack instead of 0.
+function setBaseScoreToAverage(name, activity) {
+  var avgScore = calcAverageScore();
+  var scoreSheet = getSheet(SH.SCORES);
+  var scoreRows = scoreSheet.getDataRange().getValues();
+  for (var i = 1; i < scoreRows.length; i++) {
+    if (String(scoreRows[i][0]||'').trim() === String(name).trim()) {
+      scoreSheet.getRange(i+1, 3).setValue(avgScore); // col C: מצטבר 2025 (persistent base)
+      scoreSheet.getRange(i+1, 4).setValue(avgScore); // col D: מצטבר 2026 (display, until next generation recomputes it)
+      Logger.log('setBaseScoreToAverage: ' + name + ' → ' + avgScore + ' (existing row)');
+      return avgScore;
+    }
+  }
+  scoreSheet.appendRow([name, activity||'1', avgScore, avgScore]);
+  Logger.log('setBaseScoreToAverage: ' + name + ' → ' + avgScore + ' (new row)');
+  return avgScore;
+}
+
+// True when a dutyCategory change means someone just finished training and
+// is now a regular torani (לא מוסמך/טרם הוסמך → רגיל, i.e. empty category).
+function justGraduated(oldCategory, newCategory) {
+  var wasUnqualified = (oldCategory === 'לא מוסמך' || oldCategory === 'טרם הוסמך');
+  var nowRegular = (newCategory !== undefined && newCategory !== null && String(newCategory).trim() === '');
+  return wasUnqualified && nowRegular;
 }
 
 function actionUpdateTorani(req) {
@@ -1386,8 +1419,10 @@ function actionUpdateTorani(req) {
   const peopleSheet = getSheet(SH.PEOPLE);
   const peopleRows = peopleSheet.getDataRange().getValues();
   let found = false;
+  let oldDutyCategory = '';
   for (let i = 1; i < peopleRows.length; i++) {
     if (String(peopleRows[i][0]) === String(lookupName)) {
+      oldDutyCategory = String(peopleRows[i][2]||'').trim();
       if (name) peopleSheet.getRange(i+1,1).setValue(name);
       if (activity !== undefined) peopleSheet.getRange(i+1,2).setValue(activity);
       if (dutyCategory !== undefined) peopleSheet.getRange(i+1,3).setValue(dutyCategory);
@@ -1400,6 +1435,12 @@ function actionUpdateTorani(req) {
   }
   if (!found && lookupName) {
     peopleSheet.appendRow([name||lookupName, activity||'1', dutyCategory||'', phone||'', weekendType||'מלא', email||'', endDate||'']);
+  }
+
+  if (dutyCategory !== undefined && justGraduated(oldDutyCategory, dutyCategory)) {
+    const finalName = name || lookupName;
+    const avg = setBaseScoreToAverage(finalName, activity);
+    Logger.log(finalName + ' סיים הסמכה → ניקוד אופס לממוצע: ' + avg);
   }
 
   return {success: true};
