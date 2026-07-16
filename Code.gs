@@ -597,18 +597,22 @@ function createConstraintSheet(month, ss) {
 }
 
 // ===== SCHEDULE =====
-// Active, non-exempt, full-duty tornim (מבצע/עתודה) who did NOT serve as מבצע
-// this month. Used to surface a "מדולגים" line above the admin schedule so
-// fairness gaps are visible whenever the month is viewed — not only right
-// after generation. Excludes: admin, deactivated/viewer accounts, service
-// already ended, exempt (activity '0'), and paternity/אב (activity '0.5') —
-// the latter only serve occasionally so a quiet month for them is expected.
+// "מדולגים" = active, full-duty tornim (מבצע/עתודה) who did NOT serve as
+// מבצע this month AND whose accumulated score (before this month) is at or
+// above the group average — i.e. people the algorithm deliberately passed
+// over this month to balance the score, not people who should have been
+// scheduled but weren't. Below-average names that got zero duty are NOT
+// included here (that would signal an actual scheduling problem, not
+// intentional balancing) — excluded groups: admin, deactivated/viewer
+// accounts, service already ended, exempt (activity '0'), and paternity/אב
+// (activity '0.5'), which only serve occasionally.
 function computeSkippedTornim(month) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const schedSheet = ss.getSheetByName('Schedule_' + month);
   if (!schedSheet) return [];
 
   const peopleRows = ss.getSheetByName('People').getDataRange().getValues();
+  const scoreRows  = ss.getSheetByName('Scores').getDataRange().getValues();
   let usersRows = [];
   try { usersRows = ss.getSheetByName('Users').getDataRange().getValues(); } catch(e) {}
 
@@ -630,6 +634,7 @@ function computeSkippedTornim(month) {
     const dutyCategory = String(peopleRows[i][2]||'').trim();
     const endDate = peopleRows[i][6] || null;
     if (dutyCategory === 'מנהל מערכת') continue;
+    if (usersRole[nm] === 'admin') continue; // admin may lack a People row/category — check Users role too
     if (usersActive[nm] === false) continue;
     if (usersRole[nm] === 'viewer') continue;
     if (activity === '0' || activity === '0.5') continue;
@@ -641,6 +646,22 @@ function computeSkippedTornim(month) {
     eligible[nm] = true;
   }
 
+  // Accumulated score BEFORE this month (base + all other months) — the same
+  // fairness metric the generation algorithm sorts candidates by.
+  const scoreOf = {};
+  for (let j = 1; j < scoreRows.length; j++) {
+    const sn = String(scoreRows[j][0]||'').trim();
+    if (!sn || !eligible[sn]) continue;
+    let acc = Number(scoreRows[j][2]) || 0; // base (col C)
+    for (let m = 1; m <= 12; m++) {
+      if (m === mon) continue;
+      acc += Number(scoreRows[j][5 + (m-1)*2]) || 0;
+    }
+    scoreOf[sn] = acc;
+  }
+  const scoreVals = Object.values(scoreOf);
+  const avgScore = scoreVals.length ? (scoreVals.reduce((a,b)=>a+b,0) / scoreVals.length) : 0;
+
   const served = {};
   const schedRows = schedSheet.getDataRange().getValues();
   for (let r = 1; r < schedRows.length; r++) {
@@ -648,7 +669,9 @@ function computeSkippedTornim(month) {
     if (v) served[v] = true;
   }
 
-  return Object.keys(eligible).filter(function(n){ return !served[n]; }).sort();
+  return Object.keys(eligible)
+    .filter(function(n){ return !served[n] && (scoreOf[n] === undefined || scoreOf[n] >= avgScore); })
+    .sort();
 }
 
 function actionGetSchedule(req, user) {
@@ -3715,10 +3738,11 @@ function actionGenerateScheduleV2(req) {
   var exList = Object.keys(excludedNames).filter(function(n){return excludedNames[n] === 'סיים שירות';});
   if(exList.length) msg += '\nℹ️ סיימו שירות ולא שובצו: ' + exList.join(', ');
 
-  // מדולגים: active/eligible tornim who got zero מבצע duty this month (same
-  // list shown as a standing line above the schedule via getSchedule).
+  // מדולגים: computed once here so the standing banner (rendered from the
+  // returned field, not from this text message) reflects the fresh run
+  // immediately — kept OUT of `msg` to avoid showing the same list twice
+  // (once in the toast, once in the banner above the schedule).
   var skippedNames = computeSkippedTornim(month);
-  if(skippedNames.length) msg += '\n🚫 מדולגים החודש (לא שובצו כמבצע): ' + skippedNames.join(', ');
 
   Logger.log('generateScheduleV2: ' + month + ' done, ' + Object.keys(result).length + ' days scheduled');
   return {success:true, message:msg, skippedNames:skippedNames};
