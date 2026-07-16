@@ -82,6 +82,7 @@ function route(req) {
   if (action === 'login') return actionLogin(req);
   if (action === 'bootstrap') return actionBootstrap();
   if (action === 'getLockStatus') return actionGetLockStatus(req);
+  if (action === 'forgotPassword') return actionForgotPassword(req);
 
   const user = validateToken(req.token);
   if (!user) return {success: false, error: 'אין הרשאה', code: 401};
@@ -182,19 +183,12 @@ function actionLogin(req) {
       // Session length: admins 24h, everyone else 30 days
       const sessionDays = (role === 'admin') ? 1 : 30;
       const expiry = new Date(Date.now() + sessionDays * 24 * 60 * 60 * 1000);
-      const canonUser = normUser(uname); // canonical form from the sheet, lowercased
-      getSheet(SH.SESSIONS).appendRow([token, canonUser, name, role, new Date().toISOString(), expiry.toISOString()]);
+      getSheet(SH.SESSIONS).appendRow([token, username, name, role, new Date().toISOString(), expiry.toISOString()]);
       if (Math.random() < 0.1) cleanSessions();
-      return {success: true, token, name, username: canonUser, role, expiry: expiry.toISOString()};
+      return {success: true, token, name, username, role, expiry: expiry.toISOString()};
     }
   }
   return {success: false, error: 'שם משתמש או סיסמה שגויים'};
-}
-
-// Canonical username form: trimmed + lowercase. Usernames are case-insensitive
-// everywhere — Mikahela.Cohen and mikahela.cohen are the same user.
-function normUser(u) {
-  return String(u || '').trim().toLowerCase();
 }
 
 function validateToken(token) {
@@ -281,12 +275,68 @@ function actionChangePassword(req, user) {
   const rows = sheet.getDataRange().getValues();
   const oldHash = hashPass(oldPassword);
   for (let i = 1; i < rows.length; i++) {
-    if (normUser(rows[i][2]) === normUser(user.username) && rows[i][3] === oldHash) {
+    if (rows[i][2] === user.username && rows[i][3] === oldHash) {
       sheet.getRange(i + 1, 4).setValue(hashPass(newPassword));
       return {success: true};
     }
   }
   return {success: false, error: 'הסיסמה הנוכחית שגויה'};
+}
+
+// ===== SELF-SERVICE PASSWORD RESET (from login screen, no token) =====
+// Verifies username + phone (last 9 digits) + email against Users/People sheets.
+// Blocks admin and disabled accounts, rate-limited (5/hour), generic errors only.
+function actionForgotPassword(req) {
+  var username = normUser(req.username);
+  var phone = String(req.phone || '').replace(/\D/g, '');
+  var email = String(req.email || '').trim().toLowerCase();
+  var newPassword = String(req.newPassword || '');
+  var GENERIC = 'הפרטים שהוזנו אינם תואמים לרישומי המערכת. בדוק ונסה שוב, או פנה למנהל.';
+
+  if (!username || !phone || !email || !newPassword) return {success:false, error:'חסרים פרטים'};
+  if (newPassword.length < 6) return {success:false, error:'הסיסמה החדשה חייבת להכיל לפחות 6 תווים'};
+
+  // Rate limit: 5 attempts per hour per username
+  try {
+    var cache = CacheService.getScriptCache();
+    var key = 'fp_' + username;
+    var attempts = Number(cache.get(key) || 0);
+    if (attempts >= 5) return {success:false, error:'יותר מדי ניסיונות. נסה שוב בעוד שעה.'};
+    cache.put(key, String(attempts + 1), 3600);
+  } catch(e) { Logger.log('forgotPassword cache: ' + e); }
+
+  // Find user (case-insensitive)
+  var usersSheet = getSheet(SH.USERS);
+  var uRows = usersSheet.getDataRange().getValues();
+  var uIdx = -1, uName = '', uRole = '', uActive = false;
+  for (var i = 1; i < uRows.length; i++) {
+    if (normUser(uRows[i][2]) === username) {
+      uIdx = i;
+      uName = String(uRows[i][1] || '').trim();
+      uRole = String(uRows[i][4] || '').trim();
+      uActive = !!uRows[i][5];
+      break;
+    }
+  }
+  // Generic error for all failure modes — never reveal which detail was wrong
+  if (uIdx < 0 || uRole === 'admin' || !uActive) return {success:false, error:GENERIC};
+
+  // Verify phone (last 9 digits, format-agnostic) + email from People sheet
+  var last9 = phone.slice(-9);
+  var pRows = getSheet(SH.PEOPLE).getDataRange().getValues();
+  var verified = false;
+  for (var p = 1; p < pRows.length; p++) {
+    if (String(pRows[p][0] || '').trim() !== uName) continue;
+    var pPhone = String(pRows[p][3] || '').replace(/\D/g, '').slice(-9);
+    var pEmail = String(pRows[p][5] || '').trim().toLowerCase();
+    if (pPhone && last9 && pPhone === last9 && pEmail && pEmail === email) verified = true;
+    break;
+  }
+  if (!verified) return {success:false, error:GENERIC};
+
+  usersSheet.getRange(uIdx + 1, 4).setValue(hashPass(newPassword));
+  logAudit({name: uName, username: username}, 'איפוס סיסמה עצמי', username);
+  return {success:true, message:'הסיסמה עודכנה בהצלחה! ניתן להתחבר עם הסיסמה החדשה.'};
 }
 
 // ===== USERS =====
@@ -309,7 +359,7 @@ function actionAddUser(req) {
     if (String(rows[i][2]).toLowerCase() === String(username).toLowerCase())
       return {success: false, error: 'שם המשתמש כבר קיים'};
   }
-  sheet.appendRow([Utilities.getUuid().substring(0, 8), name, normUser(username), hashPass(password), role || 'user', true]);
+  sheet.appendRow([Utilities.getUuid().substring(0, 8), name, username, hashPass(password), role || 'user', true]);
   return {success: true};
 }
 
@@ -318,7 +368,7 @@ function actionUpdateUser(req) {
   const sheet = getSheet(SH.USERS);
   const rows = sheet.getDataRange().getValues();
   for (let i = 1; i < rows.length; i++) {
-    if (normUser(rows[i][2]) === normUser(username)) {
+    if (rows[i][2] === username) {
       if (name) sheet.getRange(i + 1, 2).setValue(name);
       if (role) sheet.getRange(i + 1, 5).setValue(role);
       if (newPassword) sheet.getRange(i + 1, 4).setValue(hashPass(newPassword));
@@ -332,7 +382,7 @@ function actionToggleUser(req) {
   const sheet = getSheet(SH.USERS);
   const rows = sheet.getDataRange().getValues();
   for (let i = 1; i < rows.length; i++) {
-    if (normUser(rows[i][2]) === normUser(req.username)) {
+    if (rows[i][2] === req.username) {
       const current = !!rows[i][5];
       sheet.getRange(i + 1, 6).setValue(!current);
       return {success: true, active: !current};
@@ -367,14 +417,9 @@ function actionUpdatePerson(req) {
   const rows = sheet.getDataRange().getValues();
   for (let i = 1; i < rows.length; i++) {
     if (rows[i][0] === name) {
-      const oldDutyCategory = String(rows[i][2]||'').trim();
       if (activity !== undefined) sheet.getRange(i+1, 2).setValue(activity);
       if (dutyCategory !== undefined) sheet.getRange(i+1, 3).setValue(dutyCategory);
       if (weekendType !== undefined) sheet.getRange(i+1, 5).setValue(weekendType);
-      if (dutyCategory !== undefined && justGraduated(oldDutyCategory, dutyCategory)) {
-        const avg = setBaseScoreToAverage(name, activity);
-        Logger.log(name + ' סיים הסמכה → ניקוד אופס לממוצע: ' + avg);
-      }
       return {success: true};
     }
   }
@@ -524,11 +569,9 @@ function actionGetConstraints(req, user) {
 }
 
 function getNameByUsername(username) {
-  // Case-insensitive + trimmed — a silent mismatch here falls back to the raw
-  // username and creates duplicate constraint rows keyed by username.
   const rows = getSheet(SH.USERS).getDataRange().getValues();
   for (let i = 1; i < rows.length; i++) {
-    if (normUser(rows[i][2]) === normUser(username)) return String(rows[i][1]);
+    if (String(rows[i][2]) === String(username)) return String(rows[i][1]);
   }
   return username;
 }
@@ -602,83 +645,6 @@ function createConstraintSheet(month, ss) {
 }
 
 // ===== SCHEDULE =====
-// "מדולגים" = active, full-duty tornim (מבצע/עתודה) who did NOT serve as
-// מבצע this month AND whose accumulated score (before this month) is at or
-// above the group average — i.e. people the algorithm deliberately passed
-// over this month to balance the score, not people who should have been
-// scheduled but weren't. Below-average names that got zero duty are NOT
-// included here (that would signal an actual scheduling problem, not
-// intentional balancing) — excluded groups: admin, deactivated/viewer
-// accounts, service already ended, exempt (activity '0'), and paternity/אב
-// (activity '0.5'), which only serve occasionally.
-function computeSkippedTornim(month) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const schedSheet = ss.getSheetByName('Schedule_' + month);
-  if (!schedSheet) return [];
-
-  const peopleRows = ss.getSheetByName('People').getDataRange().getValues();
-  const scoreRows  = ss.getSheetByName('Scores').getDataRange().getValues();
-  let usersRows = [];
-  try { usersRows = ss.getSheetByName('Users').getDataRange().getValues(); } catch(e) {}
-
-  const usersActive = {}, usersRole = {};
-  for (let u = 1; u < usersRows.length; u++) {
-    const un = String(usersRows[u][1]||'').trim();
-    if (un) { usersActive[un] = !!usersRows[u][5]; usersRole[un] = String(usersRows[u][4]||'').trim(); }
-  }
-
-  const mon = parseInt(String(month).substring(4,6));
-  const yr  = parseInt(String(month).substring(0,4));
-  const monthStart = new Date(yr, mon-1, 1);
-
-  const eligible = {};
-  for (let i = 1; i < peopleRows.length; i++) {
-    const nm = String(peopleRows[i][0]||'').trim();
-    if (!nm) continue;
-    const activity = String(peopleRows[i][1]||'1').trim();
-    const dutyCategory = String(peopleRows[i][2]||'').trim();
-    const endDate = peopleRows[i][6] || null;
-    if (dutyCategory === 'מנהל מערכת') continue;
-    if (usersRole[nm] === 'admin') continue; // admin may lack a People row/category — check Users role too
-    if (usersActive[nm] === false) continue;
-    if (usersRole[nm] === 'viewer') continue;
-    if (activity === '0' || activity === '0.5') continue;
-    if (dutyCategory === 'פטור' || dutyCategory === 'לא מוסמך' || dutyCategory === 'טרם הוסמך' || dutyCategory === 'אב') continue;
-    if (endDate) {
-      const edd = (endDate instanceof Date) ? endDate : new Date(String(endDate));
-      if (!isNaN(edd) && edd < monthStart) continue;
-    }
-    eligible[nm] = true;
-  }
-
-  // Accumulated score BEFORE this month (base + all other months) — the same
-  // fairness metric the generation algorithm sorts candidates by.
-  const scoreOf = {};
-  for (let j = 1; j < scoreRows.length; j++) {
-    const sn = String(scoreRows[j][0]||'').trim();
-    if (!sn || !eligible[sn]) continue;
-    let acc = Number(scoreRows[j][2]) || 0; // base (col C)
-    for (let m = 1; m <= 12; m++) {
-      if (m === mon) continue;
-      acc += Number(scoreRows[j][5 + (m-1)*2]) || 0;
-    }
-    scoreOf[sn] = acc;
-  }
-  const scoreVals = Object.values(scoreOf);
-  const avgScore = scoreVals.length ? (scoreVals.reduce((a,b)=>a+b,0) / scoreVals.length) : 0;
-
-  const served = {};
-  const schedRows = schedSheet.getDataRange().getValues();
-  for (let r = 1; r < schedRows.length; r++) {
-    const v = String(schedRows[r][3]||'').trim();
-    if (v) served[v] = true;
-  }
-
-  return Object.keys(eligible)
-    .filter(function(n){ return !served[n] && (scoreOf[n] === undefined || scoreOf[n] >= avgScore); })
-    .sort();
-}
-
 function actionGetSchedule(req, user) {
   const month = String(req.month || '');
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -696,14 +662,29 @@ function actionGetSchedule(req, user) {
       t: rows[i][12] || ''  // 🎓 תורנות הסמכה — manual only, no score, no reserves
     });
   }
+  // skippedNames: tornim whose Scores monthly type column says 'דולג' for this month
+  var skippedNames = [];
+  try {
+    if (month.substring(0, 4) === '2026') {
+      var skMon = parseInt(month.substring(4, 6));
+      if (skMon >= 1 && skMon <= 12) {
+        var skTypeIdx = 4 + (skMon - 1) * 2; // 0-indexed type col (E=4 for jan)
+        var skRows = getSheet(SH.SCORES).getDataRange().getValues();
+        for (var sk = 1; sk < skRows.length; sk++) {
+          if (skRows[sk][0] && String(skRows[sk][skTypeIdx] || '').trim() === 'דולג') {
+            skippedNames.push(String(skRows[sk][0]).trim());
+          }
+        }
+      }
+    }
+  } catch(e) { Logger.log('skippedNames: ' + e); }
+
   const schedStatus = getScheduleStatus(month);
   if (schedStatus === 'draft' && (!user || user.role !== 'admin')) {
     // Month is still a draft — hide it from non-admin users
     return {success: true, schedule: [], month, draft: true};
   }
-  // מדולגים: admin-only, so regular tornim don't see who's under-scheduled
-  const skippedNames = (user && user.role === 'admin') ? computeSkippedTornim(month) : undefined;
-  return {success: true, schedule, month, draft: schedStatus === 'draft', skippedNames};
+  return {success: true, schedule, month, draft: schedStatus === 'draft', skippedNames: skippedNames};
 }
 
 function actionUpdateScheduleEntry(req) {
@@ -745,35 +726,11 @@ function actionUpdateScheduleEntry(req) {
     const oldTrainee = String(rows[i][12]||'').trim();
     const finalT     = trainee !== undefined ? String(trainee||'').trim() : oldTrainee;
 
-    // Duty type + score computation (side effects on Scores handled below)
+    // Duty type → row values only; Scores are resynced in one pass after the write
     if (dutyType) {
       const dutyScores = getDutyTypesMap();
-      const newScore = dutyScores[dutyType] || oldScore;
       finalType = dutyType;
-      finalScore = newScore;
-      // Adjust score if V changed or dutyType changed
-      const newV = v !== undefined ? String(v||'').trim() : oldV;
-      if (newV && (newV !== oldV || newScore !== oldScore)) {
-        // Remove old score from old V
-        if (oldV && oldV !== newV) updateScoreForSwap(oldV, '', month, oldScore, oldDutyType);
-        else if (oldV && newScore !== oldScore) updateScoreForSwap(oldV, oldV, month, 0, oldDutyType);
-        // Add new score to new V
-        if (newV) {
-          var scoreSheet = getSheet(SH.SCORES);
-          var scoreRows = scoreSheet.getDataRange().getValues();
-          for (var si=1; si<scoreRows.length; si++) {
-            if (String(scoreRows[si][0]).trim() === newV) {
-              var cur = Number(scoreRows[si][3])||0;
-              // If V changed: remove old from oldV (already done), add new to newV
-              // If same V but score changed: adjust
-              var diff = newScore - (newV === oldV ? oldScore : 0);
-              scoreSheet.getRange(si+1,4).setValue(Math.max(0, cur + diff));
-              Logger.log('Score adjusted: ' + newV + ' +' + diff);
-              break;
-            }
-          }
-        }
-      }
+      finalScore = dutyScores[dutyType] || oldScore;
     }
 
     // ---- ONE batched write for the whole row (cols D..M) ----
@@ -793,59 +750,16 @@ function actionUpdateScheduleEntry(req) {
     }
 
     const oldV2 = String(rows[i][9]||'').trim();
-
-    // Score for V2: always recalculate when v2 changes
     var newV2 = v2 !== undefined ? String(v2||'').trim() : oldV2;
-    Logger.log('V2 check: newV2="'+newV2+'" oldV2="'+oldV2+'" v2param='+JSON.stringify(v2));
-    if (newV2 !== oldV2) {
-      var dutyTypes2 = getDutyTypesMap();
-      var effectiveDutyType = String(dutyType||'').trim() || String(oldDutyType||'').trim() || 'חול';
-      var dayScore = Number(dutyTypes2[effectiveDutyType]) || Number(oldScore) || 10;
-      Logger.log('V2 will change: "'+oldV2+'"→"'+newV2+'" dutyType='+effectiveDutyType+' score='+dayScore);
-      Logger.log('V2 score change: "'+oldV2+'" -> "'+newV2+'" score='+dayScore+' type='+effectiveDutyType);
-      
-      // Remove score from old V2
-      if (oldV2) {
-        var sRows = getSheet(SH.SCORES).getDataRange().getValues();
-        for (var j=1; j<sRows.length; j++) {
-          if (String(sRows[j][0]||'').trim() === oldV2) {
-            var oldAcc = Number(sRows[j][3])||0;
-            getSheet(SH.SCORES).getRange(j+1, 4).setValue(Math.max(0, oldAcc - dayScore));
-            Logger.log('V2 score removed from '+oldV2+': '+oldAcc+' -> '+Math.max(0, oldAcc-dayScore));
-            break;
-          }
-        }
-      }
-      
-      // Add score to new V2 - update acc2026 AND the monthly column
-      if (newV2) {
-        var sRows2 = getSheet(SH.SCORES).getDataRange().getValues(); // fresh read
-        var found = false;
-        // Determine which month column to update (col 4 = acc2026, monthly cols start at 5)
-        // Month layout: col 5=ינואר סוג, 6=ינואר ניקוד, 7=פברואר סוג, 8=פברואר ניקוד...
-        var reqMonth2 = String(month||'').trim();
-        var monIdx = reqMonth2.length === 6 ? parseInt(reqMonth2.substring(4,6)) - 1 : -1; // 0=jan
-        var monthScoreCol = monIdx >= 0 ? (4 + monIdx * 2 + 2) : -1; // 1-indexed: 6=jan,8=feb...
-        
-        for (var k=1; k<sRows2.length; k++) {
-          if (String(sRows2[k][0]||'').trim() === newV2) {
-            var curAcc2 = Number(sRows2[k][3])||0;
-            // Update acc2026 (col 4)
-            getSheet(SH.SCORES).getRange(k+1, 4).setValue(curAcc2 + dayScore);
-            // Update monthly score column if available
-            if (monthScoreCol > 0) {
-              var curMonScore = Number(sRows2[k][monthScoreCol-1])||0;
-              getSheet(SH.SCORES).getRange(k+1, monthScoreCol).setValue(curMonScore + dayScore);
-              Logger.log('V2 monthly score col '+monthScoreCol+' +'+dayScore+' for '+newV2);
-            }
-            Logger.log('V2 score added to '+newV2+': '+curAcc2+' -> '+(curAcc2+dayScore));
-            found = true;
-            break;
-          }
-        }
-        if (!found) Logger.log('V2 ERROR: could not find '+newV2+' in Scores sheet');
-      }
-    }
+
+    // ── Resync Scores from the Schedule sheet (monthly type+score columns AND
+    //    accumulated total, from scratch) for every person the edit touched.
+    //    Runs AFTER the batched row write, so the sheet already reflects reality. ──
+    try {
+      var affected = {};
+      [oldV, String(finalV||'').trim(), oldV2, newV2].forEach(function(an){ if (an) affected[an] = true; });
+      Object.keys(affected).forEach(function(an){ resyncPersonMonth(an, month); });
+    } catch(e) { Logger.log('resync after manual edit: ' + e); }
 
     return {success: true};
   }
@@ -1176,7 +1090,6 @@ function initDutyTypes() {
     ['סוף שבוע',20],['סוף שבוע + חול',36],['סוף שבוע + חמישי',32],
     ['סוף שבוע מלא',40],['סוף שבוע מלא + חול',50],
     ['ערב חג',25],['פטור',10],['שבת הקפצה',30],
-    ['חול הקפצה',12],
   ];
   sh.getRange(2,1,types.length,2).setValues(types);
 }
@@ -1312,7 +1225,7 @@ function actionAddTorani(req) {
 
   // Add to Users
   usersSheet.appendRow([
-    Utilities.getUuid().substring(0,8), name, normUser(username),
+    Utilities.getUuid().substring(0,8), name, username,
     hashPass(password), role || 'user', true
   ]);
 
@@ -1335,14 +1248,20 @@ function actionAddTorani(req) {
   }
 
   // Set starting score = average of all active tornim (fair entry into rotation)
-  // — but only if they don't already have score history (avoid wiping it on re-add).
-  const scoreSheetCheck = getSheet(SH.SCORES);
-  const scoreRowsCheck = scoreSheetCheck.getDataRange().getValues();
-  let alreadyHasScore = false;
-  for (let i = 1; i < scoreRowsCheck.length; i++) {
-    if (String(scoreRowsCheck[i][0]||'').trim() === String(name).trim()) { alreadyHasScore = true; break; }
+  const avgScore = calcAverageScore();
+  const scoreSheet = getSheet(SH.SCORES);
+  const scoreRows = scoreSheet.getDataRange().getValues();
+  let foundInScores = false;
+  for (let i = 1; i < scoreRows.length; i++) {
+    if (String(scoreRows[i][0]||'').trim() === String(name).trim()) {
+      foundInScores = true;
+      break;
+    }
   }
-  const avgScore = alreadyHasScore ? calcAverageScore() : setBaseScoreToAverage(name, activity);
+  if (!foundInScores) {
+    scoreSheet.appendRow([name, activity||'1', 0, avgScore]);
+    Logger.log('New torani ' + name + ' → avg score: ' + avgScore);
+  }
 
   return {success: true, message: 'תורן נוסף. ניקוד התחלתי: ' + avgScore};
 }
@@ -1359,40 +1278,6 @@ function calcAverageScore() {
   return count > 0 ? Math.round(total / count) : 0;
 }
 
-// Gives a torani a fair starting/reset point equal to the group average.
-// IMPORTANT: this must be written to col C (מצטבר 2025 / "base"), NOT col D
-// (מצטבר 2026) — col D is fully recomputed on every schedule generation as
-// base(col C) + this-year's monthly columns, so writing only to col D gets
-// silently wiped back to ~0 on the next run. Writing to col C is what
-// actually survives, because the formula always adds it back in.
-// Used for: (1) brand-new tornim entering the rotation, and (2) tornim who
-// just finished training (dutyCategory: לא מוסמך/טרם הוסמך → רגיל) and need
-// to start from the middle of the pack instead of 0.
-function setBaseScoreToAverage(name, activity) {
-  var avgScore = calcAverageScore();
-  var scoreSheet = getSheet(SH.SCORES);
-  var scoreRows = scoreSheet.getDataRange().getValues();
-  for (var i = 1; i < scoreRows.length; i++) {
-    if (String(scoreRows[i][0]||'').trim() === String(name).trim()) {
-      scoreSheet.getRange(i+1, 3).setValue(avgScore); // col C: מצטבר 2025 (persistent base)
-      scoreSheet.getRange(i+1, 4).setValue(avgScore); // col D: מצטבר 2026 (display, until next generation recomputes it)
-      Logger.log('setBaseScoreToAverage: ' + name + ' → ' + avgScore + ' (existing row)');
-      return avgScore;
-    }
-  }
-  scoreSheet.appendRow([name, activity||'1', avgScore, avgScore]);
-  Logger.log('setBaseScoreToAverage: ' + name + ' → ' + avgScore + ' (new row)');
-  return avgScore;
-}
-
-// True when a dutyCategory change means someone just finished training and
-// is now a regular torani (לא מוסמך/טרם הוסמך → רגיל, i.e. empty category).
-function justGraduated(oldCategory, newCategory) {
-  var wasUnqualified = (oldCategory === 'לא מוסמך' || oldCategory === 'טרם הוסמך');
-  var nowRegular = (newCategory !== undefined && newCategory !== null && String(newCategory).trim() === '');
-  return wasUnqualified && nowRegular;
-}
-
 function actionUpdateTorani(req) {
   const {username, role, newPassword, activity, dutyCategory, phone, weekendType, email, active, endDate} = req;
   // Strip geresh/apostrophes from names — they break single-quoted JS strings and HTML attributes
@@ -1404,7 +1289,7 @@ function actionUpdateTorani(req) {
   const usersRows = usersSheet.getDataRange().getValues();
   let oldName = '';
   for (let i = 1; i < usersRows.length; i++) {
-    if (normUser(usersRows[i][2]) === normUser(username)) {
+    if (String(usersRows[i][2]) === String(username)) {
       oldName = String(usersRows[i][1]);
       if (name) { usersSheet.getRange(i+1,2).setValue(name); }
       if (role) { usersSheet.getRange(i+1,5).setValue(role); }
@@ -1419,10 +1304,8 @@ function actionUpdateTorani(req) {
   const peopleSheet = getSheet(SH.PEOPLE);
   const peopleRows = peopleSheet.getDataRange().getValues();
   let found = false;
-  let oldDutyCategory = '';
   for (let i = 1; i < peopleRows.length; i++) {
     if (String(peopleRows[i][0]) === String(lookupName)) {
-      oldDutyCategory = String(peopleRows[i][2]||'').trim();
       if (name) peopleSheet.getRange(i+1,1).setValue(name);
       if (activity !== undefined) peopleSheet.getRange(i+1,2).setValue(activity);
       if (dutyCategory !== undefined) peopleSheet.getRange(i+1,3).setValue(dutyCategory);
@@ -1437,12 +1320,6 @@ function actionUpdateTorani(req) {
     peopleSheet.appendRow([name||lookupName, activity||'1', dutyCategory||'', phone||'', weekendType||'מלא', email||'', endDate||'']);
   }
 
-  if (dutyCategory !== undefined && justGraduated(oldDutyCategory, dutyCategory)) {
-    const finalName = name || lookupName;
-    const avg = setBaseScoreToAverage(finalName, activity);
-    Logger.log(finalName + ' סיים הסמכה → ניקוד אופס לממוצע: ' + avg);
-  }
-
   return {success: true};
 }
 
@@ -1450,7 +1327,7 @@ function actionToggleTorani(req) {
   const sheet = getSheet(SH.USERS);
   const rows = sheet.getDataRange().getValues();
   for (let i = 1; i < rows.length; i++) {
-    if (normUser(rows[i][2]) === normUser(req.username)) {
+    if (rows[i][2] === req.username) {
       const current = !!rows[i][5];
       sheet.getRange(i+1,6).setValue(!current);
       return {success: true, active: !current};
@@ -1967,6 +1844,21 @@ function actionResetSchedule(req) {
       scoreSheet.getRange(2, monColType,  lastScoreRow-1, 1).clearContent();
       scoreSheet.getRange(2, monColScore, lastScoreRow-1, 1).clearContent();
       Logger.log('Cleared scores for month ' + mon + ' (cols ' + monColType + '-' + monColScore + ')');
+
+      // Recompute accumulated totals (col D) from scratch — clearing the month's
+      // columns without this left the deleted month's points stuck in the total.
+      var sRows = scoreSheet.getDataRange().getValues();
+      var dVals = [];
+      for (var ri = 1; ri < sRows.length; ri++) {
+        if (!sRows[ri][0]) { dVals.push([sRows[ri][3]]); continue; } // keep empty rows as-is
+        var tot = Number(sRows[ri][2]) || 0; // base 2025
+        for (var mm2 = 1; mm2 <= 12; mm2++) {
+          tot += Number(sRows[ri][5 + (mm2-1)*2]) || 0; // 0-indexed monthly score cols
+        }
+        dVals.push([tot]);
+      }
+      if (dVals.length) scoreSheet.getRange(2, 4, dVals.length, 1).setValues(dVals);
+      Logger.log('resetSchedule: accumulated totals recomputed for ' + dVals.length + ' rows');
     }
     
     return {success:true, message: (msg || 'הלוח אופס בהצלחה') + ' + ניקוד החודש נוקה'};
@@ -2620,29 +2512,81 @@ function initYear2029() {
   Logger.log('✅ כל לוחות 2029 נוצרו');
 }
 
-// ===== עדכון ניקוד =====
-function updateScoreForSwap(oldV, newV, month, score, dutyType) {
-  if (!oldV || !newV || score <= 0) return;
-  oldV = String(oldV).trim();
-  newV = String(newV).trim();
-  if (oldV === newV) return; // same person, no change
+// ===== סנכרון ניקוד אדם-חודש מהלוח (מקור האמת) =====
+// Recomputes ONE person's monthly type+score columns for a given month directly
+// from the Schedule sheet, then recomputes their accumulated total (col D) from
+// scratch (base 2025 + all monthly columns). Idempotent — no incremental drift.
+function resyncPersonMonth(name, month) {
+  name = String(name || '').trim();
+  var m = String(month || '').trim();
+  if (!name || !/^\d{6}$/.test(m)) return;
+  var mon = parseInt(m.substring(4, 6));
+  if (!(mon >= 1 && mon <= 12)) return;
+  if (m.substring(0, 4) !== '2026') {
+    Logger.log('resyncPersonMonth: monthly columns exist only for 2026, skipping ' + m);
+    return;
+  }
 
-  var scoreSheet = getSheet(SH.SCORES);
-  var rows = scoreSheet.getDataRange().getValues();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var scoreSheet = ss.getSheetByName('Scores');
+  if (!scoreSheet) return;
+  var scoreRows = scoreSheet.getDataRange().getValues();
+  var rowIdx = -1;
+  for (var i = 1; i < scoreRows.length; i++) {
+    if (String(scoreRows[i][0] || '').trim() === name) { rowIdx = i; break; }
+  }
+  if (rowIdx < 0) { Logger.log('resyncPersonMonth: ' + name + ' not in Scores'); return; }
 
-  for (var i = 1; i < rows.length; i++) {
-    var name = String(rows[i][0] || '').trim();
-    if (name === oldV) {
-      var cur = Number(rows[i][3]) || 0;
-      scoreSheet.getRange(i+1, 4).setValue(Math.max(0, cur - score));
-      Logger.log('Score -' + score + ' from ' + oldV + ' (was ' + cur + ')');
-    }
-    if (name === newV) {
-      var cur2 = Number(rows[i][3]) || 0;
-      scoreSheet.getRange(i+1, 4).setValue(cur2 + score);
-      Logger.log('Score +' + score + ' to ' + newV + ' (was ' + cur2 + ')');
+  // Sum this person's duties (V + V2) in the month's schedule
+  var sh = ss.getSheetByName('Schedule_' + m);
+  var monthScore = 0, types = [];
+  if (sh && sh.getLastRow() > 1) {
+    var rows = sh.getRange(1, 1, sh.getLastRow(), 12).getValues();
+    for (var r = 1; r < rows.length; r++) {
+      var sc = Number(rows[r][8]) || 0;
+      if (sc <= 0) continue;
+      var v = String(rows[r][3] || '').trim(), v2 = String(rows[r][9] || '').trim();
+      if (v === name || v2 === name) {
+        monthScore += sc;
+        var t = String(rows[r][7] || rows[r][2] || '').trim();
+        if (t) types.push(t);
+      }
     }
   }
+
+  var typeIdx = 4 + (mon - 1) * 2; // 0-indexed type col (E=4 for jan)
+  var newType, newScore;
+  if (monthScore > 0) {
+    newType = types.join(' + ');
+    newScore = monthScore;
+  } else {
+    // No duty left this month: keep פטור as-is, otherwise mark as skipped
+    var exType = String(scoreRows[rowIdx][typeIdx] || '').trim();
+    if (exType === 'פטור') { newType = 'פטור'; newScore = Number(scoreRows[rowIdx][typeIdx + 1]) || ''; }
+    else { newType = 'דולג'; newScore = ''; }
+  }
+  scoreSheet.getRange(rowIdx + 1, typeIdx + 1).setValue(newType);
+  scoreSheet.getRange(rowIdx + 1, typeIdx + 2).setValue(newScore);
+
+  // Accumulated total from scratch: base 2025 + all monthly columns (this month replaced)
+  var total = Number(scoreRows[rowIdx][2]) || 0;
+  for (var mm = 1; mm <= 12; mm++) {
+    var sIdx = 5 + (mm - 1) * 2;
+    total += (mm === mon) ? (Number(newScore) || 0) : (Number(scoreRows[rowIdx][sIdx]) || 0);
+  }
+  scoreSheet.getRange(rowIdx + 1, 4).setValue(total);
+  Logger.log('resyncPersonMonth: ' + name + ' ' + m + ' → חודש=' + monthScore + ', מצטבר=' + total);
+}
+
+// ===== עדכון ניקוד =====
+function updateScoreForSwap(oldV, newV, month, score, dutyType) {
+  // Rewritten: no more incremental +/- on col D (which drifted over time and
+  // never touched the monthly columns). Both people are fully resynced from the
+  // Schedule sheet — call sites run after the schedule cells were written.
+  oldV = String(oldV || '').trim();
+  newV = String(newV || '').trim();
+  if (oldV) resyncPersonMonth(oldV, month);
+  if (newV && newV !== oldV) resyncPersonMonth(newV, month);
 }
 
 // ===== תיקון ניקוד תורן שני =====
@@ -3216,6 +3160,56 @@ function actionGenerateScheduleV2(req) {
     }
   }
 
+  // ── 2b. History from actual Schedule sheets (ground truth) ───────
+  // Swaps and manual schedule edits update the Schedule sheets but NOT the
+  // monthly type columns in Scores — so duty history MUST also be read from
+  // the schedules themselves. Monthly columns remain as a fallback for
+  // historical months (Jan-May 2026) whose schedule sheets are empty.
+  var histWeekendAgo = {}, histFWAgo = {}, histDutyAgo = {}, histHagPrev = {}, histHag6 = {};
+  for (var hb = 1; hb <= 6; hb++) {
+    var hm = mon - hb, hy = year;
+    while (hm < 1) { hm += 12; hy--; }
+    var hsh = ss.getSheetByName('Schedule_' + hy + ('0' + hm).slice(-2));
+    if (!hsh || hsh.getLastRow() < 2) continue;
+    var hrows = hsh.getRange(1, 1, hsh.getLastRow(), 12).getValues();
+    for (var hr = 1; hr < hrows.length; hr++) {
+      var hsc = Number(hrows[hr][8]) || 0;
+      if (hsc <= 0) continue;
+      var htype = String(hrows[hr][7] || hrows[hr][2] || '').trim();
+      var hnames = [String(hrows[hr][3]||'').trim(), String(hrows[hr][9]||'').trim()];
+      for (var hn2 = 0; hn2 < hnames.length; hn2++) {
+        var hnm = hnames[hn2];
+        if (!hnm) continue;
+        if (histDutyAgo[hnm] === undefined) histDutyAgo[hnm] = hb;
+        if (histWeekendAgo[hnm] === undefined &&
+            (htype.indexOf('סוף שבוע') !== -1 || htype.indexOf('שבת') !== -1)) histWeekendAgo[hnm] = hb;
+        if (histFWAgo[hnm] === undefined && htype.indexOf('סוף שבוע מלא') !== -1) histFWAgo[hnm] = hb;
+        if (htype.indexOf('חג') !== -1) {
+          histHag6[hnm] = true;
+          if (hb === 1) histHagPrev[hnm] = true;
+        }
+      }
+    }
+  }
+  // Merge: take the MOST RECENT evidence from either source (columns or schedules)
+  Object.keys(people).forEach(function(mn){
+    var mp = people[mn];
+    if (histWeekendAgo[mn] !== undefined) {
+      var wm = mon - histWeekendAgo[mn];
+      if (mp.last_weekend === null || wm > mp.last_weekend) mp.last_weekend = wm;
+    }
+    if (histFWAgo[mn] !== undefined) {
+      var fm = mon - histFWAgo[mn];
+      if (mp.last_fw === null || fm > mp.last_fw) mp.last_fw = fm;
+    }
+    if (histDutyAgo[mn] !== undefined) {
+      var dm = mon - histDutyAgo[mn];
+      if (mp.last_duty === null || dm > mp.last_duty) mp.last_duty = dm;
+    }
+    if (histHagPrev[mn]) mp.prev_hag = true;
+    mp.hag6 = !!histHag6[mn];
+  });
+
   // ── 3. Build day categories from Schedule sheet ──────────────────
   var schedSheet = ss.getSheetByName('Schedule_' + month);
   if (!schedSheet) return {success:false, error:'Schedule_' + month + ' לא נמצא. צור לוח קודם.'};
@@ -3275,6 +3269,7 @@ function actionGenerateScheduleV2(req) {
     var last = p.last_fw;
     if (last !== null && (mon - last) < 6) return false;
     // חג in last 6 months disqualifies from full weekend
+    if (p.hag6) return false; // from actual Schedule sheets (covers swaps/manual edits)
     for (var back2 = 1; back2 <= 6; back2++) {
       var mNum2 = mon - back2;
       if (mNum2 < 1) break;
@@ -3425,7 +3420,21 @@ function actionGenerateScheduleV2(req) {
       }
     }
     if (!candidates.length) return null;
-    return candidates[0][4];
+    // ── חלון העדפות (5 נקודות) ─────────────────────────────────────
+    // בתוך טווח של עד 5 נקודות מהמועמד הנמוך ביותר, הדגלים מכריעים:
+    // "לא לדלג" → סימון V על היום → העדפה טקסטואלית (למשל "מעדיף חמישי").
+    // מחוץ לחלון הניקוד תמיד קובע — אף אחד לא קופץ תור אמיתי, המחיר
+    // המקסימלי להוגנות הוא 5 נקודות והוא מתאזן בחודשים הבאים.
+    var PREF_WINDOW = 5;
+    var minScore = candidates[0][0];
+    var windowed = candidates.filter(function(c){ return c[0] <= minScore + PREF_WINDOW; });
+    windowed.sort(function(a, b){
+      if (a[1] !== b[1]) return a[1] - b[1]; // לא לדלג
+      if (a[2] !== b[2]) return a[2] - b[2]; // V על היום
+      if (a[3] !== b[3]) return a[3] - b[3]; // העדפה טקסטואלית
+      return a[0] - b[0];                    // ולבסוף — הניקוד
+    });
+    return windowed[0][4];
   }
 
   // PRIORITY 1: Holiday pairs (ערב חג + חג, or חג + חג)
@@ -3729,6 +3738,7 @@ function actionGenerateScheduleV2(req) {
   var scoreSheet2=ss.getSheetByName('Scores');
   var monColType = 4 + (mon-1)*2 + 1; // 1-indexed for GS: col 5=ינואר סוג(E), 6=ינואר ניקוד(F)...
   var monColScore = monColType + 1;
+  var skippedList = []; // תורנים פעילים שלא קיבלו תורנות החודש (דולג)
 
   for(var sui=1;sui<scoreRows.length;sui++){
     var sn=String(scoreRows[sui][0]||'').trim();
@@ -3755,6 +3765,10 @@ function actionGenerateScheduleV2(req) {
       mType=ag2.type||''; mScore=ag2.score;
     } else if(people[sn]&&people[sn].activity==='0'){
       mType='פטור'; mScore=10; scores[sn]+=10;
+    } else {
+      // No duty this month — mark as skipped (matches historical 'דולג' convention)
+      mType='דולג'; mScore='';
+      skippedList.push(sn);
     }
     scoreSheet2.getRange(sui+1,monColType).setValue(mType);
     scoreSheet2.getRange(sui+1,monColScore).setValue(mScore);
@@ -3778,13 +3792,220 @@ function actionGenerateScheduleV2(req) {
   // Report only surprising exclusions (service ended); inactive/viewer accounts are expected
   var exList = Object.keys(excludedNames).filter(function(n){return excludedNames[n] === 'סיים שירות';});
   if(exList.length) msg += '\nℹ️ סיימו שירות ולא שובצו: ' + exList.join(', ');
-
-  // מדולגים: computed once here so the standing banner (rendered from the
-  // returned field, not from this text message) reflects the fresh run
-  // immediately — kept OUT of `msg` to avoid showing the same list twice
-  // (once in the toast, once in the banner above the schedule).
-  var skippedNames = computeSkippedTornim(month);
+  // (רשימת המדולגים מוצגת בבאנר הקבוע בלוח דרך skippedNames — לא כאן, למניעת כפילות)
 
   Logger.log('generateScheduleV2: ' + month + ' done, ' + Object.keys(result).length + ' days scheduled');
-  return {success:true, message:msg, skippedNames:skippedNames};
+  return {success:true, message:msg};
 }
+// ===== תיקון חד-פעמי: חישוב מחדש של עמודת "מצטבר 2026" (עמודה D) =====
+// הרצה: הדבק בעורך Apps Script, שמור, בחר rebuildAcc2026 והרץ מהעורך.
+// לא נדרשת פריסה חדשה — הפונקציה רצה ישירות מהעורך.
+//
+// מה הפונקציה עושה:
+// 1. סורקת את כל גיליונות Schedule_2026MM ומחשבת לכל תורן את הניקוד האמיתי בכל חודש
+//    (מבצע ראשי + מבצע שני, כמו שהאתר מחשב).
+// 2. מעדכנת עמודה חודשית בגיליון Scores רק אם יש לתורן ניקוד בפועל בלוח של אותו חודש
+//    ושונה ממה שרשום. עמודות "פטור" וחודשים היסטוריים שהוזנו ידנית — לא נמחקים.
+// 3. מחשבת מחדש את עמודה D: מצטבר 2025 (עמודה C) + סכום כל העמודות החודשיות.
+// 4. רושמת ליומן (View > Logs) את כל השינויים — מי תוקן, מאיזה ערך לאיזה ערך.
+
+function rebuildAcc2026() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var scoreSheet = ss.getSheetByName('Scores');
+  if (!scoreSheet) { Logger.log('גיליון Scores לא נמצא'); return; }
+  var scoreRows = scoreSheet.getDataRange().getValues();
+
+  // ── שלב 1: ניקוד אמיתי לכל תורן לכל חודש, מתוך גיליונות Schedule ──
+  var personMonth = {}; // name -> { 1: score, 2: score, ... }
+  ss.getSheets().forEach(function(sh) {
+    var m = sh.getName().match(/^Schedule_2026(\d{2})$/);
+    if (!m) return;
+    var mon = parseInt(m[1], 10); // 1=ינואר ... 12=דצמבר
+    if (!(mon >= 1 && mon <= 12)) return;
+    if (sh.getLastRow() < 2) return;
+    var rows = sh.getRange(1, 1, sh.getLastRow(), 12).getValues();
+    for (var i = 1; i < rows.length; i++) {
+      var v  = String(rows[i][3] || '').trim(); // מבצע
+      var v2 = String(rows[i][9] || '').trim(); // מבצע שני
+      var sc = Number(rows[i][8]) || 0;         // ניקוד
+      if (sc <= 0) continue;
+      if (v) {
+        if (!personMonth[v]) personMonth[v] = {};
+        personMonth[v][mon] = (personMonth[v][mon] || 0) + sc;
+      }
+      if (v2) {
+        if (!personMonth[v2]) personMonth[v2] = {};
+        personMonth[v2][mon] = (personMonth[v2][mon] || 0) + sc;
+      }
+    }
+  });
+
+  // ── שלב 2+3: עדכון עמודות חודשיות (רק כשיש נתון מהלוח) וחישוב D מחדש ──
+  var changes = [];
+  for (var r = 1; r < scoreRows.length; r++) {
+    var name = String(scoreRows[r][0] || '').trim();
+    if (!name) continue;
+
+    var base2025 = Number(scoreRows[r][2]) || 0;
+    var total = base2025;
+
+    for (var mon = 1; mon <= 12; mon++) {
+      var colIdx = 5 + (mon - 1) * 2; // אינדקס-0 של עמודת הניקוד החודשי (F=5 לינואר)
+      var existing = Number(scoreRows[r][colIdx]) || 0;
+      var fromSchedule = (personMonth[name] || {})[mon] || 0;
+
+      var monthVal;
+      if (fromSchedule > 0) {
+        // יש שיבוץ בפועל בלוח — הלוח הוא האמת
+        monthVal = fromSchedule;
+        if (fromSchedule !== existing) {
+          scoreSheet.getRange(r + 1, colIdx + 1).setValue(fromSchedule);
+          changes.push(name + ' — חודש ' + mon + ': ' + existing + ' → ' + fromSchedule);
+        }
+      } else {
+        // אין שיבוץ בלוח (פטור / חודש היסטורי ידני) — שומרים את הקיים
+        monthVal = existing;
+      }
+      total += monthVal;
+    }
+
+    var curD = Number(scoreRows[r][3]) || 0;
+    if (curD !== total) {
+      scoreSheet.getRange(r + 1, 4).setValue(total);
+      changes.push(name + ' — מצטבר 2026: ' + curD + ' → ' + total);
+    }
+  }
+
+  if (changes.length) {
+    Logger.log('בוצעו ' + changes.length + ' תיקונים:\n' + changes.join('\n'));
+  } else {
+    Logger.log('הכל תקין — לא נדרשו תיקונים.');
+  }
+}
+
+// ===== השלמה: מילוי עמודות "סוג" חודשיות ריקות מתוך גיליונות Schedule =====
+// הרצה: הדבק בעורך Apps Script (בסוף Code.gs), שמור, בחר fillMissingMonthTypes והרץ.
+// אין צורך בפריסה חדשה.
+//
+// מה הפונקציה עושה:
+// - סורקת את גיליונות Schedule_2026MM ואוספת לכל תורן את סוגי התורנויות בכל חודש
+//   (מבצע ראשי + מבצע שני; כמה תורנויות באותו חודש מחוברות ב-" + ").
+// - ממלאת את עמודת ה"סוג" החודשית בגיליון Scores רק אם היא ריקה ויש ניקוד באותו חודש.
+// - לא נוגעת בעמודות סוג שכבר מלאות (יוני וכו') ולא בעמודות ניקוד.
+// - רושמת ליומן את כל מה שמולא.
+
+function fillMissingMonthTypes() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var scoreSheet = ss.getSheetByName('Scores');
+  if (!scoreSheet) { Logger.log('גיליון Scores לא נמצא'); return; }
+  var scoreRows = scoreSheet.getDataRange().getValues();
+
+  // ── סוגי תורנות לכל תורן לכל חודש, מתוך גיליונות Schedule ──
+  var personMonthTypes = {}; // name -> { mon: ['סוף שבוע', 'חול', ...] }
+  ss.getSheets().forEach(function(sh) {
+    var m = sh.getName().match(/^Schedule_2026(\d{2})$/);
+    if (!m) return;
+    var mon = parseInt(m[1], 10);
+    if (!(mon >= 1 && mon <= 12)) return;
+    if (sh.getLastRow() < 2) return;
+    var rows = sh.getRange(1, 1, sh.getLastRow(), 12).getValues();
+    for (var i = 1; i < rows.length; i++) {
+      var v  = String(rows[i][3] || '').trim(); // מבצע
+      var v2 = String(rows[i][9] || '').trim(); // מבצע שני
+      var sc = Number(rows[i][8]) || 0;         // ניקוד
+      var dt = String(rows[i][7] || rows[i][2] || '').trim(); // סוג תורנות (עמ' H, נפילה לסוג יום)
+      if (sc <= 0 || !dt) continue;
+      [v, v2].forEach(function(name) {
+        if (!name) return;
+        if (!personMonthTypes[name]) personMonthTypes[name] = {};
+        if (!personMonthTypes[name][mon]) personMonthTypes[name][mon] = [];
+        personMonthTypes[name][mon].push(dt);
+      });
+    }
+  });
+
+  // ── מילוי תאי סוג ריקים בלבד ──
+  var changes = [];
+  for (var r = 1; r < scoreRows.length; r++) {
+    var name = String(scoreRows[r][0] || '').trim();
+    if (!name) continue;
+    for (var mon = 1; mon <= 12; mon++) {
+      var typeIdx  = 4 + (mon - 1) * 2; // אינדקס-0 של עמודת הסוג (E=4 לינואר)
+      var scoreIdx = typeIdx + 1;
+      var curType  = String(scoreRows[r][typeIdx] || '').trim();
+      var curScore = Number(scoreRows[r][scoreIdx]) || 0;
+      if (curType || curScore <= 0) continue; // יש כבר סוג, או שאין ניקוד — לא נוגעים
+      var types = (personMonthTypes[name] || {})[mon];
+      if (!types || !types.length) continue;
+      var label = types.join(' + ');
+      scoreSheet.getRange(r + 1, typeIdx + 1).setValue(label);
+      changes.push(name + ' — חודש ' + mon + ': "' + label + '"');
+    }
+  }
+
+  if (changes.length) {
+    Logger.log('מולאו ' + changes.length + ' תאי סוג:\n' + changes.join('\n'));
+  } else {
+    Logger.log('לא נמצאו תאי סוג ריקים למילוי.');
+  }
+}
+
+// ===== ביקורת: איתור אי-התאמות בין תווית הסוג לניקוד בעמודות החודשיות =====
+// הרצה: הדבק בסוף Code.gs בעורך, שמור, בחר auditMonthTypeMismatches והרץ.
+// לא משנה שום נתון — רק מדפיס ליומן רשימת תאים חשודים לתיקון ידני.
+//
+// לכל תא חודשי שבו הניקוד הרשום לא תואם את הניקוד הרשמי של התווית (לפי DutyTypes),
+// תודפס שורה. תאים שהתווית שלהם מכילה "סוף שבוע"/"שבת"/"חג" בטעות מסומנים
+// כ-⚠️ חשוב — כי הם משפיעים על חוקי המרווח באלגוריתם. השאר קוסמטיים.
+
+function auditMonthTypeMismatches() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var scoreSheet = ss.getSheetByName('Scores');
+  if (!scoreSheet) { Logger.log('גיליון Scores לא נמצא'); return; }
+  var rows = scoreSheet.getDataRange().getValues();
+  var dutyMap = getDutyTypesMap();
+  var monthNames = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+
+  var important = [], cosmetic = [];
+  for (var r = 1; r < rows.length; r++) {
+    var name = String(rows[r][0] || '').trim();
+    if (!name) continue;
+    for (var mon = 1; mon <= 12; mon++) {
+      var typeIdx = 4 + (mon - 1) * 2;
+      var label = String(rows[r][typeIdx] || '').trim();
+      var score = Number(rows[r][typeIdx + 1]) || 0;
+      if (!label || label === 'דולג' || label === 'פטור') continue;
+
+      // Expected score: exact DutyTypes entry, or sum of parts for "X + Y" labels
+      var expected = dutyMap[label];
+      if (expected === undefined && label.indexOf(' + ') !== -1) {
+        expected = 0;
+        var parts = label.split(' + ');
+        var known = true;
+        for (var pi = 0; pi < parts.length; pi++) {
+          var ps = dutyMap[String(parts[pi]).trim()];
+          if (ps === undefined) { known = false; break; }
+          expected += ps;
+        }
+        if (!known) expected = undefined;
+      }
+      if (expected === undefined) {
+        cosmetic.push(name + ' — ' + monthNames[mon-1] + ': תווית לא מוכרת "' + label + '" (ניקוד ' + score + ')');
+        continue;
+      }
+      if (expected !== score) {
+        var line = name + ' — ' + monthNames[mon-1] + ': "' + label + '" שווה ' + expected + ' אבל רשום ' + score;
+        var affectsAlgo = label.indexOf('סוף שבוע') !== -1 || label.indexOf('שבת') !== -1 || label.indexOf('חג') !== -1;
+        if (affectsAlgo) important.push('⚠️ ' + line);
+        else cosmetic.push(line);
+      }
+    }
+  }
+
+  Logger.log('=== חשוב לתקן (משפיע על חוקי המרווח באלגוריתם) — ' + important.length + ' ===');
+  if (important.length) Logger.log(important.join('\n'));
+  Logger.log('=== קוסמטי בלבד (הניקוד נספר נכון) — ' + cosmetic.length + ' ===');
+  if (cosmetic.length) Logger.log(cosmetic.join('\n'));
+  if (!important.length && !cosmetic.length) Logger.log('לא נמצאו אי-התאמות 🎉');
+}
+
