@@ -111,6 +111,8 @@ function route(req) {
   if (action === 'getScores') return actionGetScores(); // all users can see scores
   if (action === 'getToraniHistory') return actionGetToraniHistory(req, user);
   if (action === 'getNotifications') return actionGetNotificationsPersonal(req, user);
+  if (action === 'clearNotification') return actionClearNotification(req, user);
+  if (action === 'clearAllNotifications') return actionClearAllNotifications(req, user);
   if (action === 'updateSwap') return withAudit(user, 'עדכון החלפה: ' + String(req.status||''), 'בקשה ' + String(req.id||''), actionUpdateSwap(req, user));
   if (action === 'deleteSwap' && user.role === 'admin') return withAudit(user, 'מחיקת בקשת החלפה', String(req.id||''), actionDeleteSwap(req));
 
@@ -2984,6 +2986,42 @@ function actionGetNotificationsPersonal(req, user) {
   } catch(e) { Logger.log('getNotificationsPersonal error: ' + e); }
   
   return {success: true, notifications: notifs};
+}
+
+// ===== מחיקת התראה אישית בודדת =====
+function actionClearNotification(req, user) {
+  var myName = String(user.name || '').trim();
+  var notifId = String(req.notifId || '').trim();
+  if (!notifId) return {success: false, error: 'חסר מזהה התראה'};
+  try {
+    var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Notifications');
+    if (sh && sh.getLastRow() > 1) {
+      var rows = sh.getRange(1, 1, sh.getLastRow(), 4).getValues();
+      for (var i = rows.length - 1; i >= 1; i--) {
+        if (String(rows[i][0]||'').trim() === notifId && String(rows[i][1]||'').trim() === myName) {
+          sh.deleteRow(i + 1);
+        }
+      }
+    }
+  } catch(e) { Logger.log('clearNotification error: ' + e); }
+  return {success: true};
+}
+
+// ===== מחיקת כל ההתראות האישיות =====
+function actionClearAllNotifications(req, user) {
+  var myName = String(user.name || '').trim();
+  try {
+    var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Notifications');
+    if (sh && sh.getLastRow() > 1) {
+      var rows = sh.getRange(1, 1, sh.getLastRow(), 4).getValues();
+      for (var i = rows.length - 1; i >= 1; i--) {
+        if (String(rows[i][1]||'').trim() === myName) {
+          sh.deleteRow(i + 1);
+        }
+      }
+    }
+  } catch(e) { Logger.log('clearAllNotifications error: ' + e); }
+  return {success: true};
 }
 
 // ===== איפוס סיסמת ADMIN =====
