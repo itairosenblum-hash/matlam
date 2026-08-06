@@ -1552,7 +1552,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">05/08/2026 22:35</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">06/08/2026 14:59</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1565,8 +1565,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = '05/08/2026 22:35';
-const BUILD_EPOCH = 1785958526917; // ms — when this exact file was pushed
+const BUILD_STAMP = '06/08/2026 14:59';
+const BUILD_EPOCH = 1786017574206; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -3270,7 +3270,86 @@ function renderAdminWeekCard(res, month, adjRes) {
       <button class="btn btn-secondary btn-sm" onclick="goToAdminDay('${e.date}')" style="font-size:11px">✏️</button>
     </div>`;
   });
-  card.innerHTML = title + rows.join('');
+  window._adminWeekCardData = week;
+  const shareHeader = `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">
+      <div class="hdc-title" style="margin-bottom:0">היום + 4 ימים קדימה</div>
+      <button id="week-share-btn" onclick="shareAdminWeekCard()" style="background:#25D366;color:#fff;border:none;font-size:11px;padding:6px 11px;border-radius:8px;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-weight:700;cursor:pointer;font-family:inherit">📲 שתף בוואטסאפ</button>
+    </div>`;
+  card.innerHTML = shareHeader + rows.join('');
+}
+
+async function shareAdminWeekCard() {
+  const week = window._adminWeekCardData;
+  if (!week || !week.length) { alert('אין תורנויות להצגה'); return; }
+  if (typeof html2canvas === 'undefined') { alert('ספריית התמונות לא נטענה, רענן את הדף'); return; }
+  const btn = document.getElementById('week-share-btn');
+  const btnOrig = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ מכין...'; }
+
+  const dayNames = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+  const now = new Date(); now.setHours(0,0,0,0);
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+
+  const chip = (bg,color,txt) => `<span style="display:inline-block;background:${bg};color:${color};font-size:13px;padding:3px 10px;border-radius:14px;font-weight:700;margin:2px 0 2px 4px">${txt}</span>`;
+
+  const rowsHtml = week.map(e => {
+    const dp = e.date.includes('-') ? e.date.split('-') : [e.date.split('/')[2], e.date.split('/')[1], e.date.split('/')[0]];
+    const dnum = parseInt(dp[2]) || 0;
+    const dt = new Date(parseInt(dp[0]), parseInt(dp[1])-1, dnum);
+    const dow = dayNames[dt.getDay()] || '';
+    const isToday = e.date === todayStr;
+    const typeLabel = (e.notes || e.dayType) ? `<span style="background:#eef2ff;color:#4338ca;font-size:12px;padding:2px 9px;border-radius:10px;font-weight:600">${escapeHtml(e.notes||e.dayType)}</span>` : '';
+    const assigns = [
+      e.v  ? chip('#dcfce7','#166534','✅ '+escapeHtml(e.v))  : '',
+      e.v2 ? chip('#dcfce7','#166534','✅ '+escapeHtml(e.v2)) : '',
+      e.t  ? chip('#ede9fe','#6d28d9','🎓 '+escapeHtml(e.t))  : '',
+      e.a  ? chip('#dbeafe','#1e40af','🅰️ '+escapeHtml(e.a))  : '',
+      e.b  ? chip('#ccfbf1','#0f766e','🅱️ '+escapeHtml(e.b))  : ''
+    ].filter(Boolean).join('');
+    const body = assigns || '<span style="color:#9ca3af;font-size:13px">לא משובץ</span>';
+    return `<div style="display:flex;align-items:flex-start;gap:12px;padding:11px 12px;border-bottom:1px solid #eef0f2;${isToday?'background:#f0fdf4;border-radius:10px;':''}">
+        <div style="min-width:46px;text-align:center;background:${isToday?'#16a34a':'#f1f3f5'};color:${isToday?'#fff':'#111'};border-radius:10px;padding:6px 4px">
+          <div style="font-size:18px;font-weight:800;line-height:1">${dnum}</div>
+          <div style="font-size:10px;margin-top:2px;color:${isToday?'#e6ffe6':'#6b7280'}">${dow}${isToday?' 📍':''}</div>
+        </div>
+        <div style="flex:1;min-width:0;padding-top:1px">${typeLabel?`<div style="margin-bottom:5px">${typeLabel}</div>`:''}<div>${body}</div></div>
+      </div>`;
+  }).join('');
+
+  const fmt = d => { const p = d.includes('-') ? d.split('-') : [d.split('/')[2],d.split('/')[1],d.split('/')[0]]; return `${p[2]}/${p[1]}`; };
+  const rangeTxt = `${fmt(week[0].date)} – ${fmt(week[week.length-1].date)}`;
+
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = "position:fixed;top:-9999px;right:-9999px;background:#ffffff;padding:22px;width:520px;box-sizing:border-box;direction:rtl;font-family:Arial,'Segoe UI',sans-serif";
+  wrapper.innerHTML = `
+    <div style="text-align:center;border-bottom:2px solid #16a34a;padding-bottom:12px;margin-bottom:10px">
+      <div style="font-size:20px;font-weight:900;color:#14532d">🗓️ תורנויות קרובות</div>
+      <div style="font-size:13px;color:#6b7280;margin-top:3px">${rangeTxt}</div>
+    </div>
+    ${rowsHtml}
+    <div style="text-align:center;font-size:11px;color:#9ca3af;margin-top:12px">מטל״מ · מערכת ניהול תורנויות</div>`;
+  document.body.appendChild(wrapper);
+
+  try {
+    const canvas = await html2canvas(wrapper, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+    if (wrapper.parentNode) document.body.removeChild(wrapper);
+    const fileName = 'תורנויות-קרובות.png';
+    const dataUrl = canvas.toDataURL('image/png');
+    canvas.toBlob(blob => {
+      const file = new File([blob], fileName, {type:'image/png'});
+      if (navigator.canShare && navigator.canShare({files:[file]})) {
+        navigator.share({files:[file], title:'תורנויות קרובות'})
+          .catch(err => { if (err.name !== 'AbortError') { const a=document.createElement('a'); a.download=fileName; a.href=dataUrl; a.click(); } });
+      } else {
+        const a=document.createElement('a'); a.download=fileName; a.href=dataUrl; a.click();
+      }
+    }, 'image/png');
+  } catch(err) {
+    if (wrapper.parentNode) document.body.removeChild(wrapper);
+    alert('שגיאה בהכנת התמונה: ' + err.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = btnOrig; }
+  }
 }
 
 function goToAdminDay(date) {
