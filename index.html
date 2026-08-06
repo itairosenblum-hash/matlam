@@ -1552,7 +1552,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">06/08/2026 14:59</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">06/08/2026 23:31</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1565,8 +1565,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = '06/08/2026 14:59';
-const BUILD_EPOCH = 1786017574206; // ms — when this exact file was pushed
+const BUILD_STAMP = '06/08/2026 23:31';
+const BUILD_EPOCH = 1786048287994; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -1658,6 +1658,7 @@ function apiJsonp(params) {
 
 // Simple in-memory cache for non-mutating (read) calls.
 const _apiCache = {};
+const _inFlight = {};   // action+args → pending promise (see api())
 const _CACHEABLE = ['getPeople','getScores','getAllTornim','getDutyTypes','getSchedule','getConstraints','getAllConstraints','getLockStatus'];
 const _CACHE_TTL = 120000;       // 2 minutes (default)
 const _CACHE_TTL_LONG = 600000;  // 10 minutes for stable data
@@ -1685,6 +1686,24 @@ async function api(params) {
     if (Date.now() - ts < ttl) return data;
   }
 
+  // ── IN-FLIGHT DE-DUPLICATION ──
+  // Apps Script runs every anonymous request under the same user and QUEUES them
+  // serially, so N identical simultaneous reads cost N × ~2s instead of ~2s.
+  // The result cache can't help here: it only fills once a response comes back,
+  // so calls fired in the same tick all miss it and all go out. Sharing the one
+  // pending promise collapses them into a single request.
+  const dedupable = _READ_ACTIONS.includes(params.action);
+  if (dedupable && _inFlight[cacheKey]) return _inFlight[cacheKey];
+
+  const run = _apiExec(params, cacheKey);
+  if (dedupable) {
+    _inFlight[cacheKey] = run;
+    run.then(() => {}, () => {}).then(() => { delete _inFlight[cacheKey]; });
+  }
+  return run;
+}
+
+async function _apiExec(params, cacheKey) {
   const result = await apiJsonp(params);
 
   // Global session-expiry handling: any 401 → back to login with a clear message
@@ -1710,6 +1729,9 @@ async function api(params) {
 
 function clearApiCache() {
   Object.keys(_apiCache).forEach(k => delete _apiCache[k]);
+  // Reads already in flight were started before this write — don't let a later
+  // caller latch onto their (now stale) pending promise.
+  Object.keys(_inFlight).forEach(k => delete _inFlight[k]);
 }
 
 function showSetupNeeded() {
@@ -5762,25 +5784,42 @@ async function deleteSwap(id) {
 // NOTIFICATION SYSTEM
 // =====================================================
 let _notifInterval = null;
+let _notifFirstTimer = null;
+let _notifBusy = false;
+const NOTIF_POLL_MS  = 90000;  // was 30s — see startNotifPolling()
+const NOTIF_FIRST_MS = 15000;  // delay before the very first poll
 
+// Apps Script queues requests serially, so every poll competes with whatever the
+// user is actually doing. Two changes: the first poll waits until the initial page
+// load has drained, and the interval is long enough that a slow round-trip can
+// never overlap the next one (the old 30s interval was shorter than the observed
+// response time, so polls piled up on top of each other).
 function startNotifPolling() {
-  checkNotifications();
-  if (_notifInterval) clearInterval(_notifInterval);
-  _notifInterval = setInterval(checkNotifications, 30000); // every 30 sec
+  stopNotifPolling();
+  _notifFirstTimer = setTimeout(() => {
+    checkNotifications();
+    _notifInterval = setInterval(checkNotifications, NOTIF_POLL_MS);
+  }, NOTIF_FIRST_MS);
 }
 
 function stopNotifPolling() {
   if (_notifInterval) clearInterval(_notifInterval);
+  if (_notifFirstTimer) clearTimeout(_notifFirstTimer);
   _notifInterval = null;
+  _notifFirstTimer = null;
 }
 
 async function checkNotifications() {
   if (!currentUser || !token) return;
+  if (_notifBusy) return;   // previous poll still running — skip this tick
+  _notifBusy = true;
   try {
-    // Fetch swaps and personal notifications in parallel
+    // Fetch swaps and personal notifications in parallel.
+    // Routed through api() (not apiJsonp) so these share in-flight de-duplication
+    // with the same reads fired by the page itself.
     const [swapRes, notifRes] = await Promise.all([
-      apiJsonp({action:'getSwaps', token, forName: currentUser.name}),
-      apiJsonp({action:'getNotifications', token})
+      api({action:'getSwaps', forName: currentUser.name}),
+      api({action:'getNotifications'})
     ]);
 
     const myName = currentUser.name || '';
@@ -5834,7 +5873,7 @@ async function checkNotifications() {
         sessionStorage.setItem(key, '1');
       }
     }
-  } catch(e) {}
+  } catch(e) {} finally { _notifBusy = false; }
 }
 
 function updateBadge(tabId, count) {
