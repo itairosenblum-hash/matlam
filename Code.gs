@@ -373,10 +373,42 @@ function actionUpdatePerson(req) {
 }
 
 // ===== SCORES =====
+
+// The Scores sheet holds ONE year of monthly detail. Every write indexes its
+// columns by month number alone (4 + (mon-1)*2), with no year component — so
+// generating January 2027 would write over January 2026 and destroy it silently.
+// Schedule_2027MM sheets already exist (initAllSchedules built 2026-2029), so
+// nothing but this guard stands between a mis-click and lost history.
+// The year is read from the col-D header ("מצטבר 2026") rather than hardcoded,
+// so it follows automatically whenever the sheet is rolled over to a new year.
+function getActiveScoreYear() {
+  try {
+    var hdr = String(getSheet(SH.SCORES).getRange(1, 4).getValue() || '');
+    var m = hdr.match(/(\d{4})/);
+    if (m) return m[1];
+  } catch(e) { Logger.log('getActiveScoreYear: ' + e); }
+  return null; // unknown → guard stays open rather than blocking everything
+}
+
+// Returns an error object if `month` (YYYYMM) belongs to a different year than
+// the Scores sheet currently tracks; returns null when the write is safe.
+function guardScoreYear(month) {
+  var reqYear = String(month || '').substring(0, 4);
+  var active  = getActiveScoreYear();
+  if (!active || !reqYear || reqYear === active) return null;
+  return {success: false, error:
+    'חסום: גיליון הניקוד מנהל כרגע את שנת ' + active + ', והבקשה היא לשנת ' + reqYear + '. ' +
+    'כתיבה לשנה אחרת תדרוס את הנתונים החודשיים של ' + active + '. ' +
+    'יש להעביר את המערכת לשנה החדשה לפני הפקת לוחות ל-' + reqYear + '.'};
+}
+
 function actionGetScores() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = ss.getSheets();
   const monthNames = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+  // Single source of truth for the year this function reports on — used both by
+  // the sheet filter and by the month-code lookup below, so they can never drift.
+  const SCORE_YEAR = getActiveScoreYear() || '2026';
 
   // Get all people
   const peopleRes = actionGetPeople();
@@ -397,8 +429,13 @@ function actionGetScores() {
     };
   }
 
-  // Find all Schedule_YYYYMM sheets
-  const scheduleSheets = sheets.filter(s => /^Schedule_\d{6}$/.test(s.getName()));
+  // Only the ACTIVE scoring year's schedules.
+  // initAllSchedules() created 2026-2029, so the sheet holds 48 Schedule_ tabs —
+  // 36 of them empty future months. The result below is built purely from
+  // SCORE_YEAR, so every other year was fetched, parsed, and thrown away.
+  // Measured (diagScores): reading all 48 = 13,197ms out of a 14,402ms total — 92%.
+  const yearRe = new RegExp('^Schedule_' + SCORE_YEAR + '\\d{2}$');
+  const scheduleSheets = sheets.filter(s => yearRe.test(s.getName()));
 
   // Compute scores per person per month from actual schedules
   const personMonthScores = {}; // name -> { '202601': {score, type}, ... }
@@ -451,7 +488,7 @@ function actionGetScores() {
     const sRow = scoreRowByName[p.name];
     monthNames.forEach((mKey, idx) => {
       const mon = idx + 1;
-      const code2026 = '2026' + String(mon).padStart(2,'0');
+      const code2026 = SCORE_YEAR + String(mon).padStart(2,'0');
       const md = monthData[code2026] || {score:0, type:''};
 
       let mType = md.type, mScore = md.score;
@@ -505,6 +542,55 @@ function updateScoreForMonth(name, monthIdx, dutyType, score) {
       return;
     }
   }
+}
+
+// ===== DIAGNOSTIC: where do actionGetScores' seconds actually go? =====
+// Run this from the Apps Script EDITOR (Logger output isn't kept for anonymous
+// JSONP executions). It mirrors actionGetScores stage by stage and times each
+// one, so we measure instead of guessing.
+function diagScores() {
+  var t = [], mark = function(label, t0) { t.push([label, Date.now() - t0]); };
+
+  var tAll = Date.now();
+
+  var t0 = Date.now();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  mark('1. openSpreadsheet', t0);
+
+  t0 = Date.now();
+  var sheets = ss.getSheets();
+  mark('2. getSheets() [' + sheets.length + ' tabs]', t0);
+
+  t0 = Date.now();
+  var people = actionGetPeople().people;
+  mark('3. actionGetPeople [' + people.length + ' people]', t0);
+
+  t0 = Date.now();
+  var scoreRows = getSheet(SH.SCORES).getDataRange().getValues();
+  mark('4. read Scores sheet [' + scoreRows.length + ' rows]', t0);
+
+  var YR = getActiveScoreYear() || '2026';
+  t0 = Date.now();
+  var allSched = sheets.filter(function(s){ return /^Schedule_\d{6}$/.test(s.getName()); });
+  var yrRe = new RegExp('^Schedule_' + YR + '\\d{2}$');
+  var scheduleSheets = allSched.filter(function(s){ return yrRe.test(s.getName()); });
+  mark('5. filter [' + allSched.length + ' total, ' + scheduleSheets.length + ' in ' + YR + ']', t0);
+
+  // Per-sheet read cost — this is the loop actionGetScores runs
+  var perSheet = [], tLoop = Date.now();
+  scheduleSheets.forEach(function(sh) {
+    var ts = Date.now();
+    var rows = sh.getDataRange().getValues();
+    perSheet.push([sh.getName(), rows.length, Date.now() - ts]);
+  });
+  mark('6. read ' + YR + ' Schedule sheets only', tLoop);
+
+  Logger.log('===== diagScores =====');
+  t.forEach(function(x){ Logger.log(x[0] + ': ' + x[1] + 'ms'); });
+  Logger.log('TOTAL: ' + (Date.now() - tAll) + 'ms');
+  Logger.log('--- per Schedule sheet (name, rows, ms) ---');
+  perSheet.sort(function(a,b){ return b[2] - a[2]; });
+  perSheet.forEach(function(x){ Logger.log(x[0] + '  ' + x[1] + ' rows  ' + x[2] + 'ms'); });
 }
 
 // ===== CONSTRAINTS =====
@@ -1890,6 +1976,8 @@ function actionResetSchedule(req) {
     const year = parseInt(req.year || month.substring(0,4));
     const mon  = parseInt(req.mon  || month.substring(4,6));
     if (!year || !mon) return {success:false, error:'חסר חודש'};
+    const yearBlock = guardScoreYear(String(year) + String(mon).padStart(2,'0'));
+    if (yearBlock) return yearBlock;
     // Clear sheet cache so next read gets fresh data
     _sheetCache = {};
     const msg = initMonthScheduleEx(year, mon);
@@ -3063,6 +3151,9 @@ function actionGenerateScheduleV2(req) {
   var year  = parseInt(month.substring(0,4));
   var mon   = parseInt(month.substring(4,6));
   if (!year || !mon) return {success:false, error:'חסר חודש'};
+
+  var yearBlock = guardScoreYear(month);
+  if (yearBlock) return yearBlock;
 
   // Newly generated schedules start as draft — hidden from tornim until published
   setScheduleStatus(month, 'draft');
