@@ -1006,9 +1006,11 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
           <button class="btn btn-secondary btn-sm" onclick="loadScores()">🔄 רענן</button>
           <button class="btn btn-secondary btn-sm" onclick="printScores()">🖨️ הדפס PDF</button>
         </div>
-        <div style="margin-bottom:12px">
+        <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <input id="scores-search" type="text" placeholder="🔍 חיפוש תורן..." oninput="filterScores(this.value)"
-            style="width:100%;max-width:320px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:8px 14px;color:var(--text);font-family:inherit;font-size:14px;outline:none;box-sizing:border-box">
+            style="flex:1;min-width:180px;max-width:320px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:8px 14px;color:var(--text);font-family:inherit;font-size:14px;outline:none;box-sizing:border-box">
+          <select id="scores-year" onchange="loadScores()"
+            style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:8px 14px;color:var(--text);font-family:inherit;font-size:14px;outline:none;display:none"></select>
         </div>
         <div id="scores-content"></div>
       </div>
@@ -1552,7 +1554,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">07/08/2026 09:39</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">07/08/2026 23:38</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1565,8 +1567,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = '07/08/2026 09:39';
-const BUILD_EPOCH = 1786084745022; // ms — when this exact file was pushed
+const BUILD_STAMP = '07/08/2026 23:38';
+const BUILD_EPOCH = 1786135097957; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -3811,7 +3813,7 @@ async function collectAssignmentWarnings(month, date, names) {
         if (s.name === 'מנהל מערכת' || s.role === 'admin') return;
         if (s.dutyCategory === 'טרם הוסמך' || s.dutyCategory === 'פטור' || s.dutyCategory === 'מנהל מערכת') return;
         if (s.active === false || s.active === '0' || s.active === 0) return;
-        let tot = s.acc2025 || 0;
+        let tot = (s.carryIn !== undefined ? s.carryIn : s.acc2025) || 0;
         MK.forEach(m => { tot += ((s[m] || {}).score || 0); });
         totals[s.name] = tot; sum += tot; cnt++;
       });
@@ -3984,12 +3986,30 @@ async function runGenerate() {
 // =====================================================
 // ADMIN: SCORES
 // =====================================================
+// Fills the year picker from the server's list. Stays hidden while only one year
+// has data, so nothing changes visually until a second year actually exists.
+function populateScoreYears(years, current) {
+  const sel = document.getElementById('scores-year');
+  if (!sel) return;
+  const list = (years && years.length) ? years.slice().sort().reverse() : [current];
+  const same = sel.options.length === list.length &&
+               list.every((y, i) => sel.options[i] && sel.options[i].value === y);
+  if (!same) sel.innerHTML = list.map(y => '<option value="' + y + '">' + y + '</option>').join('');
+  sel.value = current;
+  sel.style.display = list.length > 1 ? '' : 'none';
+}
+
 async function loadScores() {
   const container = document.getElementById('scores-content');
   showLoading(true);
   let res, pRes2;
   try {
-    [res, pRes2] = await Promise.all([api({action:'getScores'}), api({action:'getPeople'})]);
+    const yearSel  = document.getElementById('scores-year');
+    const wantYear = yearSel && yearSel.value ? yearSel.value : undefined;
+    [res, pRes2] = await Promise.all([
+      api(wantYear ? {action:'getScores', year: wantYear} : {action:'getScores'}),
+      api({action:'getPeople'})
+    ]);
   } catch(e) {
     showLoading(false);
     container.innerHTML = '<div style="padding:20px;color:red">שגיאה: ' + e.message + '<br><small>ודא שה-Apps Script פרוס כ-Anyone ושה-URL נכון</small></div>';
@@ -4000,6 +4020,13 @@ async function loadScores() {
     container.innerHTML = '<div style="padding:20px;color:red">שגיאה: ' + JSON.stringify(res) + '</div>';
     return;
   }
+
+  // Scores now live in one sheet per year (Scores_YYYY). The server reports which
+  // year this payload covers, the year before it, and every year that has data —
+  // so no year is hardcoded in the UI any more.
+  window._scoreYear     = res.year     || String(new Date().getFullYear());
+  window._scorePrevYear = res.prevYear || String(parseInt(window._scoreYear, 10) - 1);
+  populateScoreYears(res.years, window._scoreYear);
 
   var pMap = {};
   if (pRes2 && pRes2.success) pRes2.people.forEach(function(p){pMap[p.name]=p;});
@@ -4019,7 +4046,7 @@ async function loadScores() {
   });
 
   all.forEach(function(s){
-    var tot = s.acc2025 || 0;
+    var tot = (s.carryIn !== undefined ? s.carryIn : s.acc2025) || 0;
     MONTHS2.forEach(function(m){ tot += ((s[m.k]||{}).score||0); });
     s._total = tot;
   });
@@ -4092,7 +4119,7 @@ function renderScores(list) {
       return '<tr><td style="font-weight:700;padding:8px 12px;white-space:nowrap">'+s.name+'</td>'
         +'<td style="font-size:12px;padding:8px 12px;color:var(--text2)">'+dutyCat+'</td>'
         +'<td style="font-size:12px;padding:8px 12px;color:var(--text2)">'+wl+'</td>'
-        +'<td style="padding:8px 12px;color:var(--text2)">'+( s.acc2025||0)+'</td>'
+        +'<td style="padding:8px 12px;color:var(--text2)">'+(s.carryIn!==undefined?s.carryIn:(s.acc2025||0))+'</td>'
         +'<td style="padding:8px 12px"><span style="color:var(--accent);font-weight:700">'+s._total+'</span>'
         +'<div class="score-bar" style="width:60px;margin-top:4px"><div class="score-fill" style="width:'+pct+'%;background:'+barColor+'"></div></div></td>'
         +mCells+'</tr>';
@@ -4100,7 +4127,7 @@ function renderScores(list) {
     container.innerHTML = '<div class="card" style="padding:0;overflow-x:auto">'
       +'<table class="schedule-table" style="min-width:600px;border-collapse:collapse;width:100%">'
       +'<thead><tr><th style="'+thS+'">שם</th><th style="'+thS+'">קטגוריה</th>'
-      +'<th style="'+thS+'">ס"ש</th><th style="'+thS+'">2025</th><th style="'+thS+'">סה"כ</th>'
+      +'<th style="'+thS+'">ס"ש</th><th style="'+thS+'">'+(window._scorePrevYear||'')+'</th><th style="'+thS+'">סה"כ</th>'
       +mHeaders+'</tr></thead><tbody>'+rows+'</tbody></table></div>';
   }
 }
@@ -4177,7 +4204,7 @@ async function printScores() {
     s.active !== false && s.active !== '0' && s.active !== 0
   );
   all.forEach(s => {
-    let tot = s.acc2025 || 0;
+    let tot = (s.carryIn !== undefined ? s.carryIn : s.acc2025) || 0;
     MONTHS2.forEach(m => tot += ((s[m.k]||{}).score||0));
     s._total = tot;
   });
@@ -4196,7 +4223,7 @@ async function printScores() {
     rows += `<tr style="background:${bg}">
       <td style="font-weight:700;padding:3px 6px">${i+1}</td>
       <td style="padding:3px 6px;white-space:nowrap">${s.name}</td>
-      <td style="text-align:center;padding:3px 6px">${s.acc2025||0}</td>
+      <td style="text-align:center;padding:3px 6px">${s.carryIn!==undefined?s.carryIn:(s.acc2025||0)}</td>
       ${monthCells}
       <td style="text-align:center;font-weight:700;background:#e8f5e9;padding:3px 6px">${s._total}</td>
     </tr>`;
@@ -4221,10 +4248,10 @@ async function printScores() {
       }
     </style>
   </head><body>
-    <h2>📊 טבלת ניקוד תורנויות 2026</h2>
+    <h2>📊 טבלת ניקוד תורנויות ${window._scoreYear || ''}</h2>
     <table>
       <thead><tr>
-        <th>#</th><th>שם</th><th>2025</th>
+        <th>#</th><th>שם</th><th>${window._scorePrevYear || ''}</th>
         ${monthHeaders}
         <th>סה"כ</th>
       </tr></thead>
@@ -5165,7 +5192,7 @@ function renderHomeScore(res) {
   if (!res || !res.success || !res.scores) { card.style.display = 'none'; return; }
   const MK = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
   const all = res.scores.filter(s => s && s.name && s.name !== 'מנהל מערכת' && s.role !== 'admin' && s.dutyCategory !== 'מנהל מערכת');
-  all.forEach(s => { let t = s.acc2025 || 0; MK.forEach(k => t += ((s[k]||{}).score||0)); s._total = t; });
+  all.forEach(s => { let t = (s.carryIn !== undefined ? s.carryIn : s.acc2025) || 0; MK.forEach(k => t += ((s[k]||{}).score||0)); s._total = t; });
   const mine = all.find(s => s.name === currentUser.name);
   if (!mine || !all.length) { card.style.display = 'none'; return; }
   const avg = all.reduce((a,s) => a + s._total, 0) / all.length;
@@ -5413,7 +5440,7 @@ async function loadUserScores() {
   });
 
   all.forEach(function(s){
-    var tot = s.acc2025 || 0;
+    var tot = (s.carryIn !== undefined ? s.carryIn : s.acc2025) || 0;
     MONTHS2.forEach(function(m){ tot += ((s[m.k]||{}).score||0); });
     s._total = tot;
   });
