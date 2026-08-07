@@ -107,7 +107,7 @@ function route(req) {
   if (action === 'getPeople') return actionGetPeople();
   if (action === 'submitSwap') return withAudit(user, 'בקשת החלפה', String(req.date||'') + ' ⇄ ' + String(req.withWho||'') + (req.note ? ' | הערה: ' + req.note : ''), actionSubmitSwap(req, user));
   if (action === 'getSwaps') return actionGetSwaps(req, user);
-  if (action === 'getScores') return actionGetScores(); // all users can see scores
+  if (action === 'getScores') return actionGetScores(req); // all users can see scores
   if (action === 'getToraniHistory') return actionGetToraniHistory(req, user);
   if (action === 'getNotifications') return actionGetNotificationsPersonal(req, user);
   if (action === 'clearNotification') return actionClearNotification(req, user);
@@ -372,9 +372,101 @@ function actionUpdatePerson(req) {
   return {success: false, error: 'תורן לא נמצא'};
 }
 
-// ===== SCORES =====
+// ===== SCORES: PER-YEAR SHEETS =====
+// The scores sheet holds ONE year of monthly detail (cols E-AB = 12 x [type,score]),
+// a carry-in total (col C) and the running total (col D). Column positions are
+// derived from the MONTH NUMBER alone, so a single shared sheet cannot hold two
+// years at once — generating Jan 2027 would overwrite Jan 2026's cells.
+// Solution: one sheet per year, `Scores_YYYY`, chosen from the month being written.
+// Dec 2026 edits and Jan 2027 generation then land in different sheets and never
+// collide, so there is no rollover moment and no danger window.
 
-// The Scores sheet holds ONE year of monthly detail. Every write indexes its
+var SCORES_HEADERS = ['שם','פעילות','מצטבר קודם','מצטבר שנתי',
+  'ינואר סוג','ינואר ניקוד','פברואר סוג','פברואר ניקוד',
+  'מרץ סוג','מרץ ניקוד','אפריל סוג','אפריל ניקוד',
+  'מאי סוג','מאי ניקוד','יוני סוג','יוני ניקוד',
+  'יולי סוג','יולי ניקוד','אוגוסט סוג','אוגוסט ניקוד',
+  'ספטמבר סוג','ספטמבר ניקוד','אוקטובר סוג','אוקטובר ניקוד',
+  'נובמבר סוג','נובמבר ניקוד','דצמבר סוג','דצמבר ניקוד'];
+
+// Year for a YYYYMM month code, or the current calendar year when absent.
+function scoreYearOf(month) {
+  var m = String(month || '').trim();
+  if (/^\d{6}$/.test(m)) return m.substring(0, 4);
+  return String(new Date().getFullYear());
+}
+
+// Returns the Scores sheet for `year`.
+// Order of resolution:
+//   1. Scores_<year> if it exists
+//   2. the legacy single `Scores` sheet — so nothing breaks before migration
+//   3. create Scores_<year>, seeding col C from the previous year's final totals
+function getScoresSheet(year) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var y  = String(year || new Date().getFullYear());
+  var sh = ss.getSheetByName('Scores_' + y);
+  if (sh) return sh;
+
+  // Pre-migration: a lone `Scores` sheet still serves whichever year it holds.
+  var legacy = ss.getSheetByName(SH.SCORES);
+  if (legacy) {
+    var legacyYear = legacyScoresYear(legacy);
+    if (!legacyYear || legacyYear === y) return legacy;
+  }
+  return createScoresSheetForYear(y);
+}
+
+// Reads the year the legacy `Scores` sheet tracks from its col-D header
+// ("מצטבר 2026"). Returns null if the header carries no year.
+function legacyScoresYear(sh) {
+  try {
+    var m = String(sh.getRange(1, 4).getValue() || '').match(/(\d{4})/);
+    return m ? m[1] : null;
+  } catch(e) { return null; }
+}
+
+// Builds Scores_<year> from scratch: same people, monthly columns empty, and
+// col C carrying the previous year's final total (its col C + its 12 monthly
+// scores) so accumulated fairness survives the year boundary.
+function createScoresSheetForYear(year) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var y  = String(year);
+  var sh = ss.insertSheet('Scores_' + y);
+  sh.setRightToLeft(true);
+
+  var hdrs = SCORES_HEADERS.slice();
+  hdrs[2] = 'מצטבר ' + (parseInt(y, 10) - 1);
+  hdrs[3] = 'מצטבר ' + y;
+  sh.getRange(1, 1, 1, hdrs.length).setValues([hdrs]);
+
+  var prev = ss.getSheetByName('Scores_' + (parseInt(y, 10) - 1));
+  if (!prev) {
+    var lg = ss.getSheetByName(SH.SCORES);
+    if (lg && legacyScoresYear(lg) === String(parseInt(y, 10) - 1)) prev = lg;
+  }
+
+  var out = [];
+  if (prev && prev.getLastRow() > 1) {
+    var prevRows = prev.getDataRange().getValues();
+    for (var i = 1; i < prevRows.length; i++) {
+      var nm = String(prevRows[i][0] || '').trim();
+      if (!nm) continue;
+      var carry = Number(prevRows[i][2]) || 0;           // previous carry-in
+      for (var mI = 0; mI < 12; mI++) carry += Number(prevRows[i][5 + mI * 2]) || 0;
+      var row = new Array(hdrs.length).fill('');
+      row[0] = nm;
+      row[1] = String(prevRows[i][1] || '1');
+      row[2] = Math.round(carry);
+      row[3] = Math.round(carry);   // running total starts at the carry-in
+      out.push(row);
+    }
+  }
+  if (out.length) sh.getRange(2, 1, out.length, hdrs.length).setValues(out);
+  Logger.log('Created Scores_' + y + ' with ' + out.length + ' people');
+  return sh;
+}
+
+// The scores sheet holds ONE year of monthly detail. Every write indexes its
 // columns by month number alone (4 + (mon-1)*2), with no year component — so
 // generating January 2027 would write over January 2026 and destroy it silently.
 // Schedule_2027MM sheets already exist (initAllSchedules built 2026-2029), so
@@ -383,32 +475,44 @@ function actionUpdatePerson(req) {
 // so it follows automatically whenever the sheet is rolled over to a new year.
 function getActiveScoreYear() {
   try {
-    var hdr = String(getSheet(SH.SCORES).getRange(1, 4).getValue() || '');
-    var m = hdr.match(/(\d{4})/);
-    if (m) return m[1];
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var lg = ss.getSheetByName(SH.SCORES);
+    if (lg) { var ly = legacyScoresYear(lg); if (ly) return ly; }
   } catch(e) { Logger.log('getActiveScoreYear: ' + e); }
-  return null; // unknown → guard stays open rather than blocking everything
+  return String(new Date().getFullYear());
 }
 
 // Returns an error object if `month` (YYYYMM) belongs to a different year than
 // the Scores sheet currently tracks; returns null when the write is safe.
+// Cross-year writes were dangerous only while every year shared one sheet.
+// With Scores_YYYY they land in separate sheets, so the block is lifted — but
+// only once the target year actually has (or can get) its own sheet. Before
+// migration the legacy single sheet is still in play, and the old danger stands.
 function guardScoreYear(month) {
   var reqYear = String(month || '').substring(0, 4);
-  var active  = getActiveScoreYear();
-  if (!active || !reqYear || reqYear === active) return null;
+  if (!reqYear) return null;
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (ss.getSheetByName('Scores_' + reqYear)) return null;   // year has its own sheet
+  var legacy = ss.getSheetByName(SH.SCORES);
+  if (!legacy) return null;                                  // fully migrated
+  var legacyYear = legacyScoresYear(legacy);
+  if (!legacyYear || legacyYear === reqYear) return null;
   return {success: false, error:
-    'חסום: גיליון הניקוד מנהל כרגע את שנת ' + active + ', והבקשה היא לשנת ' + reqYear + '. ' +
-    'כתיבה לשנה אחרת תדרוס את הנתונים החודשיים של ' + active + '. ' +
-    'יש להעביר את המערכת לשנה החדשה לפני הפקת לוחות ל-' + reqYear + '.'};
+    'חסום: גיליון הניקוד עדיין מנהל את שנת ' + legacyYear + ' בגיליון יחיד, והבקשה היא לשנת ' + reqYear + '. ' +
+    'יש לשנות את שם הגיליון "Scores" ל-"Scores_' + legacyYear + '" כדי לעבור למבנה רב-שנתי, ואז הפעולה תתאפשר.'};
 }
 
-function actionGetScores() {
+function actionGetScores(req) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = ss.getSheets();
   const monthNames = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
   // Single source of truth for the year this function reports on — used both by
   // the sheet filter and by the month-code lookup below, so they can never drift.
-  const SCORE_YEAR = getActiveScoreYear() || '2026';
+  // Which year to report on: an explicit ?year=, else whatever the system
+  // currently tracks. Everything below — sheet choice, schedule filter and month
+  // codes — derives from this one value, so they can never drift apart.
+  const SCORE_YEAR = (req && /^\d{4}$/.test(String(req.year || ''))) ? String(req.year)
+                                                                     : getActiveScoreYear();
 
   // Get all people
   const peopleRes = actionGetPeople();
@@ -417,7 +521,7 @@ function actionGetScores() {
   // Base scores from Score sheet (2025 accumulation)
   const baseScores = {};
   const scoreRowByName = {};   // name -> full Scores row (monthly type/score columns)
-  const scoreSheet = getSheet(SH.SCORES);
+  const scoreSheet = getScoresSheet(SCORE_YEAR);
   const scoreRows = scoreSheet.getDataRange().getValues();
   for (let i = 1; i < scoreRows.length; i++) {
     if (!scoreRows[i][0]) continue;
@@ -515,6 +619,10 @@ function actionGetScores() {
       activity: p.activity,
       dutyCategory: p.dutyCategory || '',
       weekendType: p.weekendType || '',
+      // carryIn / total are the year-neutral names. acc2025/acc2026 are kept as
+      // aliases so the existing frontend keeps working unchanged during rollout.
+      carryIn: base.acc2025 || 0,
+      total:   Math.round(acc2026),
       acc2025: base.acc2025 || 0,
       acc2026: Math.round(acc2026)
     };
@@ -524,25 +632,28 @@ function actionGetScores() {
     return result;
   });
 
-  return {success: true, scores};
+  return {success: true, scores, year: SCORE_YEAR, prevYear: String(parseInt(SCORE_YEAR,10) - 1),
+          years: listScoreYears()};
 }
 
-function updateScoreForMonth(name, monthIdx, dutyType, score) {
-  // monthIdx: 0=Jan, 4=May, etc.
-  const sheet = getSheet(SH.SCORES);
-  const rows = sheet.getDataRange().getValues();
-  const col = 4 + monthIdx * 2; // type col (0-indexed)
-  for (let i = 1; i < rows.length; i++) {
-    if (rows[i][0] === name) {
-      sheet.getRange(i + 1, col + 1).setValue(dutyType); // type
-      sheet.getRange(i + 1, col + 2).setValue(score);    // score
-      // Update acc2026
-      const newAcc = Number(rows[i][3] || 0) + score;
-      sheet.getRange(i + 1, 4).setValue(newAcc);
-      return;
-    }
-  }
+// Every year the system has data for — powers the year picker in the UI.
+function listScoreYears() {
+  var years = {};
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    ss.getSheets().forEach(function(s) {
+      var m = s.getName().match(/^Scores_(\d{4})$/);
+      if (m) years[m[1]] = true;
+    });
+    var lg = ss.getSheetByName(SH.SCORES);
+    if (lg) { var ly = legacyScoresYear(lg); if (ly) years[ly] = true; }
+  } catch(e) { Logger.log('listScoreYears: ' + e); }
+  var out = Object.keys(years).sort();
+  return out.length ? out : [String(new Date().getFullYear())];
 }
+
+// updateScoreForMonth() was removed here: defined but never called anywhere, and
+// with per-year sheets a dormant month-indexed writer is a trap waiting to fire.
 
 // ===== DIAGNOSTIC: where do actionGetScores' seconds actually go? =====
 // Run this from the Apps Script EDITOR (Logger output isn't kept for anonymous
@@ -566,7 +677,7 @@ function diagScores() {
   mark('3. actionGetPeople [' + people.length + ' people]', t0);
 
   t0 = Date.now();
-  var scoreRows = getSheet(SH.SCORES).getDataRange().getValues();
+  var scoreRows = getScoresSheet(getActiveScoreYear()).getDataRange().getValues();
   mark('4. read Scores sheet [' + scoreRows.length + ' rows]', t0);
 
   var YR = getActiveScoreYear() || '2026';
@@ -591,6 +702,32 @@ function diagScores() {
   Logger.log('--- per Schedule sheet (name, rows, ms) ---');
   perSheet.sort(function(a,b){ return b[2] - a[2]; });
   perSheet.forEach(function(x){ Logger.log(x[0] + '  ' + x[1] + ' rows  ' + x[2] + 'ms'); });
+}
+
+// ===== MIGRATION: single `Scores` sheet -> per-year `Scores_YYYY` =====
+// Run ONCE from the Apps Script editor. Reads the year out of the col-D header
+// ("מצטבר 2026"), renames the sheet to Scores_<year>, and relabels col C/D to the
+// year-neutral wording. No cell values are touched — only the tab name and two
+// header captions — so it is fully reversible by renaming the tab back.
+function migrateScoresToPerYear() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var legacy = ss.getSheetByName(SH.SCORES);
+  if (!legacy) { Logger.log('אין גיליון "Scores" — כנראה כבר בוצעה הגירה.'); return 'כבר מוגר'; }
+
+  var year = legacyScoresYear(legacy);
+  if (!year) { Logger.log('לא הצלחתי לזהות שנה מכותרת עמודה D.'); return 'שגיאה: שנה לא זוהתה'; }
+  if (ss.getSheetByName('Scores_' + year)) {
+    Logger.log('Scores_' + year + ' כבר קיים — עוצר כדי לא לדרוס.');
+    return 'שגיאה: Scores_' + year + ' כבר קיים';
+  }
+
+  legacy.setName('Scores_' + year);
+  legacy.getRange(1, 3).setValue('מצטבר ' + (parseInt(year, 10) - 1));
+  legacy.getRange(1, 4).setValue('מצטבר ' + year);
+
+  Logger.log('✅ הגיליון "Scores" שונה ל-"Scores_' + year + '" (' + (legacy.getLastRow() - 1) + ' שורות).');
+  Logger.log('מעכשיו כל שנה מקבלת גיליון משלה. Scores_' + (parseInt(year,10)+1) + ' ייווצר אוטומטית בהפקה הראשונה שלה.');
+  return 'הוגר ל-Scores_' + year;
 }
 
 // ===== CONSTRAINTS =====
@@ -775,7 +912,7 @@ function actionUpdateScheduleEntry(req) {
         else if (oldV && newScore !== oldScore) updateScoreForSwap(oldV, oldV, month, 0, oldDutyType);
         // Add new score to new V
         if (newV) {
-          var scoreSheet = getSheet(SH.SCORES);
+          var scoreSheet = getScoresSheet(scoreYearOf(month));
           var scoreRows = scoreSheet.getDataRange().getValues();
           for (var si=1; si<scoreRows.length; si++) {
             if (String(scoreRows[si][0]).trim() === newV) {
@@ -822,11 +959,11 @@ function actionUpdateScheduleEntry(req) {
       
       // Remove score from old V2
       if (oldV2) {
-        var sRows = getSheet(SH.SCORES).getDataRange().getValues();
+        var sRows = getScoresSheet(scoreYearOf(month)).getDataRange().getValues();
         for (var j=1; j<sRows.length; j++) {
           if (String(sRows[j][0]||'').trim() === oldV2) {
             var oldAcc = Number(sRows[j][3])||0;
-            getSheet(SH.SCORES).getRange(j+1, 4).setValue(Math.max(0, oldAcc - dayScore));
+            getScoresSheet(scoreYearOf(month)).getRange(j+1, 4).setValue(Math.max(0, oldAcc - dayScore));
             Logger.log('V2 score removed from '+oldV2+': '+oldAcc+' -> '+Math.max(0, oldAcc-dayScore));
             break;
           }
@@ -835,7 +972,7 @@ function actionUpdateScheduleEntry(req) {
       
       // Add score to new V2 - update acc2026 AND the monthly column
       if (newV2) {
-        var sRows2 = getSheet(SH.SCORES).getDataRange().getValues(); // fresh read
+        var sRows2 = getScoresSheet(scoreYearOf(month)).getDataRange().getValues(); // fresh read
         var found = false;
         // Determine which month column to update (col 4 = acc2026, monthly cols start at 5)
         // Month layout: col 5=ינואר סוג, 6=ינואר ניקוד, 7=פברואר סוג, 8=פברואר ניקוד...
@@ -847,11 +984,11 @@ function actionUpdateScheduleEntry(req) {
           if (String(sRows2[k][0]||'').trim() === newV2) {
             var curAcc2 = Number(sRows2[k][3])||0;
             // Update acc2026 (col 4)
-            getSheet(SH.SCORES).getRange(k+1, 4).setValue(curAcc2 + dayScore);
+            getScoresSheet(scoreYearOf(month)).getRange(k+1, 4).setValue(curAcc2 + dayScore);
             // Update monthly score column if available
             if (monthScoreCol > 0) {
               var curMonScore = Number(sRows2[k][monthScoreCol-1])||0;
-              getSheet(SH.SCORES).getRange(k+1, monthScoreCol).setValue(curMonScore + dayScore);
+              getScoresSheet(scoreYearOf(month)).getRange(k+1, monthScoreCol).setValue(curMonScore + dayScore);
               Logger.log('V2 monthly score col '+monthScoreCol+' +'+dayScore+' for '+newV2);
             }
             Logger.log('V2 score added to '+newV2+': '+curAcc2+' -> '+(curAcc2+dayScore));
@@ -1197,7 +1334,7 @@ function initDutyTypes() {
 }
 
 function initScores() {
-  const sh = getSheet(SH.SCORES);
+  const sh = getScoresSheet(String(new Date().getFullYear()));
   sh.clearContents();
   sh.setRightToLeft(true);
   const hdrs = ['שם','פעילות','מצטבר 2025','מצטבר 2026',
@@ -1394,7 +1531,7 @@ function actionAddTorani(req) {
 
   // Set starting score = average of all active tornim (fair entry into rotation)
   const avgScore = calcAverageScore();
-  const scoreSheet = getSheet(SH.SCORES);
+  const scoreSheet = getScoresSheet(scoreYearOf(null));
   const scoreRows = scoreSheet.getDataRange().getValues();
   let foundInScores = false;
   for (let i = 1; i < scoreRows.length; i++) {
@@ -1413,7 +1550,7 @@ function actionAddTorani(req) {
 
 // ===== חישוב ממוצע ניקוד כל התורנים הפעילים =====
 function calcAverageScore() {
-  var rows = getSheet(SH.SCORES).getDataRange().getValues();
+  var rows = getScoresSheet(scoreYearOf(null)).getDataRange().getValues();
   var total = 0, count = 0;
   for (var i = 1; i < rows.length; i++) {
     var act = String(rows[i][1]||'1').trim();
@@ -1985,7 +2122,7 @@ function actionResetSchedule(req) {
     // Also clear this month's scores from Scores sheet
     var monColType  = 4 + (mon-1)*2 + 1; // col index (1-based): E=5 for jan
     var monColScore = monColType + 1;
-    var scoreSheet  = getSheet(SH.SCORES);
+    var scoreSheet  = getScoresSheet(String(year));
     var lastScoreRow = scoreSheet.getLastRow();
     if (lastScoreRow > 1) {
       scoreSheet.getRange(2, monColType,  lastScoreRow-1, 1).clearContent();
@@ -2651,7 +2788,7 @@ function updateScoreForSwap(oldV, newV, month, score, dutyType) {
   newV = String(newV).trim();
   if (oldV === newV) return; // same person, no change
 
-  var scoreSheet = getSheet(SH.SCORES);
+  var scoreSheet = getScoresSheet(scoreYearOf(month));
   var rows = scoreSheet.getDataRange().getValues();
 
   for (var i = 1; i < rows.length; i++) {
@@ -2679,7 +2816,7 @@ function actionFixV2Score(req) {
     numScore = getDutyTypesMap()[dutyType] || 10;
   }
   
-  var scoreSheet = getSheet(SH.SCORES);
+  var scoreSheet = getScoresSheet(scoreYearOf(month));
   var rows = scoreSheet.getDataRange().getValues();
   
   for (var i=1; i<rows.length; i++) {
@@ -2696,8 +2833,15 @@ function actionFixV2Score(req) {
 
 // ===== סנכרון ניקוד - מחשב מחדש מכל הלוחות ומעדכן גיליון Scores =====
 function syncAllScores() {
+  // DISABLED. This rebuilds every monthly column purely from the Schedule sheets,
+  // which destroys entries that live only in the scores sheet — exemptions (פטור)
+  // and manual corrections have no schedule row to be recovered from. It is also
+  // month-indexed with no year component, so under per-year sheets it would write
+  // one year's numbers over another. Left in place only for reference.
+  throw new Error('syncAllScores מושבתת: היא מוחקת פטורים ותיקונים ידניים, ואינה מודעת לשנים. אין להריץ אותה.');
+  /* eslint-disable no-unreachable */
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var scoreSheet = getSheet(SH.SCORES);
+  var scoreSheet = getScoresSheet(getActiveScoreYear());
   var scoreRows = scoreSheet.getDataRange().getValues();
   var monthNames = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
   var dutyScores = getDutyTypesMap();
@@ -3163,7 +3307,7 @@ function actionGenerateScheduleV2(req) {
 
   // ── 1. Load People & Scores ─────────────────────────────────────
   var peopleRows = ss.getSheetByName('People').getDataRange().getValues();
-  var scoreRows  = ss.getSheetByName('Scores').getDataRange().getValues();
+  var scoreRows  = getScoresSheet(String(year)).getDataRange().getValues();
   
   // Build people map: name → {activity, dutyCategory, weekendType}
   var peopleMap = {};
@@ -3801,7 +3945,7 @@ function actionGenerateScheduleV2(req) {
 
   // ── 8. Update Scores sheet (IDEMPOTENT: current-month columns are always
   //       overwritten — including cleared — so re-running never double-counts) ──
-  var scoreSheet2=ss.getSheetByName('Scores');
+  var scoreSheet2=getScoresSheet(String(year));
   var monColType = 4 + (mon-1)*2 + 1; // 1-indexed for GS: col 5=ינואר סוג(E), 6=ינואר ניקוד(F)...
   var monColScore = monColType + 1;
 
