@@ -382,11 +382,14 @@ function actionGetScores() {
 
   // Base scores from Score sheet (2025 accumulation)
   const baseScores = {};
+  const scoreRowByName = {};   // name -> full Scores row (monthly type/score columns)
   const scoreSheet = getSheet(SH.SCORES);
   const scoreRows = scoreSheet.getDataRange().getValues();
   for (let i = 1; i < scoreRows.length; i++) {
     if (!scoreRows[i][0]) continue;
-    baseScores[String(scoreRows[i][0])] = {
+    const sName = String(scoreRows[i][0]).trim();
+    scoreRowByName[sName] = scoreRows[i];
+    baseScores[sName] = {
       acc2025: Number(scoreRows[i][2]) || 0,
       activity: String(scoreRows[i][1] || '1')
     };
@@ -443,12 +446,29 @@ function actionGetScores() {
     // Compute 2026 accumulated total from schedules
     let acc2026 = 0;
     const monthScores = {};
+    const sRow = scoreRowByName[p.name];
     monthNames.forEach((mKey, idx) => {
       const mon = idx + 1;
       const code2026 = '2026' + String(mon).padStart(2,'0');
       const md = monthData[code2026] || {score:0, type:''};
-      monthScores[mKey] = {score: md.score, type: md.type};
-      acc2026 += md.score;
+
+      let mType = md.type, mScore = md.score;
+
+      // The schedule sheets only know about people who were ASSIGNED a duty.
+      // Exemptions (פטור) and manual corrections are written straight into the
+      // Scores sheet's monthly columns by actionGenerateScheduleV2 and by hand —
+      // reading only the schedules silently drops them (a פטור month showed 0
+      // instead of 10). So when the schedule yields nothing for a month, fall
+      // back to the Scores sheet, which is the authority for those entries.
+      // Scores layout: col E(4)=ינואר סוג, F(5)=ינואר ניקוד, G(6)=פברואר סוג ...
+      if (!mScore && sRow) {
+        const fbType  = String(sRow[4 + idx * 2] || '').trim();
+        const fbScore = Number(sRow[5 + idx * 2]) || 0;
+        if (fbType || fbScore) { mType = fbType; mScore = fbScore; }
+      }
+
+      monthScores[mKey] = {score: mScore, type: mType};
+      acc2026 += mScore;
     });
 
     const result = {
