@@ -1552,7 +1552,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">07/08/2026 09:31</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">07/08/2026 09:39</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1565,8 +1565,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = '07/08/2026 09:31';
-const BUILD_EPOCH = 1786084312773; // ms — when this exact file was pushed
+const BUILD_STAMP = '07/08/2026 09:39';
+const BUILD_EPOCH = 1786084745022; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -1965,7 +1965,10 @@ async function doBootstrap() {
 // =====================================================
 // APP INIT
 // =====================================================
+let _initAppLoading = false;   // true while initApp runs its own initial load
+
 async function initApp() {
+  _initAppLoading = true;
   showPage('main-page');
   document.getElementById('nav-user-name').textContent = currentUser.name;
   document.getElementById('nav-role-badge').textContent = currentUser.role === 'admin' ? 'מנהל' : currentUser.role === 'viewer' ? 'צפייה' : 'תורן';
@@ -1985,7 +1988,7 @@ async function initApp() {
     }
     switchTab('admin-home');
     document.getElementById('admin-schedule-month').value = currentMonth;
-    // Load schedule + impersonation in parallel
+    // Load schedule + impersonation in parallel (both hit the seeded cache)
     Promise.all([loadAdminSchedule(), loadImpersonateList()]);
     requestNotifPermission();
     startNotifPolling();
@@ -2019,6 +2022,9 @@ async function initApp() {
       if (bw) bw.style.display = 'block';
     }, 1000);
   }
+  // Single exit point — covers admin, viewer and regular-user branches alike,
+  // so a later buildNavTabs (e.g. switching impersonation) reloads normally.
+  _initAppLoading = false;
 }
 
 // ===== TORANI DUTY HISTORY =====
@@ -2188,8 +2194,13 @@ function filterAuditLog() {
 
 function buildNavTabs() {
   const container = document.getElementById('nav-tabs-container');
-  // Reload impersonation list if admin
-  if (currentUser.role === 'admin' && !_realUser) {
+  // Reload impersonation list if admin.
+  // Skipped during the initial load: initApp calls loadImpersonateList itself
+  // once the dashboard has seeded the cache. Without this guard the 500ms timer
+  // fires while the dashboard is still in flight, so the cache is empty and a
+  // duplicate getAllTornim goes out — and then waits behind the dashboard in
+  // Apps Script's serial queue (measured 16.9s for a call that normally takes 2.5s).
+  if (currentUser.role === 'admin' && !_realUser && !_initAppLoading) {
     setTimeout(loadImpersonateList, 500);
   }
   const tabs = currentUser.role === 'admin'
