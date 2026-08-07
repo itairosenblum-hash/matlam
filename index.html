@@ -1552,7 +1552,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">06/08/2026 23:31</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">07/08/2026 08:42</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1565,8 +1565,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = '06/08/2026 23:31';
-const BUILD_EPOCH = 1786048287994; // ms — when this exact file was pushed
+const BUILD_STAMP = '07/08/2026 08:42';
+const BUILD_EPOCH = 1786081341270; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -1659,12 +1659,12 @@ function apiJsonp(params) {
 // Simple in-memory cache for non-mutating (read) calls.
 const _apiCache = {};
 const _inFlight = {};   // action+args → pending promise (see api())
-const _CACHEABLE = ['getPeople','getScores','getAllTornim','getDutyTypes','getSchedule','getConstraints','getAllConstraints','getLockStatus'];
+const _CACHEABLE = ['getPeople','getScores','getAllTornim','getDutyTypes','getSchedule','getConstraints','getAllConstraints','getLockStatus','getSwaps','getAuditLog'];
 const _CACHE_TTL = 120000;       // 2 minutes (default)
 const _CACHE_TTL_LONG = 600000;  // 10 minutes for stable data
 const _CACHE_TTL_SHORT = 30000;  // 30s for fast-changing data (live constraint submissions)
 const _LONG_CACHE  = ['getPeople','getAllTornim','getDutyTypes'];
-const _SHORT_CACHE = ['getAllConstraints'];
+const _SHORT_CACHE = ['getAllConstraints','getSwaps','getAuditLog'];
 // Read-only actions never invalidate the cache; EVERY other (write) action clears
 // it automatically, so a save/edit/toggle can't leave stale reads behind. Adding a
 // new read here is optional (worst case: one unneeded clear); new writes are covered
@@ -1673,11 +1673,15 @@ const _READ_ACTIONS = ['getPeople','getScores','getAllTornim','getDutyTypes','ge
   'getConstraints','getAllConstraints','getLockStatus','getSwaps','getProfile','getUsers',
   'getAuditLog','getToraniHistory','getNotifications','getAdminDashboard','bootstrap','ping','login','debugSwap'];
 
+function _cacheKey(params) {
+  return params.action + '_' + (params.month||'') + '_' + (params.forName||'') + '_' + (params.viewAs||'');
+}
+
 async function api(params) {
   if (!API_URL) { showSetupNeeded(); throw new Error('API URL לא הוגדר'); }
 
   // Cache GET-like calls
-  const cacheKey = params.action + '_' + (params.month||'') + '_' + (params.forName||'') + '_' + (params.viewAs||'');
+  const cacheKey = _cacheKey(params);
   if (_CACHEABLE.includes(params.action) && _apiCache[cacheKey]) {
     const {data, ts} = _apiCache[cacheKey];
     const ttl = _SHORT_CACHE.includes(params.action) ? _CACHE_TTL_SHORT
@@ -1968,15 +1972,18 @@ async function initApp() {
   buildNavTabs();
   populateMonthSelects();
   if (currentUser.role === 'admin') {
-    // Load people + impersonation list in parallel
-    const [pRes] = await Promise.all([
-      api({action:'getPeople'}),
-    ]);
-    if (pRes.success) allPeople = pRes.people;
-    switchTab('admin-home');
-    // Auto-load current month
     const now = new Date();
     const currentMonth = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}`;
+    // Single dashboard round-trip up front; it also carries the people list, so the
+    // separate blocking getPeople call is gone. Everything after this reads from cache.
+    const dash = await loadAdminDashboardData(currentMonth);
+    if (dash && dash.people && dash.people.success) {
+      allPeople = dash.people.people;
+    } else {
+      const pRes = await api({action:'getPeople'}).catch(()=>null);
+      if (pRes && pRes.success) allPeople = pRes.people;
+    }
+    switchTab('admin-home');
     document.getElementById('admin-schedule-month').value = currentMonth;
     // Load schedule + impersonation in parallel
     Promise.all([loadAdminSchedule(), loadImpersonateList()]);
@@ -3205,7 +3212,22 @@ async function loadAdminHome() {
   const cur = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}`;
   const next = nextMonthStr(cur, 1);
 
-  // Parallel fetches
+  // One round-trip instead of nine. Apps Script queues every request serially, so
+  // request COUNT — not payload size — is what the load time tracks.
+  const dash = await loadAdminDashboardData(cur);
+
+  if (dash) {
+    if (dash.nextSchedule && dash.nextSchedule.success) window._adjScheduleCache = dash.nextSchedule;
+    renderAdminWeekCard(dash.schedule, cur, dash.nextSchedule);
+    renderAdminSwapsCard(dash.swaps);
+    renderAdminEndDateCard(dash.tornim);
+    renderAdminAuditCard(dash.audit);
+    if (dash.openMonth) renderAdminConstraintsCard(dash.constraints, dash.tornim, dash.openMonth);
+    else renderAdminNoOpenMonth();
+    return;
+  }
+
+  // ── Fallback: dashboard action unavailable → original per-action path ──
   const [schedRes, nextSchedRes, swapRes, tornimRes, auditRes] = await Promise.all([
     api({action:'getSchedule', month: cur}).catch(()=>null),
     api({action:'getSchedule', month: next}).catch(()=>null),
@@ -3214,7 +3236,6 @@ async function loadAdminHome() {
     api({action:'getAuditLog', limit: 5}).catch(()=>null),
   ]);
 
-  // Make next-month schedule available so the "today + 4 days" card spans month boundaries
   if (nextSchedRes && nextSchedRes.success) window._adjScheduleCache = nextSchedRes;
 
   renderAdminWeekCard(schedRes, cur, nextSchedRes);
@@ -3222,7 +3243,6 @@ async function loadAdminHome() {
   renderAdminEndDateCard(tornimRes);
   renderAdminAuditCard(auditRes);
 
-  // Constraints: find open month
   const candidates = [next, nextMonthStr(cur,2), cur];
   const locks = await Promise.all(candidates.map(m => api({action:'getLockStatus', month:m}).catch(()=>({locked:true}))));
   let openMonth = null;
@@ -3233,9 +3253,39 @@ async function loadAdminHome() {
     const allC = await api({action:'getAllConstraints', month: openMonth}).catch(()=>null);
     renderAdminConstraintsCard(allC, tornimRes, openMonth);
   } else {
-    const card = document.getElementById('admin-home-constraints-card');
-    if (card) { card.style.display='block'; card.innerHTML=`<div style="display:flex;align-items:center;gap:10px;background:var(--surface);border-radius:14px;padding:14px"><span style="font-size:20px">🔒</span><div style="font-size:13px;color:var(--text2)">אין חודש פתוח להגשה כרגע</div></div>`; }
+    renderAdminNoOpenMonth();
   }
+}
+
+function renderAdminNoOpenMonth() {
+  const card = document.getElementById('admin-home-constraints-card');
+  if (card) { card.style.display='block'; card.innerHTML=`<div style="display:flex;align-items:center;gap:10px;background:var(--surface);border-radius:14px;padding:14px"><span style="font-size:20px">🔒</span><div style="font-size:13px;color:var(--text2)">אין חודש פתוח להגשה כרגע</div></div>`; }
+}
+
+// Fetches the combined admin dashboard and seeds the per-action cache with each
+// slice, so loadAdminSchedule / loadImpersonateList / getPeople find their data
+// already in memory instead of each firing its own queued request.
+let _adminDash = null, _adminDashTs = 0;
+async function loadAdminDashboardData(month, force) {
+  if (!force && _adminDash && _adminDash.month === month && Date.now() - _adminDashTs < 60000) return _adminDash;
+  const dash = await api({action:'getAdminDashboard', month}).catch(()=>null);
+  if (!dash || !dash.success) return null;
+  _adminDash = dash; _adminDashTs = Date.now();
+
+  const seed = (params, val) => {
+    if (val && val.success) _apiCache[_cacheKey(params)] = {data: val, ts: Date.now()};
+  };
+  seed({action:'getSchedule', month}, dash.schedule);
+  if (dash.nextMonth) seed({action:'getSchedule', month: dash.nextMonth}, dash.nextSchedule);
+  seed({action:'getAllTornim'}, dash.tornim);
+  seed({action:'getPeople'},    dash.people);
+  seed({action:'getSwaps'},     dash.swaps);
+  seed({action:'getAuditLog'},  dash.audit);
+  if (dash.openMonth) {
+    seed({action:'getAllConstraints', month: dash.openMonth}, dash.constraints);
+    seed({action:'getLockStatus', month: dash.openMonth}, {success:true, locked:false});
+  }
+  return dash;
 }
 
 function renderAdminWeekCard(res, month, adjRes) {
