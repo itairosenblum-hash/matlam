@@ -651,6 +651,54 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 .duty-row.is-today{background:rgba(46,160,67,.10);border-radius:12px;border-bottom:none}
 .duty-row.is-past{opacity:.45}
 .rank-pill{display:inline-block;background:var(--surface2);border-radius:20px;padding:2px 10px;font-size:12px;font-weight:700;color:var(--accent)}
+
+/* Secondary action inside the upcoming-duties card.
+   The card is otherwise soft neutrals and small colour chips, so a solid
+   saturated block outweighed the heading beside it. Quiet by default;
+   WhatsApp green appears on hover/focus — colour as feedback, not decoration. */
+.week-share-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--surface2); color: var(--text2);
+  border: 1px solid var(--border); border-radius: 999px;
+  padding: 5px 12px 5px 10px;
+  font-family: inherit; font-size: 12px; font-weight: 600; line-height: 1;
+  cursor: pointer; white-space: nowrap;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+.week-share-btn svg { flex: none; opacity: .75; transition: opacity .15s ease; }
+.week-share-btn:hover,
+.week-share-btn:focus-visible { background: #25D366; color: #fff; border-color: #25D366; }
+.week-share-btn:hover svg, .week-share-btn:focus-visible svg { opacity: 1; }
+.week-share-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.week-share-btn:active { transform: translateY(1px); }
+@media (prefers-reduced-motion: reduce) { .week-share-btn { transition: none; } }
+@media (hover: none) {
+  /* No hover on touch — give the action a visible identity up front */
+  .week-share-btn { color: #128C4A; border-color: rgba(37,211,102,.45); }
+  .week-share-btn svg { opacity: 1; }
+}
+
+/* Year switch on the scores tab.
+   Sits beside the search field but must not read as a second filter: search
+   narrows the current list, the year swaps the dataset underneath it. A
+   segmented control shows every year at once and makes the active one obvious. */
+.year-switch {
+  display: inline-flex; gap: 2px; padding: 3px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 999px;
+}
+.year-switch-opt {
+  appearance: none; border: 0; background: transparent;
+  color: var(--text2); cursor: pointer;
+  font-family: inherit; font-size: 13px; font-weight: 600;
+  padding: 6px 16px; border-radius: 999px; line-height: 1;
+  font-variant-numeric: tabular-nums;
+  transition: background .15s ease, color .15s ease;
+}
+.year-switch-opt:hover { color: var(--text); }
+.year-switch-opt.is-on { background: var(--accent); color: #fff; }
+.year-switch-opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .year-switch-opt { transition: none; } }
 </style>
 </head>
 <body>
@@ -1009,8 +1057,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
         <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <input id="scores-search" type="text" placeholder="🔍 חיפוש תורן..." oninput="filterScores(this.value)"
             style="flex:1;min-width:180px;max-width:320px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:8px 14px;color:var(--text);font-family:inherit;font-size:14px;outline:none;box-sizing:border-box">
-          <select id="scores-year" onchange="loadScores()"
-            style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:8px 14px;color:var(--text);font-family:inherit;font-size:14px;outline:none;display:none"></select>
+          <div id="scores-year" class="year-switch" role="tablist" aria-label="שנת ניקוד"></div>
         </div>
         <div id="scores-content"></div>
       </div>
@@ -1554,7 +1601,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">07/08/2026 23:41</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">07/08/2026 23:47</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1567,8 +1614,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = '07/08/2026 23:41';
-const BUILD_EPOCH = 1786135265802; // ms — when this exact file was pushed
+const BUILD_STAMP = '07/08/2026 23:47';
+const BUILD_EPOCH = 1786135627516; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -3362,7 +3409,7 @@ function renderAdminWeekCard(res, month, adjRes) {
   window._adminWeekCardData = week;
   const shareHeader = `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">
       <div class="hdc-title" style="margin-bottom:0">היום + 4 ימים קדימה</div>
-      <button id="week-share-btn" onclick="shareAdminWeekCard()" style="background:#25D366;color:#fff;border:none;font-size:11px;padding:6px 11px;border-radius:8px;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-weight:700;cursor:pointer;font-family:inherit">📲 שתף בוואטסאפ</button>
+      <button id="week-share-btn" class="week-share-btn" onclick="shareAdminWeekCard()" title="שתף את הכרטיס כתמונה" aria-label="שתף את הכרטיס כתמונה"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91C21.96 6.45 17.5 2 12.04 2Zm0 18.15h-.01a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.2 8.2 0 0 1-1.26-4.38c0-4.54 3.7-8.23 8.25-8.23 2.2 0 4.27.86 5.83 2.42a8.18 8.18 0 0 1 2.41 5.82c0 4.54-3.7 8.23-8.24 8.23Zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.13-.16.24-.64.8-.78.97-.14.16-.29.18-.54.06-.25-.13-1.05-.39-2-1.23-.74-.66-1.24-1.47-1.38-1.72-.15-.25-.02-.38.11-.5.11-.11.25-.29.37-.44.13-.14.17-.24.25-.41.09-.16.04-.31-.02-.43-.06-.12-.56-1.35-.77-1.84-.2-.49-.4-.42-.55-.43h-.47c-.16 0-.43.06-.65.31-.22.24-.85.83-.85 2.03s.87 2.35.99 2.51c.12.16 1.71 2.61 4.14 3.66.58.25 1.03.4 1.38.51.58.19 1.11.16 1.53.1.47-.07 1.44-.59 1.64-1.16.2-.57.2-1.05.14-1.16-.06-.1-.22-.16-.47-.28Z"/></svg><span>שתף</span></button>
     </div>`;
   card.innerHTML = shareHeader + rows.join('');
 }
@@ -3992,15 +4039,31 @@ async function runGenerate() {
 // =====================================================
 // Fills the year picker from the server's list. Stays hidden while only one year
 // has data, so nothing changes visually until a second year actually exists.
+// A year is a different view of the data, not another filter — so it reads as a
+// segmented switch rather than a dropdown that mirrors the search box next to it.
+// With two or three years, every option is visible at once and one tap away.
 function populateScoreYears(years, current) {
-  const sel = document.getElementById('scores-year');
-  if (!sel) return;
+  const box = document.getElementById('scores-year');
+  if (!box) return;
   const list = (years && years.length) ? years.slice().sort().reverse() : [current];
-  const same = sel.options.length === list.length &&
-               list.every((y, i) => sel.options[i] && sel.options[i].value === y);
-  if (!same) sel.innerHTML = list.map(y => '<option value="' + y + '">' + y + '</option>').join('');
-  sel.value = current;
-  sel.style.display = list.length > 1 ? '' : 'none';
+  box.dataset.year = current;
+  box.style.display = list.length > 1 ? '' : 'none';   // hidden while only one year has data
+  box.innerHTML = list.map(y =>
+    '<button type="button" role="tab" class="year-switch-opt' + (y === current ? ' is-on' : '') + '"' +
+    ' aria-selected="' + (y === current ? 'true' : 'false') + '"' +
+    ' onclick="selectScoreYear(\'' + y + '\')">' + y + '</button>').join('');
+}
+
+function selectScoreYear(year) {
+  const box = document.getElementById('scores-year');
+  if (!box || box.dataset.year === year) return;   // already showing it
+  box.dataset.year = year;
+  box.querySelectorAll('.year-switch-opt').forEach(b => {
+    const on = b.textContent.trim() === year;
+    b.classList.toggle('is-on', on);
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  loadScores();
 }
 
 async function loadScores() {
@@ -4008,8 +4071,8 @@ async function loadScores() {
   showLoading(true);
   let res, pRes2;
   try {
-    const yearSel  = document.getElementById('scores-year');
-    const wantYear = yearSel && yearSel.value ? yearSel.value : undefined;
+    const yearBox  = document.getElementById('scores-year');
+    const wantYear = (yearBox && yearBox.dataset.year) || undefined;
     [res, pRes2] = await Promise.all([
       api(wantYear ? {action:'getScores', year: wantYear} : {action:'getScores'}),
       api({action:'getPeople'})
