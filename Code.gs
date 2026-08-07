@@ -110,6 +110,8 @@ function route(req) {
   if (action === 'getScores') return actionGetScores(); // all users can see scores
   if (action === 'getToraniHistory') return actionGetToraniHistory(req, user);
   if (action === 'getNotifications') return actionGetNotificationsPersonal(req, user);
+  if (action === 'clearNotification') return actionClearNotification(req, user);
+  if (action === 'clearAllNotifications') return actionClearAllNotifications(req, user);
   if (action === 'updateSwap') return withAudit(user, 'עדכון החלפה: ' + String(req.status||''), 'בקשה ' + String(req.id||''), actionUpdateSwap(req, user));
   if (action === 'deleteSwap' && user.role === 'admin') return withAudit(user, 'מחיקת בקשת החלפה', String(req.id||''), actionDeleteSwap(req));
 
@@ -2974,6 +2976,54 @@ function actionGetNotificationsPersonal(req, user) {
   } catch(e) { Logger.log('getNotificationsPersonal error: ' + e); }
   
   return {success: true, notifications: notifs};
+}
+
+// ===== מחיקת התראות =====
+// These were listed in viewerAllowed and called by the frontend, but never had a
+// router entry or an implementation — every clear silently returned "פעולה לא מוכרת",
+// the frontend swallowed it in an empty catch, and the rows stayed in the sheet, so
+// the next poll brought the same notifications straight back.
+// Deletion is scoped by name: a user can only ever delete their OWN rows.
+function actionClearNotification(req, user) {
+  var myName  = String((user && user.name) || '').trim();
+  var notifId = String(req.notifId || '').trim();
+  if (!myName)  return {success: false, error: 'חסר משתמש'};
+  if (!notifId) return {success: false, error: 'חסר מזהה התראה'};
+  try {
+    var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Notifications');
+    if (!sh || sh.getLastRow() < 2) return {success: true, deleted: 0};
+    var rows = sh.getRange(1, 1, sh.getLastRow(), 4).getValues();
+    // Walk bottom-up: deleting a row shifts everything below it up.
+    for (var i = rows.length - 1; i >= 1; i--) {
+      if (String(rows[i][0] || '').trim() === notifId &&
+          String(rows[i][1] || '').trim() === myName) {
+        sh.deleteRow(i + 1);
+        return {success: true, deleted: 1};
+      }
+    }
+    return {success: true, deleted: 0};
+  } catch(e) {
+    Logger.log('clearNotification error: ' + e);
+    return {success: false, error: e.toString()};
+  }
+}
+
+function actionClearAllNotifications(req, user) {
+  var myName = String((user && user.name) || '').trim();
+  if (!myName) return {success: false, error: 'חסר משתמש'};
+  try {
+    var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Notifications');
+    if (!sh || sh.getLastRow() < 2) return {success: true, deleted: 0};
+    var rows = sh.getRange(1, 1, sh.getLastRow(), 4).getValues();
+    var deleted = 0;
+    for (var i = rows.length - 1; i >= 1; i--) {
+      if (String(rows[i][1] || '').trim() === myName) { sh.deleteRow(i + 1); deleted++; }
+    }
+    return {success: true, deleted: deleted};
+  } catch(e) {
+    Logger.log('clearAllNotifications error: ' + e);
+    return {success: false, error: e.toString()};
+  }
 }
 
 // ===== איפוס סיסמת ADMIN =====
