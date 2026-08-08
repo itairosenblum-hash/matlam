@@ -699,6 +699,59 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 .year-switch-opt.is-on { background: var(--accent); color: #fff; }
 .year-switch-opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .year-switch-opt { transition: none; } }
+
+/* Upcoming-duties card: a real column table.
+   CSS Grid rather than <table> — same alignment, none of the RTL + min-width
+   breakage a table causes on narrow screens. Columns stay in lockstep because
+   every row shares one template. */
+.wk-table { display: flex; flex-direction: column; }
+.wk-row {
+  display: grid;
+  grid-template-columns: 72px repeat(3, minmax(0, 1fr)) 38px;
+  align-items: center; gap: 8px;
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--border);
+}
+.wk-row:last-child { border-bottom: 0; }
+.wk-row.today { background: var(--surface2); border-radius: 10px; }
+.wk-row.past  { opacity: .5; }
+
+.wk-head {
+  font-size: 11px; font-weight: 700; color: var(--text2);
+  border-bottom: 1.5px solid var(--border); padding-bottom: 6px;
+  letter-spacing: .02em;
+}
+.wk-head > div { text-align: center; }
+.wk-head .wk-date { text-align: center; }
+
+.wk-date { display: flex; flex-direction: column; align-items: center; gap: 2px; line-height: 1.15; }
+.wk-dnum { font-size: 17px; font-weight: 800; color: var(--text); }
+.wk-dow  { font-size: 10px; color: var(--text2); }
+.wk-type { font-size: 9px; padding: 1px 5px; border-radius: 8px; margin: 1px 0 0; white-space: nowrap; }
+
+.wk-cell { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+.wk-chip {
+  display: inline-block; max-width: 100%;
+  font-size: 11.5px; font-weight: 600; line-height: 1.3;
+  padding: 3px 8px; border-radius: 10px;
+  overflow-wrap: anywhere; text-align: center;
+}
+/* Colours are declared here rather than reused from .role-chip: those rules are
+   scoped to .role-chip, and .rb was never given one at all — עתודה ב׳ chips would
+   have fallen back to the neutral base and read as unassigned. */
+.wk-chip.rv { background: rgba(46,160,67,.14);  color: var(--success, #2ea043); }
+.wk-chip.ra { background: rgba(88,166,255,.14); color: var(--accent); }
+.wk-chip.rb { background: rgba(219,109,40,.14); color: #d1741f; }
+.wk-chip.rt { background: rgba(137,87,229,.14); color: #8957e5; }
+.wk-empty { color: var(--text3); font-size: 12px; }
+.wk-edit { display: flex; justify-content: center; }
+
+@media (max-width: 560px) {
+  .wk-row { grid-template-columns: 56px repeat(3, minmax(0, 1fr)) 30px; gap: 4px; padding: 7px 2px; }
+  .wk-chip { font-size: 10.5px; padding: 2px 5px; }
+  .wk-dnum { font-size: 15px; }
+  .wk-head { font-size: 10px; }
+}
 </style>
 </head>
 <body>
@@ -1601,7 +1654,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">07/08/2026 23:47</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">08/08/2026 08:34</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1614,8 +1667,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = '07/08/2026 23:47';
-const BUILD_EPOCH = 1786135627516; // ms — when this exact file was pushed
+const BUILD_STAMP = '08/08/2026 08:34';
+const BUILD_EPOCH = 1786167264609; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -3375,6 +3428,13 @@ function renderAdminWeekCard(res, month, adjRes) {
   if (!week.length) { card.innerHTML = title + '<div style="font-size:13px;color:var(--text2)">אין ימים קדימה בלוח</div>'; return; }
   const dayNames = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
   const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  // One row per day, four aligned columns: date / מבצע / עתודה א' / עתודה ב'.
+  // Built with CSS Grid rather than <table>: the same column alignment, without
+  // the RTL + min-width conflicts a real table causes on narrow screens.
+  const cell = (val, cls, icon) => val
+    ? `<span class="wk-chip ${cls}">${icon} ${escapeHtml(val)}</span>`
+    : `<span class="wk-empty">—</span>`;
+
   const rows = week.map(e => {
     const dateParts = e.date.includes('-') ? e.date.split('-') : [e.date.split('/')[2], e.date.split('/')[1], e.date.split('/')[0]];
     const d = parseInt(dateParts[2]) || 0;
@@ -3382,36 +3442,38 @@ function renderAdminWeekCard(res, month, adjRes) {
     const dow = dayNames[dt.getDay()];
     const isToday = e.date === todayStr;
     const isPast = e.date < todayStr;
-    const bg = isToday;
-    const op = isPast;
     const badge = getDayBadge(e.dayType);
-    const typeChip = e.dayType ? `<span class="cal-day-type ${badge}" style="font-size:10px;padding:1px 6px;border-radius:10px;margin-right:4px">${e.notes||e.dayType}</span>` : '';
-    const mainV = [
-      e.v  ? `<span class="role-chip rv">✅ ${escapeHtml(e.v)}</span>` : '',
-      e.v2 ? `<span class="role-chip rv">✅ ${escapeHtml(e.v2)}</span>` : '',
-      e.t  ? `<span class="role-chip rt">🎓 ${escapeHtml(e.t)}</span>` : '',
-    ].filter(Boolean).join(' ');
-    const reserves = [
-      e.a  ? `<span class="role-chip ra">🅰️ ${escapeHtml(e.a)}</span>` : '',
-      e.b  ? `<span class="role-chip rb">🅱️ ${escapeHtml(e.b)}</span>` : '',
-    ].filter(Boolean).join(' ');
-    return `<div class="hdc-row${op?' past':''}${bg?' today':''}">
-      <div class="hdc-dbox"><div class="dn">${d}</div><div class="dw">${dow}${isToday?' 📍':''}</div></div>
-      <div style="flex:1;min-width:0">
-        ${typeChip?`<div style="margin-bottom:3px">${typeChip}</div>`:''}
-        ${mainV?`<div style="font-size:12px;display:flex;flex-wrap:wrap;gap:4px;margin-bottom:${reserves?'3px':'0'}">${mainV}</div>`:''}
-        ${reserves?`<div style="font-size:12px;display:flex;flex-wrap:wrap;gap:4px">${reserves}</div>`:''}
-        ${!mainV&&!reserves?'<span style="color:var(--text2);font-size:12px">לא משובץ</span>':''}
+    const typeChip = e.dayType
+      ? `<span class="cal-day-type ${badge} wk-type">${escapeHtml(e.notes||e.dayType)}</span>` : '';
+    // A second מבצע or a trainee stacks under the main one, inside the same column
+    const extraV = [
+      e.v2 ? `<span class="wk-chip rv">✅ ${escapeHtml(e.v2)}</span>` : '',
+      e.t  ? `<span class="wk-chip rt">🎓 ${escapeHtml(e.t)}</span>` : ''
+    ].filter(Boolean).join('');
+
+    return `<div class="wk-row${isPast?' past':''}${isToday?' today':''}">
+      <div class="wk-date">
+        <span class="wk-dnum">${d}</span>
+        <span class="wk-dow">${dow}${isToday?' 📍':''}</span>
+        ${typeChip}
       </div>
-      <button class="btn btn-secondary btn-sm" onclick="goToAdminDay('${e.date}')" style="font-size:11px">✏️</button>
+      <div class="wk-cell">${cell(e.v,'rv','✅')}${extraV}</div>
+      <div class="wk-cell">${cell(e.a,'ra','🅰️')}</div>
+      <div class="wk-cell">${cell(e.b,'rb','🅱️')}</div>
+      <div class="wk-edit"><button class="btn btn-secondary btn-sm" onclick="goToAdminDay('${e.date}')" title="ערוך יום" style="font-size:11px">✏️</button></div>
     </div>`;
   });
+
+  const headRow = `<div class="wk-row wk-head">
+      <div class="wk-date">תאריך</div>
+      <div>מבצע</div><div>עתודה א׳</div><div>עתודה ב׳</div><div></div>
+    </div>`;
   window._adminWeekCardData = week;
   const shareHeader = `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">
       <div class="hdc-title" style="margin-bottom:0">היום + 4 ימים קדימה</div>
       <button id="week-share-btn" class="week-share-btn" onclick="shareAdminWeekCard()" title="שתף את הכרטיס כתמונה" aria-label="שתף את הכרטיס כתמונה"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91C21.96 6.45 17.5 2 12.04 2Zm0 18.15h-.01a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.2 8.2 0 0 1-1.26-4.38c0-4.54 3.7-8.23 8.25-8.23 2.2 0 4.27.86 5.83 2.42a8.18 8.18 0 0 1 2.41 5.82c0 4.54-3.7 8.23-8.24 8.23Zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.13-.16.24-.64.8-.78.97-.14.16-.29.18-.54.06-.25-.13-1.05-.39-2-1.23-.74-.66-1.24-1.47-1.38-1.72-.15-.25-.02-.38.11-.5.11-.11.25-.29.37-.44.13-.14.17-.24.25-.41.09-.16.04-.31-.02-.43-.06-.12-.56-1.35-.77-1.84-.2-.49-.4-.42-.55-.43h-.47c-.16 0-.43.06-.65.31-.22.24-.85.83-.85 2.03s.87 2.35.99 2.51c.12.16 1.71 2.61 4.14 3.66.58.25 1.03.4 1.38.51.58.19 1.11.16 1.53.1.47-.07 1.44-.59 1.64-1.16.2-.57.2-1.05.14-1.16-.06-.1-.22-.16-.47-.28Z"/></svg><span>שתף</span></button>
     </div>`;
-  card.innerHTML = shareHeader + rows.join('');
+  card.innerHTML = shareHeader + `<div class="wk-table">${headRow}${rows.join('')}</div>`;
 }
 
 async function shareAdminWeekCard() {
