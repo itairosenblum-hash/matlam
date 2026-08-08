@@ -741,7 +741,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
    have fallen back to the neutral base and read as unassigned. */
 .wk-chip.rv { background: rgba(46,160,67,.14);  color: var(--success, #2ea043); }
 .wk-chip.ra { background: rgba(88,166,255,.14); color: var(--accent); }
-.wk-chip.rb { background: rgba(219,109,40,.14); color: #d1741f; }
+.wk-chip.rb { background: rgba(234,88,12,.14); color: #c2570c; }
 .wk-chip.rt { background: rgba(137,87,229,.14); color: #8957e5; }
 .wk-empty { color: var(--text3); font-size: 12px; }
 .wk-edit { display: flex; justify-content: center; }
@@ -1654,7 +1654,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">08/08/2026 08:34</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">08/08/2026 08:51</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1667,8 +1667,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = '08/08/2026 08:34';
-const BUILD_EPOCH = 1786167264609; // ms — when this exact file was pushed
+const BUILD_STAMP = '08/08/2026 08:51';
+const BUILD_EPOCH = 1786168264677; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -3431,8 +3431,10 @@ function renderAdminWeekCard(res, month, adjRes) {
   // One row per day, four aligned columns: date / מבצע / עתודה א' / עתודה ב'.
   // Built with CSS Grid rather than <table>: the same column alignment, without
   // the RTL + min-width conflicts a real table causes on narrow screens.
-  const cell = (val, cls, icon) => val
-    ? `<span class="wk-chip ${cls}">${icon} ${escapeHtml(val)}</span>`
+  // No role icon inside the cell: the column header already names the role, and
+  // the 🅰️/🅱️ emoji render as solid red boxes that clash with the chip colours.
+  const cell = (val, cls) => val
+    ? `<span class="wk-chip ${cls}">${escapeHtml(val)}</span>`
     : `<span class="wk-empty">—</span>`;
 
   const rows = week.map(e => {
@@ -3447,7 +3449,7 @@ function renderAdminWeekCard(res, month, adjRes) {
       ? `<span class="cal-day-type ${badge} wk-type">${escapeHtml(e.notes||e.dayType)}</span>` : '';
     // A second מבצע or a trainee stacks under the main one, inside the same column
     const extraV = [
-      e.v2 ? `<span class="wk-chip rv">✅ ${escapeHtml(e.v2)}</span>` : '',
+      e.v2 ? `<span class="wk-chip rv">${escapeHtml(e.v2)}</span>` : '',
       e.t  ? `<span class="wk-chip rt">🎓 ${escapeHtml(e.t)}</span>` : ''
     ].filter(Boolean).join('');
 
@@ -3457,9 +3459,9 @@ function renderAdminWeekCard(res, month, adjRes) {
         <span class="wk-dow">${dow}${isToday?' 📍':''}</span>
         ${typeChip}
       </div>
-      <div class="wk-cell">${cell(e.v,'rv','✅')}${extraV}</div>
-      <div class="wk-cell">${cell(e.a,'ra','🅰️')}</div>
-      <div class="wk-cell">${cell(e.b,'rb','🅱️')}</div>
+      <div class="wk-cell">${cell(e.v,'rv')}${extraV}</div>
+      <div class="wk-cell">${cell(e.a,'ra')}</div>
+      <div class="wk-cell">${cell(e.b,'rb')}</div>
       <div class="wk-edit"><button class="btn btn-secondary btn-sm" onclick="goToAdminDay('${e.date}')" title="ערוך יום" style="font-size:11px">✏️</button></div>
     </div>`;
   });
@@ -3488,7 +3490,17 @@ async function shareAdminWeekCard() {
   const now = new Date(); now.setHours(0,0,0,0);
   const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
 
-  const chip = (bg,color,txt) => `<span style="display:inline-block;background:${bg};color:${color};font-size:13px;padding:3px 10px;border-radius:14px;font-weight:700;margin:2px 0 2px 4px">${txt}</span>`;
+  // Mirrors the on-screen table: one row per day, four aligned columns.
+  // Colours are the light/print equivalents of the screen chips, and the 🅰️/🅱️
+  // emoji are gone — the OS renders them as red boxes, which fought the blue and
+  // orange they were sitting on. With column headers the letters are redundant.
+  const COL = '18% 28% 27% 27%';
+  const chip = (bg,color,txt) => `<span style="display:inline-block;background:${bg};color:${color};font-size:12.5px;padding:4px 9px;border-radius:12px;font-weight:700;line-height:1.35;max-width:100%;word-break:break-word">${txt}</span>`;
+  const emptyCell = '<span style="color:#c3c8cf;font-size:13px">—</span>';
+
+  const headHtml = `<div style="display:grid;grid-template-columns:${COL};gap:6px;padding:0 6px 7px;border-bottom:2px solid #e5e7eb;text-align:center;font-size:11.5px;font-weight:800;color:#6b7280">
+      <div>תאריך</div><div>מבצע</div><div>עתודה א׳</div><div>עתודה ב׳</div>
+    </div>`;
 
   const rowsHtml = week.map(e => {
     const dp = e.date.includes('-') ? e.date.split('-') : [e.date.split('/')[2], e.date.split('/')[1], e.date.split('/')[0]];
@@ -3496,21 +3508,27 @@ async function shareAdminWeekCard() {
     const dt = new Date(parseInt(dp[0]), parseInt(dp[1])-1, dnum);
     const dow = dayNames[dt.getDay()] || '';
     const isToday = e.date === todayStr;
-    const typeLabel = (e.notes || e.dayType) ? `<span style="background:#eef2ff;color:#4338ca;font-size:12px;padding:2px 9px;border-radius:10px;font-weight:600">${escapeHtml(e.notes||e.dayType)}</span>` : '';
-    const assigns = [
-      e.v  ? chip('#dcfce7','#166534','✅ '+escapeHtml(e.v))  : '',
-      e.v2 ? chip('#dcfce7','#166534','✅ '+escapeHtml(e.v2)) : '',
-      e.t  ? chip('#ede9fe','#6d28d9','🎓 '+escapeHtml(e.t))  : '',
-      e.a  ? chip('#dbeafe','#1e40af','🅰️ '+escapeHtml(e.a))  : '',
-      e.b  ? chip('#ccfbf1','#0f766e','🅱️ '+escapeHtml(e.b))  : ''
-    ].filter(Boolean).join('');
-    const body = assigns || '<span style="color:#9ca3af;font-size:13px">לא משובץ</span>';
-    return `<div style="display:flex;align-items:flex-start;gap:12px;padding:11px 12px;border-bottom:1px solid #eef0f2;${isToday?'background:#f0fdf4;border-radius:10px;':''}">
-        <div style="min-width:46px;text-align:center;background:${isToday?'#16a34a':'#f1f3f5'};color:${isToday?'#fff':'#111'};border-radius:10px;padding:6px 4px">
-          <div style="font-size:18px;font-weight:800;line-height:1">${dnum}</div>
-          <div style="font-size:10px;margin-top:2px;color:${isToday?'#e6ffe6':'#6b7280'}">${dow}${isToday?' 📍':''}</div>
+    const typeLabel = (e.notes || e.dayType)
+      ? `<div style="margin-top:3px"><span style="background:#eef2ff;color:#4338ca;font-size:10px;padding:1px 7px;border-radius:9px;font-weight:600;white-space:nowrap">${escapeHtml(e.notes||e.dayType)}</span></div>` : '';
+
+    const vCell = [
+      e.v  ? chip('#dcfce7','#166534', escapeHtml(e.v))  : '',
+      e.v2 ? chip('#dcfce7','#166534', escapeHtml(e.v2)) : '',
+      e.t  ? chip('#ede9fe','#6d28d9','🎓 ' + escapeHtml(e.t)) : ''
+    ].filter(Boolean).join('<div style="height:3px"></div>') || emptyCell;
+
+    const aCell = e.a ? chip('#dbeafe','#1e40af', escapeHtml(e.a)) : emptyCell;
+    const bCell = e.b ? chip('#ffedd5','#9a3412', escapeHtml(e.b)) : emptyCell;
+
+    return `<div style="display:grid;grid-template-columns:${COL};gap:6px;align-items:center;text-align:center;padding:9px 6px;border-bottom:1px solid #eef0f2;${isToday?'background:#f0fdf4;':''}">
+        <div>
+          <div style="font-size:17px;font-weight:800;line-height:1;color:${isToday?'#15803d':'#111'}">${dnum}</div>
+          <div style="font-size:10px;margin-top:2px;color:#6b7280">${dow}${isToday?' 📍':''}</div>
+          ${typeLabel}
         </div>
-        <div style="flex:1;min-width:0;padding-top:1px">${typeLabel?`<div style="margin-bottom:5px">${typeLabel}</div>`:''}<div>${body}</div></div>
+        <div>${vCell}</div>
+        <div>${aCell}</div>
+        <div>${bCell}</div>
       </div>`;
   }).join('');
 
@@ -3524,6 +3542,7 @@ async function shareAdminWeekCard() {
       <div style="font-size:20px;font-weight:900;color:#14532d">🗓️ תורנויות קרובות</div>
       <div style="font-size:13px;color:#6b7280;margin-top:3px">${rangeTxt}</div>
     </div>
+    ${headHtml}
     ${rowsHtml}
     <div style="text-align:center;font-size:11px;color:#9ca3af;margin-top:12px">מטל״מ · מערכת ניהול תורנויות</div>`;
   document.body.appendChild(wrapper);
