@@ -598,7 +598,7 @@ function actionGetScores(req) {
   // deactivated accounts, and viewer (read-only) accounts.
   // Note p.role does not exist — actionGetPeople reads the People sheet, which
   // has no role column, so the old `p.role === 'admin'` check never fired.
-  const SCORES_HIDDEN_CATEGORIES = ['אב', 'מנהל מערכת', 'לא מוסמך', 'טרם הוסמך'];
+  const SCORES_HIDDEN_CATEGORIES = ['אב', 'מנהל מערכת', 'לא מוסמך', 'טרם הוסמך', 'פטור'];
   const scores = people.filter(p => {
     const nm  = String(p.name || '').trim();
     const cat = String(p.dutyCategory || '').trim();
@@ -1055,10 +1055,22 @@ function actionGenerateSchedule(req) {
   const allPeople = actionGetPeople().people;
   const activePeople = allPeople.filter(p => p.activity !== '0' && p.dutyCategory !== 'פטור');
 
-  // Load accumulated scores as working copy
-  const scoresData = actionGetScores().scores;
+  // Load accumulated scores as working copy.
+  // Read the Scores sheet DIRECTLY rather than going through actionGetScores:
+  // that function filters its output for DISPLAY (it hides אב, פטור, unqualified,
+  // deactivated and viewer accounts). A scheduler must never inherit a display
+  // filter — anyone missing from the map would fall to `|| 0` and, being the
+  // lowest scorer in existence, would be handed every duty in the month.
+  // Semantics kept identical to before: sum of the 12 monthly score columns.
   const workingScores = {};
-  scoresData.forEach(s => { workingScores[s.name] = Number(s.acc2026) || 0; });
+  const wsRows = getScoresSheet(String(year)).getDataRange().getValues();
+  for (let wi = 1; wi < wsRows.length; wi++) {
+    const wn = String(wsRows[wi][0] || '').trim();
+    if (!wn) continue;
+    let wTot = 0;
+    for (let wm = 0; wm < 12; wm++) wTot += Number(wsRows[wi][5 + wm * 2]) || 0;
+    workingScores[wn] = wTot;
+  }
 
   // Load constraints for this month
   const constraintsRes = actionGetAllConstraints({month});
