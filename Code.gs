@@ -518,6 +518,21 @@ function actionGetScores(req) {
   const peopleRes = actionGetPeople();
   const people = peopleRes.people;
 
+  // The Users sheet is the authority on account state: the "פעיל" flag and the
+  // role. People's activity column is a separate field and is NOT kept in sync
+  // with it, so a torani deactivated on the tornim page still reads activity=1
+  // here. Both must be consulted, exactly as actionGenerateScheduleV2 does.
+  const usersActiveByName = {}, usersRoleByName = {};
+  try {
+    const uRows = getSheet(SH.USERS).getDataRange().getValues();
+    for (let ui = 1; ui < uRows.length; ui++) {
+      const un = String(uRows[ui][1] || '').trim();
+      if (!un) continue;
+      usersActiveByName[un] = !!uRows[ui][5];
+      usersRoleByName[un]   = String(uRows[ui][4] || '').trim();
+    }
+  } catch (e) { Logger.log('actionGetScores: Users load failed — ' + e); }
+
   // Base scores from Score sheet (2025 accumulation)
   const baseScores = {};
   const scoreRowByName = {};   // name -> full Scores row (monthly type/score columns)
@@ -576,11 +591,23 @@ function actionGetScores(req) {
     }
   });
 
-  // Build result
+  // Build result.
+  // The scores page ranks people competing for the same duties, so anyone who
+  // is not in the rotation is noise: their frozen total sits in the table and
+  // distorts every comparison. Excluded: admin, משרת אב, unqualified tornim,
+  // deactivated accounts, and viewer (read-only) accounts.
+  // Note p.role does not exist — actionGetPeople reads the People sheet, which
+  // has no role column, so the old `p.role === 'admin'` check never fired.
+  const SCORES_HIDDEN_CATEGORIES = ['אב', 'מנהל מערכת', 'לא מוסמך', 'טרם הוסמך'];
   const scores = people.filter(p => {
-    // Skip admin and אב from scores
-    if (p.name === 'מנהל מערכת' || p.dutyCategory === 'מנהל מערכת' || p.dutyCategory === 'אב') return false;
-    if (p.role === 'admin') return false;
+    const nm  = String(p.name || '').trim();
+    const cat = String(p.dutyCategory || '').trim();
+    if (nm === 'מנהל מערכת') return false;
+    if (SCORES_HIDDEN_CATEGORIES.indexOf(cat) !== -1) return false;
+    if (String(p.activity || '1').trim() === '0') return false;   // inactive in People
+    if (usersActiveByName[nm] === false) return false;            // deactivated account
+    if (usersRoleByName[nm] === 'admin') return false;
+    if (usersRoleByName[nm] === 'viewer') return false;           // read-only account
     return true;
   }).map(p => {
     const base = baseScores[p.name] || {};
@@ -1548,16 +1575,67 @@ function actionAddTorani(req) {
   return {success: true, message: 'תורן נוסף. ניקוד התחלתי: ' + avgScore};
 }
 
-// ===== חישוב ממוצע ניקוד כל התורנים הפעילים =====
+// ===== חישוב ממוצע ניקוד — רק תורנים שנושאים בנטל מלא =====
+// A new torani's starting score is set to this average, so the average must
+// reflect only people who actually carry a full share of the rotation.
+// Previously it read the ACTIVITY column of the Scores sheet — but that value is
+// written once, when the row is created, and is never synced again:
+// actionUpdatePerson and actionUpdateTorani both write activity to the PEOPLE
+// sheet only. A torani deactivated months ago therefore still counted. Worse,
+// משרת אב / פטור / לא מוסמך live in People's dutyCategory column, which the old
+// version never read at all — so they were always included, dragging the average
+// down and handing every new torani an unearned head start in the queue.
+// People is the single source of truth here.
+var AVG_EXCLUDED_CATEGORIES = ['אב', 'פטור', 'לא מוסמך', 'טרם הוסמך', 'מנהל מערכת'];
+
 function calcAverageScore() {
   var rows = getScoresSheet(scoreYearOf(null)).getDataRange().getValues();
-  var total = 0, count = 0;
-  for (var i = 1; i < rows.length; i++) {
-    var act = String(rows[i][1]||'1').trim();
-    var sc  = Number(rows[i][3])||0;
-    if (act !== '0' && sc > 0) { total += sc; count++; }
+
+  var peopleMap = {};
+  try {
+    var pres = actionGetPeople();
+    if (pres && pres.people) {
+      pres.people.forEach(function(p) { peopleMap[String(p.name || '').trim()] = p; });
+    }
+  } catch (e) {
+    Logger.log('calcAverageScore: actionGetPeople failed — ' + e);
   }
-  return count > 0 ? Math.round(total / count) : 0;
+
+  var todayStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+
+  var total = 0, count = 0;       // filtered average
+  var fbTotal = 0, fbCount = 0;   // legacy average, kept as a fallback
+
+  for (var i = 1; i < rows.length; i++) {
+    var name = String(rows[i][0] || '').trim();
+    if (!name) continue;
+
+    var score = Number(rows[i][3]) || 0;
+    if (score <= 0) continue;
+
+    var scoresActivity = String(rows[i][1] || '1').trim();
+    if (scoresActivity !== '0') { fbTotal += score; fbCount++; }
+
+    var p        = peopleMap[name];
+    var activity = p ? String(p.activity || '1').trim() : scoresActivity;
+    var category = p ? String(p.dutyCategory || '').trim() : '';
+    var endDate  = p ? String(p.endDate || '').trim() : '';
+
+    if (activity === '0' || activity === '0.5') continue;           // לא פעיל / משרת הורה
+    if (AVG_EXCLUDED_CATEGORIES.indexOf(category) !== -1) continue; // אב / פטור / לא מוסמך / מנהל
+    if (endDate && endDate < todayStr) continue;                    // סיים שירות
+
+    total += score;
+    count++;
+  }
+
+  if (count > 0) return Math.round(total / count);
+
+  // Nothing passed the filter (e.g. People failed to load, or every name mismatched).
+  // Returning 0 here would put a new torani at the head of the queue for every
+  // single duty, so fall back to the old calculation and leave a trace.
+  Logger.log('calcAverageScore: filtered set empty, falling back to legacy average');
+  return fbCount > 0 ? Math.round(fbTotal / fbCount) : 0;
 }
 
 function actionUpdateTorani(req) {
