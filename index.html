@@ -249,6 +249,10 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
 .notif-badge{background:var(--danger);color:#fff;border-radius:10px;font-size:10px;font-weight:700;padding:1px 5px;margin-right:4px;vertical-align:middle;min-width:16px;display:inline-block;text-align:center}
 .bell-btn{transition:color .2s}
 .bell-btn:hover{color:var(--warn)!important}
+.refresh-btn{transition:color .2s}
+.refresh-btn:hover{color:var(--accent)!important}
+.refresh-btn.spinning{animation:refreshSpin .7s linear infinite;pointer-events:none;opacity:.6}
+@keyframes refreshSpin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
 @keyframes bellRing{0%{transform:rotate(0)}20%{transform:rotate(20deg)}40%{transform:rotate(-20deg)}60%{transform:rotate(10deg)}80%{transform:rotate(-10deg)}100%{transform:rotate(0)}}
 .hamburger-btn.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
 .hamburger-btn.open span:nth-child(2){opacity:0}
@@ -806,6 +810,9 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
         <button id="theme-btn-nav" onclick="toggleTheme()" title="כהה / בהיר"
           style="background:none;border:none;cursor:pointer;font-size:20px;padding:4px 8px;color:var(--text2);display:none;line-height:1"
           aria-label="החלף ערכת צבעים">🌙</button>
+        <button id="refresh-btn" class="refresh-btn" onclick="manualRefresh()" title="רענן נתונים"
+          style="display:none;background:none;border:none;cursor:pointer;font-size:17px;padding:4px 8px;color:var(--text2);line-height:1"
+          aria-label="רענן נתונים">🔄</button>
         <div id="bell-wrapper" style="display:none;position:relative">
           <button id="bell-btn" class="bell-btn" onclick="toggleNotifPanel()" style="position:relative;background:none;border:none;cursor:pointer;font-size:18px;padding:4px 8px;color:var(--text2)" title="התראות">
             🔔<span id="bell-count" style="display:none;position:absolute;top:-2px;right:-2px;background:var(--danger);color:#fff;border-radius:50%;font-size:10px;font-weight:700;width:16px;height:16px;line-height:16px;text-align:center"></span>
@@ -1654,7 +1661,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">09/08/2026 13:52</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">11/08/2026 09:21</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1667,8 +1674,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = '09/08/2026 13:52';
-const BUILD_EPOCH = 1786272728625; // ms — when this exact file was pushed
+const BUILD_STAMP = '11/08/2026 09:21';
+const BUILD_EPOCH = 1786429294345; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -2019,6 +2026,8 @@ async function doLogin() {
 
 function doLogout() {
   stopNotifPolling();
+  const rb = document.getElementById('refresh-btn');
+  if (rb) { rb.style.display = 'none'; rb.classList.remove('spinning'); }
   token = ''; currentUser = null; allPeople = [];
   localStorage.removeItem('duty_token');
   localStorage.removeItem('duty_user');
@@ -2128,6 +2137,9 @@ async function initApp() {
       if (bw) bw.style.display = 'block';
     }, 1000);
   }
+  // Refresh button is role-agnostic — viewers get stale data just like anyone else.
+  const rb = document.getElementById('refresh-btn');
+  if (rb) rb.style.display = '';
   // Single exit point — covers admin, viewer and regular-user branches alike,
   // so a later buildNavTabs (e.g. switching impersonation) reloads normally.
   _initAppLoading = false;
@@ -2368,6 +2380,28 @@ function preloadAdjacentMonths(currentMonth) {
   setTimeout(() => api({action:'getSchedule', month: next}).then(r => { window._adjScheduleCache = r; }).catch(()=>{}), 8000);
 }
 
+// Single source of truth for "how does this tab load its data".
+// Each loader receives isRefresh=true when it is being re-run in place (refresh
+// button / return-to-app), so it can skip anything that would reset the user's
+// current selection — e.g. snapping the month picker back to its default.
+const TAB_LOADERS = {
+  'constraints':        (r) => { if (!r) setConstraintMonthDefault('constraint-month-select'); loadConstraints(); checkConstraintLock(); },
+  'my-schedule':        ()  => loadMySchedule(),
+  'profile':            ()  => loadProfile(),
+  'admin-users':        ()  => loadUsers(),
+  'admin-home':         ()  => loadAdminHome(),
+  'admin-schedule':     ()  => loadAdminSchedule(),
+  'admin-scores':       ()  => loadScores(),
+  'admin-constraints':  (r) => { if (!r) setConstraintMonthDefault('admin-constraint-month'); loadAdminConstraints(); loadLockStatus(); },
+  'home':               ()  => loadHomePage(),
+  'full-schedule':      ()  => loadUserFullSchedule(),
+  'scores':             ()  => loadUserScores(),
+  'swap':               ()  => initSwapTab(),
+  'admin-swaps':        ()  => loadAdminSwaps(),
+  'admin-audit':        ()  => loadAuditLog(),
+  'guide':              ()  => {}
+};
+
 function switchTab(id) {
   currentTab = id;
   document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
@@ -2381,25 +2415,57 @@ function switchTab(id) {
   if (bnavBtn) bnavBtn.classList.add('active');
 
   // Load data for tab
-  if (id === 'constraints') { setConstraintMonthDefault('constraint-month-select'); loadConstraints(); checkConstraintLock(); }
-  if (id === 'my-schedule') loadMySchedule();
-  if (id === 'profile') loadProfile();
-  if (id === 'admin-users') loadUsers();
-  if (id === 'admin-home') { loadAdminHome(); }
-  if (id === 'admin-schedule') loadAdminSchedule();
-  if (id === 'admin-scores') loadScores();
-  if (id === 'admin-constraints') { setConstraintMonthDefault('admin-constraint-month'); loadAdminConstraints(); loadLockStatus(); }
-  if (id === 'home') { loadHomePage(); }
-  if (id === 'full-schedule') { loadUserFullSchedule(); }
-  if (id === 'scores') { loadUserScores(); }
-  if (id === 'swap') { initSwapTab(); }
-  if (id === 'admin-swaps') { loadAdminSwaps(); }
-  if (id === 'admin-audit') { loadAuditLog(); }
-  if (id === 'guide') {}
-  if (false && id === 'admin-setup') {
-    if(document.getElementById('setup-api-url')) document.getElementById('setup-api-url').value = API_URL;
+  const loader = TAB_LOADERS[id];
+  if (loader) loader(false);
+}
+
+// =====================================================
+// LIVE REFRESH — reload the open tab without reloading the page
+// =====================================================
+// api() serves reads from _apiCache (30s–10min depending on the action), so a
+// user sitting on the site can hold stale data for minutes. Dropping the cache
+// and re-running the current tab's loader gets fresh data at the cost of one
+// round trip, instead of a full page reload + re-bootstrap.
+let _refreshing = false;
+
+async function refreshCurrentTab() {
+  if (_refreshing) return;          // don't stack refreshes
+  if (!currentUser || !token) return; // not logged in — nothing to refresh
+  _refreshing = true;
+  const btn = document.getElementById('refresh-btn');
+  if (btn) btn.classList.add('spinning');
+  try {
+    clearApiCache();
+    const loader = TAB_LOADERS[currentTab];
+    if (loader) await loader(true);
+  } catch (e) {
+    console.warn('refreshCurrentTab failed:', e);
+  } finally {
+    _refreshing = false;
+    if (btn) btn.classList.remove('spinning');
   }
 }
+
+// Manual refresh (🔄 button) — also refreshes the bell so a notification that
+// arrived between polls shows up immediately.
+async function manualRefresh() {
+  await refreshCurrentTab();
+  try { if (typeof checkNotifications === 'function') checkNotifications(); } catch(_) {}
+}
+
+// Auto-refresh on return to the app. The PWA case: the phone is locked with
+// Matlam open for hours, then reopened — without this the user is looking at
+// yesterday's data with no visible clue. Only fires after a real absence, so
+// flicking to another app for a few seconds costs nothing.
+(function initVisibilityRefresh(){
+  let hiddenAt = 0;
+  const AWAY_MS = 60000; // 1 minute
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { hiddenAt = Date.now(); return; }
+    if (hiddenAt && Date.now() - hiddenAt > AWAY_MS) refreshCurrentTab();
+    hiddenAt = 0;
+  });
+})();
 
 function populateMonthSelects() {
   const now = new Date();
