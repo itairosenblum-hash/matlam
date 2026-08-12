@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#2d4a3e">
 <link rel="icon" type="image/png" href="https://itairosenblum-hash.github.io/matlam/SemelMatzad_Color.svg.png">
@@ -1030,7 +1031,10 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
             <div class="section-title">👥 ניהול תורנים</div>
             <div class="section-subtitle">כל תורן הוא גם משתמש — פרטי כניסה + פרטי תורנות</div>
           </div>
-          <button class="btn btn-primary" id="btn-add-torani" onclick="openAddTorani()">+ הוסף תורן</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-secondary" id="tornim-pdf-btn" onclick="exportTornimPDF()">📄 הפק דוח PDF</button>
+            <button class="btn btn-primary" id="btn-add-torani" onclick="openAddTorani()">+ הוסף תורן</button>
+          </div>
         </div>
         <div id="tornim-alert"></div>
         <div id="tornim-stats" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px"></div>
@@ -1661,7 +1665,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">11/08/2026 09:21</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">12/08/2026 13:59</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1674,8 +1678,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = '11/08/2026 09:21';
-const BUILD_EPOCH = 1786429294345; // ms — when this exact file was pushed
+const BUILD_STAMP = '12/08/2026 13:59';
+const BUILD_EPOCH = 1786532359288; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -2980,6 +2984,124 @@ async function loadUsers() { // keep name for tab switching
   window._allTornimData = sorted;
   window._tornimCardFn = cards;
   container.innerHTML = `<div id="tornim-cards-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">${cards}</div>`;
+}
+
+// =====================================================
+// TORNIM PDF REPORT — grouped by category, with end-of-duty date
+// =====================================================
+async function exportTornimPDF() {
+  if (typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined') {
+    alert('ספריית ה-PDF לא נטענה כראוי, רענן את הדף ונסה שוב');
+    return;
+  }
+  const btn = document.getElementById('tornim-pdf-btn');
+  const btnOrig = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ מכין דוח...'; }
+
+  let wrapper;
+  try {
+    let data = window._allTornimData;
+    if (!data) {
+      const res = await api({action:'getAllTornim'});
+      if (!res.success) throw new Error(res.error || 'שגיאה בטעינת נתונים');
+      data = res.tornim;
+    }
+
+    const activeOnly = data.filter(t => t.active && t.role !== 'admin');
+    const CATS = [
+      { icon:'✅', title:'תורנים רגילים', color:'#2563eb',
+        match: t => !t.dutyCategory || t.dutyCategory === 'רגיל' },
+      { icon:'👶', title:'משרת אב', color:'#b45309',
+        match: t => t.dutyCategory === 'אב' },
+      { icon:'🎓', title:'טרם הוסמכו', color:'#6b7280',
+        match: t => t.dutyCategory === 'טרם הוסמך' || t.dutyCategory === 'לא מוסמך' }
+    ];
+    const WEEKEND = {'מלא':'סוף שבוע מלא','בנפרד':'ימים בנפרד'};
+    const now = new Date();
+    const genDate = now.toLocaleDateString('he-IL');
+
+    const sectionHtml = CATS.map(cat => {
+      const list = activeOnly.filter(cat.match).sort((a,b) => a.name.localeCompare(b.name,'he'));
+      const rows = list.map((t,i) => {
+        const eds = getEndDateStatus(t.endDate);
+        const edColor = eds === 'expired' ? '#dc2626' : eds === 'soon' ? '#b45309' : '#111827';
+        const edLabel = t.endDate ? formatEndDateDisplay(t.endDate) : '—';
+        const edTag = eds === 'expired' ? ' (פג תוקף)' : eds === 'soon' ? ' (בקרוב)' : '';
+        return `<tr>
+          <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:center;color:#6b7280">${i+1}</td>
+          <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-weight:600">${escapeHtml(t.name)}</td>
+          <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;color:#374151">${formatPhoneDisplay(t.phone)||'—'}</td>
+          <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;color:#374151">${WEEKEND[t.weekendType]||t.weekendType||'—'}</td>
+          <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-weight:700;color:${edColor}">${edLabel}${edTag}</td>
+        </tr>`;
+      }).join('');
+      const emptyRow = !list.length ? `<tr><td colspan="5" style="padding:14px;text-align:center;color:#9ca3af">אין תורנים בקטגוריה זו</td></tr>` : '';
+
+      return `
+      <div style="margin-bottom:22px">
+        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid ${cat.color}">
+          <span style="font-size:16px;font-weight:800;color:${cat.color}">${cat.icon} ${cat.title}</span>
+          <span style="font-size:12px;color:#6b7280">— ${list.length} תורנים</span>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead>
+            <tr style="background:#f3f4f6">
+              <th style="padding:6px 8px;text-align:center;font-size:11px;color:#6b7280;width:34px">#</th>
+              <th style="padding:6px 8px;text-align:right;font-size:11px;color:#6b7280">שם</th>
+              <th style="padding:6px 8px;text-align:right;font-size:11px;color:#6b7280">טלפון</th>
+              <th style="padding:6px 8px;text-align:right;font-size:11px;color:#6b7280">סוג סוף שבוע</th>
+              <th style="padding:6px 8px;text-align:right;font-size:11px;color:#6b7280">תאריך סיום תפקיד</th>
+            </tr>
+          </thead>
+          <tbody>${rows || emptyRow}</tbody>
+        </table>
+      </div>`;
+    }).join('');
+
+    const totalCount = activeOnly.filter(t => CATS.some(c => c.match(t))).length;
+
+    wrapper = document.createElement('div');
+    wrapper.style.cssText = "position:fixed;top:-9999px;right:-9999px;background:#ffffff;padding:28px;width:760px;box-sizing:border-box;direction:rtl;font-family:Arial,'Segoe UI',sans-serif;color:#111827";
+    wrapper.innerHTML = `
+      <div style="text-align:center;border-bottom:3px solid #16a34a;padding-bottom:14px;margin-bottom:20px">
+        <div style="font-size:22px;font-weight:900;color:#14532d">📋 דוח תורנים — מטל״מ</div>
+        <div style="font-size:13px;color:#6b7280;margin-top:4px">הופק בתאריך ${genDate} · סה"כ ${totalCount} תורנים פעילים</div>
+      </div>
+      ${sectionHtml}
+      <div style="text-align:center;font-size:11px;color:#9ca3af;margin-top:10px">מטל״מ · מערכת ניהול תורנויות</div>`;
+    document.body.appendChild(wrapper);
+
+    const canvas = await html2canvas(wrapper, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+    document.body.removeChild(wrapper);
+    wrapper = null;
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = pageWidth;
+    const imgHeight = canvas.height * imgWidth / canvas.width;
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+
+    let heightLeft = imgHeight;
+    let position = 0;
+    pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+
+    const fileDate = `${String(now.getDate()).padStart(2,'0')}-${String(now.getMonth()+1).padStart(2,'0')}-${now.getFullYear()}`;
+    pdf.save(`דוח-תורנים-${fileDate}.pdf`);
+  } catch (err) {
+    if (wrapper && wrapper.parentNode) document.body.removeChild(wrapper);
+    alert('שגיאה בהפקת הדוח: ' + err.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = btnOrig; }
+  }
 }
 
 function filterTornim(query) {
