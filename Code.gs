@@ -2897,8 +2897,9 @@ function cleanupFutureEmptySkeletons() {
     }
     if (hasData) { kept.push(sh.getName()); return; }
 
+    var name = sh.getName();
     ss.deleteSheet(sh);
-    deleted.push(sh.getName());
+    deleted.push(name);
   });
 
   Logger.log('נמחקו ' + deleted.length + ' שלדים ריקים: ' + deleted.join(', '));
