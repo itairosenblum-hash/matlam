@@ -883,7 +883,76 @@ function actionGetSchedule(req, user) {
     // Month is still a draft — hide it from non-admin users
     return {success: true, schedule: [], month, draft: true};
   }
-  return {success: true, schedule, month, draft: schedStatus === 'draft'};
+  // Admin-only: names of tornim whose pre-month score already sat at/above the group
+  // average but got no duty this month — the persistent "🚫 מדולגים החודש" banner.
+  const skippedNames = (user && user.role === 'admin') ? computeSkippedTornim(month) : [];
+  return {success: true, schedule, month, draft: schedStatus === 'draft', skippedNames};
+}
+
+// Names deliberately passed over by the algorithm this month: active, in-rotation
+// tornim (same filter as calcAverageScore) whose pre-month accumulated score was
+// already at/above the group average, yet who received no V/V2 duty this month.
+// Admin's own name is always excluded, independent of the People dutyCategory value.
+function computeSkippedTornim(month) {
+  try {
+    var mon = parseInt(String(month).substring(4,6), 10);
+    if (!mon) return [];
+    var year = scoreYearOf(month);
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+    var assigned = {};
+    var schedSheet = ss.getSheetByName('Schedule_' + month);
+    if (schedSheet) {
+      var schedRows = schedSheet.getDataRange().getValues();
+      for (var i = 1; i < schedRows.length; i++) {
+        var v1 = String(schedRows[i][3]||'').trim();
+        var v2 = String(schedRows[i][9]||'').trim();
+        if (v1) assigned[v1] = true;
+        if (v2) assigned[v2] = true;
+      }
+    }
+
+    var avg = calcAverageScore();
+
+    var peopleMap = {};
+    (actionGetPeople().people||[]).forEach(function(p){ peopleMap[String(p.name||'').trim()] = p; });
+
+    var usersActive = {}, usersRole = {}, adminName = '';
+    var uRows = getSheet(SH.USERS).getDataRange().getValues();
+    for (var ua = 1; ua < uRows.length; ua++) {
+      var uan = String(uRows[ua][1]||'').trim();
+      if (!uan) continue;
+      usersActive[uan] = !!uRows[ua][5];
+      usersRole[uan] = String(uRows[ua][4]||'').trim();
+      if (usersRole[uan] === 'admin') adminName = uan;
+    }
+
+    var scoreRows = getScoresSheet(year).getDataRange().getValues();
+    var scoreColIdx0 = 5 + (mon-1)*2; // 0-indexed monthly SCORE col (F=5 for jan)
+    var skipped = [];
+
+    for (var j = 1; j < scoreRows.length; j++) {
+      var name = String(scoreRows[j][0]||'').trim();
+      if (!name || name === adminName) continue;
+      var p = peopleMap[name] || {};
+      var cat = String(p.dutyCategory||'').trim();
+      if (AVG_EXCLUDED_CATEGORIES.indexOf(cat) !== -1) continue;
+      var activity = String(p.activity||'1').trim();
+      if (activity === '0' || activity === '0.5') continue;
+      if (usersActive[name] === false) continue;
+      if (usersRole[name] === 'viewer') continue;
+      if (assigned[name]) continue; // got a duty this month
+
+      var total = Number(scoreRows[j][3]) || 0;             // col D: accumulated total (already incl. this month)
+      var thisMonthScore = Number(scoreRows[j][scoreColIdx0]) || 0;
+      var preMonth = total - thisMonthScore;
+      if (preMonth >= avg) skipped.push(name);
+    }
+    return skipped;
+  } catch(e) {
+    Logger.log('computeSkippedTornim error: ' + e);
+    return [];
+  }
 }
 
 function actionUpdateScheduleEntry(req) {
