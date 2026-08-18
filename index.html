@@ -1665,7 +1665,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">18/08/2026 05:49</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">18/08/2026 07:43</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1678,8 +1678,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = '18/08/2026 05:49';
-const BUILD_EPOCH = 1787021399331; // ms — when this exact file was pushed
+const BUILD_STAMP = '18/08/2026 07:43';
+const BUILD_EPOCH = 1787028208474; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -2475,13 +2475,18 @@ function populateMonthSelects() {
   const now = new Date();
   const currentVal = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}`;
   const opts = [];
-  // Show from Jan 2026 to Dec 2029
-  for (let y = 2026; y <= 2029; y++) {
-    for (let m = 1; m <= 12; m++) {
-      const val = `${y}${String(m).padStart(2,'0')}`;
-      const label = `${MONTHS[m-1]} ${y}`;
-      opts.push(`<option value="${val}">${label}</option>`);
-    }
+  // Historical start of the system stays fixed (needed for score/history views);
+  // the end floats 2 months ahead of "today" so this list never needs a manual
+  // yearly bump again — matches the rolling one-month-ahead skeleton the backend
+  // now keeps ready automatically on every generate.
+  const endDate = new Date(now.getFullYear(), now.getMonth() + 2, 1);
+  let y = 2026, m = 1;
+  while (y < endDate.getFullYear() || (y === endDate.getFullYear() && m <= endDate.getMonth() + 1)) {
+    const val = `${y}${String(m).padStart(2,'0')}`;
+    const label = `${MONTHS[m-1]} ${y}`;
+    opts.push(`<option value="${val}">${label}</option>`);
+    m++;
+    if (m > 12) { m = 1; y++; }
   }
   ['constraint-month-select','my-schedule-month','user-schedule-month','admin-schedule-month','admin-constraint-month'].forEach(id => {
     const el = document.getElementById(id);
