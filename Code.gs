@@ -899,6 +899,7 @@ function computeSkippedTornim(month) {
     if (!mon) return [];
     var year = scoreYearOf(month);
     var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var daysInMonth = new Date(year, mon, 0).getDate();
 
     var assigned = {};
     var schedSheet = ss.getSheetByName('Schedule_' + month);
@@ -909,6 +910,25 @@ function computeSkippedTornim(month) {
         var v2 = String(schedRows[i][9]||'').trim();
         if (v1) assigned[v1] = true;
         if (v2) assigned[v2] = true;
+      }
+    }
+
+    // Full-month "X" constraints (e.g. via the "🚫 לא מבצע החודש" button, or
+    // manually marking every day) are a skip for a known, explicit reason —
+    // flag them regardless of where their score sits vs. the group average.
+    var fullConstraint = {};
+    var consSheet = ss.getSheetByName('Constraints_' + month);
+    if (consSheet) {
+      var consRows = consSheet.getDataRange().getValues();
+      for (var ci = 1; ci < consRows.length; ci++) {
+        var cName = String(consRows[ci][0]||'').trim();
+        if (!cName) continue;
+        var dayVals = consRows[ci].slice(1, 1 + daysInMonth);
+        var allX = dayVals.length === daysInMonth && dayVals.every(function(c){
+          var cv = String(c||'').trim().toUpperCase();
+          return cv === 'X' || c === true;
+        });
+        if (allX) fullConstraint[cName] = true;
       }
     }
 
@@ -946,7 +966,12 @@ function computeSkippedTornim(month) {
       var total = Number(scoreRows[j][3]) || 0;             // col D: accumulated total (already incl. this month)
       var thisMonthScore = Number(scoreRows[j][scoreColIdx0]) || 0;
       var preMonth = total - thisMonthScore;
-      if (preMonth >= avg) skipped.push(name);
+
+      if (fullConstraint[name]) {
+        skipped.push(name + ' (אילוץ מלא החודש)');
+      } else if (preMonth >= avg) {
+        skipped.push(name);
+      }
     }
     return skipped;
   } catch(e) {
