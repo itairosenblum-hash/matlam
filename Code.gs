@@ -598,7 +598,7 @@ function actionGetScores(req) {
   // deactivated accounts, and viewer (read-only) accounts.
   // Note p.role does not exist — actionGetPeople reads the People sheet, which
   // has no role column, so the old `p.role === 'admin'` check never fired.
-  const SCORES_HIDDEN_CATEGORIES = ['אב', 'מנהל מערכת', 'לא מוסמך', 'טרם הוסמך', 'פטור'];
+  const SCORES_HIDDEN_CATEGORIES = ['אב', 'מנהל מערכת', 'לא מוסמך', 'טרם הוסמך'];
   const scores = people.filter(p => {
     const nm  = String(p.name || '').trim();
     const cat = String(p.dutyCategory || '').trim();
@@ -1055,22 +1055,10 @@ function actionGenerateSchedule(req) {
   const allPeople = actionGetPeople().people;
   const activePeople = allPeople.filter(p => p.activity !== '0' && p.dutyCategory !== 'פטור');
 
-  // Load accumulated scores as working copy.
-  // Read the Scores sheet DIRECTLY rather than going through actionGetScores:
-  // that function filters its output for DISPLAY (it hides אב, פטור, unqualified,
-  // deactivated and viewer accounts). A scheduler must never inherit a display
-  // filter — anyone missing from the map would fall to `|| 0` and, being the
-  // lowest scorer in existence, would be handed every duty in the month.
-  // Semantics kept identical to before: sum of the 12 monthly score columns.
+  // Load accumulated scores as working copy
+  const scoresData = actionGetScores().scores;
   const workingScores = {};
-  const wsRows = getScoresSheet(String(year)).getDataRange().getValues();
-  for (let wi = 1; wi < wsRows.length; wi++) {
-    const wn = String(wsRows[wi][0] || '').trim();
-    if (!wn) continue;
-    let wTot = 0;
-    for (let wm = 0; wm < 12; wm++) wTot += Number(wsRows[wi][5 + wm * 2]) || 0;
-    workingScores[wn] = wTot;
-  }
+  scoresData.forEach(s => { workingScores[s.name] = Number(s.acc2026) || 0; });
 
   // Load constraints for this month
   const constraintsRes = actionGetAllConstraints({month});
@@ -1864,56 +1852,47 @@ function initJuneSchedule2026() {
 
 // ===== לוח חגים ומועדים ישראל 2026 =====
 function getIsraeliHolidays2026() {
+  // תאריכים מאומתים מול Hebcal.com (גרסת ישראל) — אוגוסט 2026
+  // הערה: בישראל פסח/שבועות/סוכות הם יום חג אחד (לא יומיים כמו בגולה)
   return {
-    // פורים
-    '2026-03-13': {type:'ערב חג', name:'תענית אסתר'},
-    '2026-03-14': {type:'חג',     name:'פורים'},
-    // פסח
-    '2026-03-31': {type:'ערב חג', name:'ערב פסח'},
-    '2026-04-01': {type:'חג',     name:'פסח א׳'},
-    '2026-04-02': {type:'חג',     name:'פסח ב׳'},
-    '2026-04-03': {type:'חג',     name:'חוה״מ פסח'},
-    '2026-04-04': {type:'חג',     name:'חוה״מ פסח'},
-    '2026-04-05': {type:'חג',     name:'חוה״מ פסח'},
-    '2026-04-06': {type:'חג',     name:'חוה״מ פסח'},
+    '2026-03-02': {type:'ערב חג', name:'תענית אסתר'},
+    '2026-03-03': {type:'חג', name:'פורים'},
+    '2026-04-01': {type:'ערב חג', name:'ערב פסח'},
+    '2026-04-02': {type:'חג', name:'פסח א׳'},
+    '2026-04-03': {type:'חג', name:'חוה״מ פסח'},
+    '2026-04-04': {type:'חג', name:'חוה״מ פסח'},
+    '2026-04-05': {type:'חג', name:'חוה״מ פסח'},
+    '2026-04-06': {type:'חג', name:'חוה״מ פסח'},
     '2026-04-07': {type:'ערב חג', name:'ערב שביעי של פסח'},
-    '2026-04-08': {type:'חג',     name:'שביעי של פסח'},
-    // יום העצמאות
-    '2026-04-21': {type:'ערב חג', name:'יום הזיכרון'},
-    '2026-04-22': {type:'חג',     name:'יום העצמאות'},
-    // שבועות
-    '2026-05-20': {type:'ערב חג', name:'ערב שבועות'},
-    '2026-05-21': {type:'חג',     name:'שבועות א׳'},
-    '2026-05-22': {type:'חג',     name:'שבועות ב׳'},
-    // תשעה באב
+    '2026-04-08': {type:'חג', name:'שביעי של פסח'},
+    '2026-04-20': {type:'ערב חג', name:'יום הזיכרון'},
+    '2026-04-21': {type:'חג', name:'יום העצמאות'},
+    '2026-05-21': {type:'ערב חג', name:'ערב שבועות'},
+    '2026-05-22': {type:'חג', name:'שבועות'},
     '2026-07-22': {type:'ערב חג', name:'ערב תשעה באב'},
-    '2026-07-23': {type:'חג',     name:'תשעה באב'},
-    // ראש השנה
-    '2026-09-19': {type:'ערב חג', name:'ערב ראש השנה'},
-    '2026-09-20': {type:'חג',     name:'ראש השנה א׳'},
-    '2026-09-21': {type:'חג',     name:'ראש השנה ב׳'},
-    // יום כיפור
-    '2026-09-28': {type:'ערב חג', name:'ערב יום כיפור'},
-    '2026-09-29': {type:'חג',     name:'יום כיפור'},
-    // סוכות
-    '2026-10-03': {type:'ערב חג', name:'ערב סוכות'},
-    '2026-10-04': {type:'חג',     name:'סוכות א׳'},
-    '2026-10-05': {type:'חג',     name:'סוכות ב׳'},
-    '2026-10-06': {type:'חג',     name:'חוה״מ סוכות'},
-    '2026-10-07': {type:'חג',     name:'חוה״מ סוכות'},
-    '2026-10-08': {type:'חג',     name:'חוה״מ סוכות'},
-    '2026-10-09': {type:'חג',     name:'חוה״מ סוכות'},
-    '2026-10-10': {type:'ערב חג', name:'הושענא רבה'},
-    '2026-10-11': {type:'חג',     name:'שמחת תורה'},
-    // חנוכה
-    '2026-12-01': {type:'חג',     name:'חנוכה א׳'},
-    '2026-12-02': {type:'חג',     name:'חנוכה ב׳'},
-    '2026-12-03': {type:'חג',     name:'חנוכה ג׳'},
-    '2026-12-04': {type:'חג',     name:'חנוכה ד׳'},
-    '2026-12-05': {type:'חג',     name:'חנוכה ה׳'},
-    '2026-12-06': {type:'חג',     name:'חנוכה ו׳'},
-    '2026-12-07': {type:'חג',     name:'חנוכה ז׳'},
-    '2026-12-08': {type:'חג',     name:'חנוכה ח׳'},
+    '2026-07-23': {type:'חג', name:'תשעה באב'},
+    '2026-09-11': {type:'ערב חג', name:'ערב ראש השנה'},
+    '2026-09-12': {type:'חג', name:'ראש השנה א׳'},
+    '2026-09-13': {type:'חג', name:'ראש השנה ב׳'},
+    '2026-09-20': {type:'ערב חג', name:'ערב יום כיפור'},
+    '2026-09-21': {type:'חג', name:'יום כיפור'},
+    '2026-09-25': {type:'ערב חג', name:'ערב סוכות'},
+    '2026-09-26': {type:'חג', name:'סוכות'},
+    '2026-09-27': {type:'חג', name:'חוה״מ סוכות'},
+    '2026-09-28': {type:'חג', name:'חוה״מ סוכות'},
+    '2026-09-29': {type:'חג', name:'חוה״מ סוכות'},
+    '2026-09-30': {type:'חג', name:'חוה״מ סוכות'},
+    '2026-10-01': {type:'חג', name:'חוה״מ סוכות'},
+    '2026-10-02': {type:'ערב חג', name:'הושענא רבה'},
+    '2026-10-03': {type:'חג', name:'שמחת תורה'},
+    '2026-12-05': {type:'חג', name:'חנוכה א׳'},
+    '2026-12-06': {type:'חג', name:'חנוכה ב׳'},
+    '2026-12-07': {type:'חג', name:'חנוכה ג׳'},
+    '2026-12-08': {type:'חג', name:'חנוכה ד׳'},
+    '2026-12-09': {type:'חג', name:'חנוכה ה׳'},
+    '2026-12-10': {type:'חג', name:'חנוכה ו׳'},
+    '2026-12-11': {type:'חג', name:'חנוכה ז׳'},
+    '2026-12-12': {type:'חג', name:'חנוכה ח׳'},
   };
 }
 
@@ -2001,157 +1980,124 @@ function actionInitMonth(req) {
 function getIsraeliHolidays() {
   const h2026 = getIsraeliHolidays2026();
   const h2027 = {
-    // פורים
-    '2027-03-03': {type:'ערב חג', name:'תענית אסתר'},
-    '2027-03-04': {type:'חג',     name:'פורים'},
-    // פסח
-    '2027-04-20': {type:'ערב חג', name:'ערב פסח'},
-    '2027-04-21': {type:'חג',     name:'פסח א׳'},
-    '2027-04-22': {type:'חג',     name:'פסח ב׳'},
-    '2027-04-23': {type:'חג',     name:'חוה״מ פסח'},
-    '2027-04-24': {type:'חג',     name:'חוה״מ פסח'},
-    '2027-04-25': {type:'חג',     name:'חוה״מ פסח'},
-    '2027-04-26': {type:'חג',     name:'חוה״מ פסח'},
+    '2027-03-22': {type:'ערב חג', name:'תענית אסתר'},
+    '2027-03-23': {type:'חג', name:'פורים'},
+    '2027-04-21': {type:'ערב חג', name:'ערב פסח'},
+    '2027-04-22': {type:'חג', name:'פסח א׳'},
+    '2027-04-23': {type:'חג', name:'חוה״מ פסח'},
+    '2027-04-24': {type:'חג', name:'חוה״מ פסח'},
+    '2027-04-25': {type:'חג', name:'חוה״מ פסח'},
+    '2027-04-26': {type:'חג', name:'חוה״מ פסח'},
     '2027-04-27': {type:'ערב חג', name:'ערב שביעי של פסח'},
-    '2027-04-28': {type:'חג',     name:'שביעי של פסח'},
-    // יום העצמאות
-    '2027-05-18': {type:'ערב חג', name:'יום הזיכרון'},
-    '2027-05-19': {type:'חג',     name:'יום העצמאות'},
-    // שבועות
-    '2027-06-09': {type:'ערב חג', name:'ערב שבועות'},
-    '2027-06-10': {type:'חג',     name:'שבועות א׳'},
-    '2027-06-11': {type:'חג',     name:'שבועות ב׳'},
-    // תשעה באב
-    '2027-08-10': {type:'ערב חג', name:'ערב תשעה באב'},
-    '2027-08-11': {type:'חג',     name:'תשעה באב'},
-    // ראש השנה
-    '2027-09-10': {type:'ערב חג', name:'ערב ראש השנה'},
-    '2027-09-11': {type:'חג',     name:'ראש השנה א׳'},
-    '2027-09-12': {type:'חג',     name:'ראש השנה ב׳'},
-    // יום כיפור
-    '2027-09-19': {type:'ערב חג', name:'ערב יום כיפור'},
-    '2027-09-20': {type:'חג',     name:'יום כיפור'},
-    // סוכות
-    '2027-09-24': {type:'ערב חג', name:'ערב סוכות'},
-    '2027-09-25': {type:'חג',     name:'סוכות א׳'},
-    '2027-09-26': {type:'חג',     name:'סוכות ב׳'},
-    '2027-09-27': {type:'חג',     name:'חוה״מ סוכות'},
-    '2027-09-28': {type:'חג',     name:'חוה״מ סוכות'},
-    '2027-09-29': {type:'חג',     name:'חוה״מ סוכות'},
-    '2027-09-30': {type:'חג',     name:'חוה״מ סוכות'},
-    '2027-10-01': {type:'ערב חג', name:'הושענא רבה'},
-    '2027-10-02': {type:'חג',     name:'שמחת תורה'},
-    // חנוכה
-    '2027-12-20': {type:'חג',     name:'חנוכה א׳'},
-    '2027-12-21': {type:'חג',     name:'חנוכה ב׳'},
-    '2027-12-22': {type:'חג',     name:'חנוכה ג׳'},
-    '2027-12-23': {type:'חג',     name:'חנוכה ד׳'},
-    '2027-12-24': {type:'חג',     name:'חנוכה ה׳'},
-    '2027-12-25': {type:'חג',     name:'חנוכה ו׳'},
-    '2027-12-26': {type:'חג',     name:'חנוכה ז׳'},
-    '2027-12-27': {type:'חג',     name:'חנוכה ח׳'},
+    '2027-04-28': {type:'חג', name:'שביעי של פסח'},
+    '2027-05-10': {type:'ערב חג', name:'יום הזיכרון'},
+    '2027-05-11': {type:'חג', name:'יום העצמאות'},
+    '2027-06-10': {type:'ערב חג', name:'ערב שבועות'},
+    '2027-06-11': {type:'חג', name:'שבועות'},
+    '2027-08-11': {type:'ערב חג', name:'ערב תשעה באב'},
+    '2027-08-12': {type:'חג', name:'תשעה באב'},
+    '2027-10-01': {type:'ערב חג', name:'ערב ראש השנה'},
+    '2027-10-02': {type:'חג', name:'ראש השנה א׳'},
+    '2027-10-03': {type:'חג', name:'ראש השנה ב׳'},
+    '2027-10-10': {type:'ערב חג', name:'ערב יום כיפור'},
+    '2027-10-11': {type:'חג', name:'יום כיפור'},
+    '2027-10-15': {type:'ערב חג', name:'ערב סוכות'},
+    '2027-10-16': {type:'חג', name:'סוכות'},
+    '2027-10-17': {type:'חג', name:'חוה״מ סוכות'},
+    '2027-10-18': {type:'חג', name:'חוה״מ סוכות'},
+    '2027-10-19': {type:'חג', name:'חוה״מ סוכות'},
+    '2027-10-20': {type:'חג', name:'חוה״מ סוכות'},
+    '2027-10-21': {type:'חג', name:'חוה״מ סוכות'},
+    '2027-10-22': {type:'ערב חג', name:'הושענא רבה'},
+    '2027-10-23': {type:'חג', name:'שמחת תורה'},
+    '2027-12-25': {type:'חג', name:'חנוכה א׳'},
+    '2027-12-26': {type:'חג', name:'חנוכה ב׳'},
+    '2027-12-27': {type:'חג', name:'חנוכה ג׳'},
+    '2027-12-28': {type:'חג', name:'חנוכה ד׳'},
+    '2027-12-29': {type:'חג', name:'חנוכה ה׳'},
+    '2027-12-30': {type:'חג', name:'חנוכה ו׳'},
+    '2027-12-31': {type:'חג', name:'חנוכה ז׳'},
+    '2028-01-01': {type:'חג', name:'חנוכה ח׳'},
   };
   const h2028 = {
-    // פורים
-    '2028-03-22': {type:'ערב חג', name:'תענית אסתר'},
-    '2028-03-23': {type:'חג',     name:'פורים'},
-    // פסח
-    '2028-04-09': {type:'ערב חג', name:'ערב פסח'},
-    '2028-04-10': {type:'חג',     name:'פסח א׳'},
-    '2028-04-11': {type:'חג',     name:'פסח ב׳'},
-    '2028-04-12': {type:'חג',     name:'חוה״מ פסח'},
-    '2028-04-13': {type:'חג',     name:'חוה״מ פסח'},
-    '2028-04-14': {type:'חג',     name:'חוה״מ פסח'},
-    '2028-04-15': {type:'חג',     name:'חוה״מ פסח'},
+    '2028-03-11': {type:'ערב חג', name:'תענית אסתר'},
+    '2028-03-12': {type:'חג', name:'פורים'},
+    '2028-04-10': {type:'ערב חג', name:'ערב פסח'},
+    '2028-04-11': {type:'חג', name:'פסח א׳'},
+    '2028-04-12': {type:'חג', name:'חוה״מ פסח'},
+    '2028-04-13': {type:'חג', name:'חוה״מ פסח'},
+    '2028-04-14': {type:'חג', name:'חוה״מ פסח'},
+    '2028-04-15': {type:'חג', name:'חוה״מ פסח'},
     '2028-04-16': {type:'ערב חג', name:'ערב שביעי של פסח'},
-    '2028-04-17': {type:'חג',     name:'שביעי של פסח'},
-    // יום העצמאות
-    '2028-05-08': {type:'ערב חג', name:'יום הזיכרון'},
-    '2028-05-09': {type:'חג',     name:'יום העצמאות'},
-    // שבועות
-    '2028-05-28': {type:'ערב חג', name:'ערב שבועות'},
-    '2028-05-29': {type:'חג',     name:'שבועות א׳'},
-    '2028-05-30': {type:'חג',     name:'שבועות ב׳'},
-    // תשעה באב
-    '2028-07-29': {type:'ערב חג', name:'ערב תשעה באב'},
-    '2028-07-30': {type:'חג',     name:'תשעה באב'},
-    // ראש השנה
-    '2028-09-28': {type:'ערב חג', name:'ערב ראש השנה'},
-    '2028-09-29': {type:'חג',     name:'ראש השנה א׳'},
-    '2028-09-30': {type:'חג',     name:'ראש השנה ב׳'},
-    // יום כיפור
-    '2028-10-07': {type:'ערב חג', name:'ערב יום כיפור'},
-    '2028-10-08': {type:'חג',     name:'יום כיפור'},
-    // סוכות
-    '2028-10-12': {type:'ערב חג', name:'ערב סוכות'},
-    '2028-10-13': {type:'חג',     name:'סוכות א׳'},
-    '2028-10-14': {type:'חג',     name:'סוכות ב׳'},
-    '2028-10-15': {type:'חג',     name:'חוה״מ סוכות'},
-    '2028-10-16': {type:'חג',     name:'חוה״מ סוכות'},
-    '2028-10-17': {type:'חג',     name:'חוה״מ סוכות'},
-    '2028-10-18': {type:'חג',     name:'חוה״מ סוכות'},
-    '2028-10-19': {type:'ערב חג', name:'הושענא רבה'},
-    '2028-10-20': {type:'חג',     name:'שמחת תורה'},
-    // חנוכה
-    '2028-12-08': {type:'חג',     name:'חנוכה א׳'},
-    '2028-12-09': {type:'חג',     name:'חנוכה ב׳'},
-    '2028-12-10': {type:'חג',     name:'חנוכה ג׳'},
-    '2028-12-11': {type:'חג',     name:'חנוכה ד׳'},
-    '2028-12-12': {type:'חג',     name:'חנוכה ה׳'},
-    '2028-12-13': {type:'חג',     name:'חנוכה ו׳'},
-    '2028-12-14': {type:'חג',     name:'חנוכה ז׳'},
-    '2028-12-15': {type:'חג',     name:'חנוכה ח׳'},
+    '2028-04-17': {type:'חג', name:'שביעי של פסח'},
+    '2028-04-30': {type:'ערב חג', name:'יום הזיכרון'},
+    '2028-05-01': {type:'חג', name:'יום העצמאות'},
+    '2028-05-30': {type:'ערב חג', name:'ערב שבועות'},
+    '2028-05-31': {type:'חג', name:'שבועות'},
+    '2028-07-31': {type:'ערב חג', name:'ערב תשעה באב'},
+    '2028-08-01': {type:'חג', name:'תשעה באב'},
+    '2028-09-20': {type:'ערב חג', name:'ערב ראש השנה'},
+    '2028-09-21': {type:'חג', name:'ראש השנה א׳'},
+    '2028-09-22': {type:'חג', name:'ראש השנה ב׳'},
+    '2028-09-29': {type:'ערב חג', name:'ערב יום כיפור'},
+    '2028-09-30': {type:'חג', name:'יום כיפור'},
+    '2028-10-04': {type:'ערב חג', name:'ערב סוכות'},
+    '2028-10-05': {type:'חג', name:'סוכות'},
+    '2028-10-06': {type:'חג', name:'חוה״מ סוכות'},
+    '2028-10-07': {type:'חג', name:'חוה״מ סוכות'},
+    '2028-10-08': {type:'חג', name:'חוה״מ סוכות'},
+    '2028-10-09': {type:'חג', name:'חוה״מ סוכות'},
+    '2028-10-10': {type:'חג', name:'חוה״מ סוכות'},
+    '2028-10-11': {type:'ערב חג', name:'הושענא רבה'},
+    '2028-10-12': {type:'חג', name:'שמחת תורה'},
+    '2028-12-13': {type:'חג', name:'חנוכה א׳'},
+    '2028-12-14': {type:'חג', name:'חנוכה ב׳'},
+    '2028-12-15': {type:'חג', name:'חנוכה ג׳'},
+    '2028-12-16': {type:'חג', name:'חנוכה ד׳'},
+    '2028-12-17': {type:'חג', name:'חנוכה ה׳'},
+    '2028-12-18': {type:'חג', name:'חנוכה ו׳'},
+    '2028-12-19': {type:'חג', name:'חנוכה ז׳'},
+    '2028-12-20': {type:'חג', name:'חנוכה ח׳'},
   };
   const h2029 = {
-    // פורים
-    '2029-03-11': {type:'ערב חג', name:'תענית אסתר'},
-    '2029-03-12': {type:'חג',     name:'פורים'},
-    // פסח
-    '2029-03-28': {type:'ערב חג', name:'ערב פסח'},
-    '2029-03-29': {type:'חג',     name:'פסח א׳'},
-    '2029-03-30': {type:'חג',     name:'פסח ב׳'},
-    '2029-03-31': {type:'חג',     name:'חוה״מ פסח'},
-    '2029-04-01': {type:'חג',     name:'חוה״מ פסח'},
-    '2029-04-02': {type:'חג',     name:'חוה״מ פסח'},
-    '2029-04-03': {type:'חג',     name:'חוה״מ פסח'},
-    '2029-04-04': {type:'ערב חג', name:'ערב שביעי של פסח'},
-    '2029-04-05': {type:'חג',     name:'שביעי של פסח'},
-    // יום העצמאות
-    '2029-04-25': {type:'ערב חג', name:'יום הזיכרון'},
-    '2029-04-26': {type:'חג',     name:'יום העצמאות'},
-    // שבועות
-    '2029-05-17': {type:'ערב חג', name:'ערב שבועות'},
-    '2029-05-18': {type:'חג',     name:'שבועות א׳'},
-    '2029-05-19': {type:'חג',     name:'שבועות ב׳'},
-    // תשעה באב
-    '2029-07-19': {type:'ערב חג', name:'ערב תשעה באב'},
-    '2029-07-20': {type:'חג',     name:'תשעה באב'},
-    // ראש השנה
-    '2029-09-17': {type:'ערב חג', name:'ערב ראש השנה'},
-    '2029-09-18': {type:'חג',     name:'ראש השנה א׳'},
-    '2029-09-19': {type:'חג',     name:'ראש השנה ב׳'},
-    // יום כיפור
-    '2029-09-26': {type:'ערב חג', name:'ערב יום כיפור'},
-    '2029-09-27': {type:'חג',     name:'יום כיפור'},
-    // סוכות
-    '2029-10-01': {type:'ערב חג', name:'ערב סוכות'},
-    '2029-10-02': {type:'חג',     name:'סוכות א׳'},
-    '2029-10-03': {type:'חג',     name:'סוכות ב׳'},
-    '2029-10-04': {type:'חג',     name:'חוה״מ סוכות'},
-    '2029-10-05': {type:'חג',     name:'חוה״מ סוכות'},
-    '2029-10-06': {type:'חג',     name:'חוה״מ סוכות'},
-    '2029-10-07': {type:'חג',     name:'חוה״מ סוכות'},
-    '2029-10-08': {type:'ערב חג', name:'הושענא רבה'},
-    '2029-10-09': {type:'חג',     name:'שמחת תורה'},
-    // חנוכה
-    '2029-11-28': {type:'חג',     name:'חנוכה א׳'},
-    '2029-11-29': {type:'חג',     name:'חנוכה ב׳'},
-    '2029-11-30': {type:'חג',     name:'חנוכה ג׳'},
-    '2029-12-01': {type:'חג',     name:'חנוכה ד׳'},
-    '2029-12-02': {type:'חג',     name:'חנוכה ה׳'},
-    '2029-12-03': {type:'חג',     name:'חנוכה ו׳'},
-    '2029-12-04': {type:'חג',     name:'חנוכה ז׳'},
-    '2029-12-05': {type:'חג',     name:'חנוכה ח׳'},
+    '2029-02-28': {type:'ערב חג', name:'תענית אסתר'},
+    '2029-03-01': {type:'חג', name:'פורים'},
+    '2029-03-30': {type:'ערב חג', name:'ערב פסח'},
+    '2029-03-31': {type:'חג', name:'פסח א׳'},
+    '2029-04-01': {type:'חג', name:'חוה״מ פסח'},
+    '2029-04-02': {type:'חג', name:'חוה״מ פסח'},
+    '2029-04-03': {type:'חג', name:'חוה״מ פסח'},
+    '2029-04-04': {type:'חג', name:'חוה״מ פסח'},
+    '2029-04-05': {type:'ערב חג', name:'ערב שביעי של פסח'},
+    '2029-04-06': {type:'חג', name:'שביעי של פסח'},
+    '2029-04-17': {type:'ערב חג', name:'יום הזיכרון'},
+    '2029-04-18': {type:'חג', name:'יום העצמאות'},
+    '2029-05-19': {type:'ערב חג', name:'ערב שבועות'},
+    '2029-05-20': {type:'חג', name:'שבועות'},
+    '2029-07-21': {type:'ערב חג', name:'ערב תשעה באב'},
+    '2029-07-22': {type:'חג', name:'תשעה באב'},
+    '2029-09-09': {type:'ערב חג', name:'ערב ראש השנה'},
+    '2029-09-10': {type:'חג', name:'ראש השנה א׳'},
+    '2029-09-11': {type:'חג', name:'ראש השנה ב׳'},
+    '2029-09-18': {type:'ערב חג', name:'ערב יום כיפור'},
+    '2029-09-19': {type:'חג', name:'יום כיפור'},
+    '2029-09-23': {type:'ערב חג', name:'ערב סוכות'},
+    '2029-09-24': {type:'חג', name:'סוכות'},
+    '2029-09-25': {type:'חג', name:'חוה״מ סוכות'},
+    '2029-09-26': {type:'חג', name:'חוה״מ סוכות'},
+    '2029-09-27': {type:'חג', name:'חוה״מ סוכות'},
+    '2029-09-28': {type:'חג', name:'חוה״מ סוכות'},
+    '2029-09-29': {type:'חג', name:'חוה״מ סוכות'},
+    '2029-09-30': {type:'ערב חג', name:'הושענא רבה'},
+    '2029-10-01': {type:'חג', name:'שמחת תורה'},
+    '2029-12-02': {type:'חג', name:'חנוכה א׳'},
+    '2029-12-03': {type:'חג', name:'חנוכה ב׳'},
+    '2029-12-04': {type:'חג', name:'חנוכה ג׳'},
+    '2029-12-05': {type:'חג', name:'חנוכה ד׳'},
+    '2029-12-06': {type:'חג', name:'חנוכה ה׳'},
+    '2029-12-07': {type:'חג', name:'חנוכה ו׳'},
+    '2029-12-08': {type:'חג', name:'חנוכה ז׳'},
+    '2029-12-09': {type:'חג', name:'חנוכה ח׳'},
   };
   return Object.assign({}, h2026, h2027, h2028, h2029);
 }
@@ -3551,6 +3497,20 @@ function actionGenerateScheduleV2(req) {
     if (colCVals.length) schedSheet.getRange(2, 3, colCVals.length, 1).setValues(colCVals);
   }
 
+  // קיבועים ידניים לריצה הנוכחית בלבד — מגיעים מחלון ההפקה (לא מהתאים בגיליון!),
+  // כך ש-regenerate על חודש קיים לא "יקפיא" את כל הלוח הקודם כאילו הכל מקובע.
+  var PINNED_V = {};
+  try {
+    var pinReq = req.pinnedAssignments;
+    if (pinReq) {
+      var pinObj = (typeof pinReq === 'string') ? JSON.parse(pinReq) : pinReq;
+      Object.keys(pinObj).forEach(function(dk){
+        var nmP = String(pinObj[dk]||'').trim();
+        if (nmP) PINNED_V[parseInt(dk)] = nmP;
+      });
+    }
+  } catch(e) { Logger.log('pinnedAssignments parse error: ' + e); }
+
   var DAY_CAT = {}, WEEKEND_PAIRS = [];
   for (var si2 = 1; si2 < schedRows.length; si2++) {
     var dateCell = schedRows[si2][0];
@@ -3630,6 +3590,76 @@ function actionGenerateScheduleV2(req) {
 
   var usedV = {}, dayToV = {}, slotPrimary = {}, fwCovered = {};
   var relaxNotes = []; // transparency: records every rule relaxation applied
+  var pinnedNotes = []; // transparency: records every manual pin applied by the admin
+
+  // ── PRIORITY 0: קיבועים ידניים (נבחרו בחלון ההפקה) ──────────────
+  // תורן שנבחר ידנית ליום מסוים לא ייבחר מחדש ע"י האלגוריתם, אבל כן נזקף לו
+  // הניקוד המתאים ומתעדכנים last_weekend/last_fw כדי שההוגנות בהמשך תישאר נכונה.
+  var pinnedDaysArr = Object.keys(PINNED_V).map(Number).sort(function(a,b){return a-b;});
+  pinnedDaysArr.forEach(function(day){
+    if (dayToV[day]) return; // כבר טופל (למשל כיום שני בזוג שכוסה ע"י קיבוע "מלא")
+    var name = PINNED_V[day];
+    var p = people[name];
+    var cat = DAY_CAT[day] || 'חול';
+
+    if (!p) {
+      pinnedNotes.push('יום ' + day + ': "' + name + '" לא זוהה כתורן פעיל — הקיבוע לא הופעל');
+      return;
+    }
+
+    if (usedV[name]) {
+      pinnedNotes.push('⚠️ יום ' + day + ': ' + name + ' כבר קובע ליום אחר החודש — קיבוע כפול, ודא שזה מכוון');
+    }
+
+    if ((calInfo[name]||{}).constraints && calInfo[name].constraints[day]) {
+      pinnedNotes.push('⚠️ יום ' + day + ': ' + name + ' קובע ידנית למרות אילוץ X שהוגש לאותו יום');
+    }
+
+    usedV[name] = true;
+
+    // האם היום חלק מזוג (סופ"ש/חג) שהאלגוריתם רגיל לטפל בו כיחידה אחת?
+    var pair = null, pairIsHag = false;
+    HAG_PAIRS.forEach(function(pr){ if (pr[0]===day||pr[1]===day){ pair=pr; pairIsHag=true; } });
+    if (!pair) WEEKEND_PAIRS.forEach(function(pr){ if (pr[0]===day||pr[1]===day){ pair=pr; pairIsHag=false; } });
+
+    if (pair) {
+      var d1=pair[0], d2=pair[1];
+      var otherDay = (day===d1) ? d2 : d1;
+      if (p.weekendType === 'מלא' && !PINNED_V[otherDay] && canDoDay(name, otherDay, true)) {
+        // מלא: בדיוק כמו בהפקה רגילה — מכסה את שני הימים בציון אחד
+        var pairScore = pairIsHag
+          ? Math.max(DUTY_SCORES_MAP[DAY_CAT[d1]]||30, DUTY_SCORES_MAP[DAY_CAT[d2]]||30)
+          : DUTY_SCORES_MAP['סוף שבוע מלא'];
+        var typeLabel = pairIsHag ? 'חג' : 'סוף שבוע מלא';
+        dayToV[d1] = dayToV[d2] = name;
+        slotPrimary[d1] = [name, typeLabel, day===d1 ? pairScore : 0];
+        slotPrimary[d2] = [name, typeLabel, day===d2 ? pairScore : 0];
+        fwCovered[d1] = true; fwCovered[d2] = true;
+        scores[name] += pairScore;
+        people[name].last_weekend = mon;
+        if (!pairIsHag) people[name].last_fw = mon;
+        pinnedNotes.push('יום ' + day + ': ' + name + ' (מלא) קובע ידנית — הושלם אוטומטית גם ליום ' + otherDay);
+      } else {
+        // נפרד, או שהיום הצמוד כבר מקובע בנפרד בעצמו — מכסים רק את היום המקובע;
+        // היום השני יטופל בנפרד ע"י האלגוריתם הרגיל (חג בודד / סופ"ש בודד)
+        var singleScore = DUTY_SCORES_MAP[cat] || (pairIsHag ? 30 : 20);
+        dayToV[day] = name;
+        slotPrimary[day] = [name, cat, singleScore];
+        fwCovered[day] = true;
+        scores[name] += singleScore;
+        people[name].last_weekend = mon;
+        pinnedNotes.push('יום ' + day + ': ' + name + ' קובע ידנית (' + cat + ')');
+      }
+    } else {
+      // יום עצמאי (חול / חמישי / סופ"ש בודד שלא בזוג)
+      var singleScore2 = DUTY_SCORES_MAP[cat] || 10;
+      dayToV[day] = name;
+      slotPrimary[day] = [name, cat, singleScore2];
+      scores[name] += singleScore2;
+      if (cat === 'סוף שבוע') people[name].last_weekend = mon;
+      pinnedNotes.push('יום ' + day + ': ' + name + ' קובע ידנית (' + cat + ')');
+    }
+  });
 
   // Does any torani have a V (forced) mark on this day?
   function dayHasV(day) {
@@ -3660,6 +3690,7 @@ function actionGenerateScheduleV2(req) {
   var paternityPeople = activeNames.filter(function(n){return people[n].activity==='0.5';});
   paternityPeople.sort(function(a,b){ return scores[a]-scores[b]; });
   paternityPeople.forEach(function(pat){
+    if (usedV[pat]) return; // כבר קובע ידנית ליום אחר — אל תוסיף עוד תורנות
     // Policy: משרת אב does one Thursday duty every TWO months
     var ld = people[pat].last_duty;
     if (ld !== null && (mon - ld) < 2) return;
@@ -3798,7 +3829,7 @@ function actionGenerateScheduleV2(req) {
   // PRIORITY 2: Weekend pairs (Fri+Sat) — מלא covers both, נפרד covers one
   WEEKEND_PAIRS.forEach(function(pair){
     var fri=pair[0], sat=pair[1];
-    if (fwCovered[fri]&&fwCovered[sat]) return;
+    if (fwCovered[fri]||fwCovered[sat]) return;
     // Try as full pair first — pickLowest now only returns מלא candidates for pairs,
     // so a low-score נפרד torani no longer blocks the pair
     var chosen = pickLowest([fri,sat], 'סוף שבוע מלא', null);
@@ -4084,6 +4115,7 @@ function actionGenerateScheduleV2(req) {
   if(unassigned.length) msg += '\n❗ ימים ללא מבצע: ' + unassigned.join(', ');
   if(noReserve.length) msg += '\n⚠️ ימים ללא עתודה מלאה: ' + noReserve.join(', ');
   if(relaxNotes.length) msg += '\n⚠️ הקלות שהופעלו:\n• ' + relaxNotes.join('\n• ');
+  if(pinnedNotes.length) msg += '\n📌 קיבועים ידניים:\n• ' + pinnedNotes.join('\n• ');
   // Report only surprising exclusions (service ended); inactive/viewer accounts are expected
   var exList = Object.keys(excludedNames).filter(function(n){return excludedNames[n] === 'סיים שירות';});
   if(exList.length) msg += '\nℹ️ סיימו שירות ולא שובצו: ' + exList.join(', ');
