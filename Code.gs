@@ -3857,16 +3857,20 @@ function actionGenerateScheduleV2(req) {
 
     function collect(allowPrevHag, allowMalaSingle) {
       var candidates = [];
+      var isPairSlot = isWeekendSlot || isHagSlot;
       for (var ni=0; ni<activeNames.length; ni++) {
         var n = activeNames[ni];
         if (usedV[n]) continue;
         var p = people[n];
         if (p.activity === '0.5') continue; // paternity handled separately
-        // Weekend-type enforcement:
-        // a full-weekend PAIR belongs to מלא tornim only;
-        // a SINGLE weekend day belongs to נפרד tornim (מלא allowed only as reported fallback)
-        if (isWeekendSlot && days.length > 1 && p.weekendType !== 'מלא') continue;
-        if (isWeekendSlot && days.length === 1 && p.weekendType === 'מלא' && !allowMalaSingle) continue;
+        // Weekend/holiday-type enforcement: a מלא torani doesn't travel through
+        // Shabbat or Yom Tov, so a multi-day PAIR (full weekend OR a connected
+        // holiday pair) belongs to מלא tornim only — they cover the whole thing
+        // together, never just one day of it. A SINGLE day of either belongs to
+        // נפרד tornim (מלא allowed on a single day only as a reported last-resort
+        // fallback, when no נפרד torani is available at all).
+        if (isPairSlot && days.length > 1 && p.weekendType !== 'מלא') continue;
+        if (isPairSlot && days.length === 1 && p.weekendType === 'מלא' && !allowMalaSingle) continue;
         // Soft rule: חג last month → skip weekends this month (unless nobody else can)
         if (isWeekendSlot && !allowPrevHag && p.prev_hag) continue;
         // Weekend gap check (not for holidays)
@@ -3900,10 +3904,11 @@ function actionGenerateScheduleV2(req) {
         relaxNotes.push('יום ' + days[0] + ': שובץ תורן שעשה חג בחודש הקודם (לא היה מועמד אחר)');
       }
     }
-    if (!candidates.length && isWeekendSlot && days.length === 1) {
+    if (!candidates.length && (isWeekendSlot || isHagSlot) && days.length === 1) {
       candidates = collect(true, true);
       if (candidates.length) {
-        relaxNotes.push('יום ' + days[0] + ': שובץ תורן מסוג "מלא" ליום סופ"ש בודד (לא היה תורן "נפרד" זמין)');
+        var slotLabel = isHagSlot ? 'יום חג בודד' : 'סוף שבוע בודד';
+        relaxNotes.push('יום ' + days[0] + ': שובץ תורן מסוג "מלא" ל' + slotLabel + ' (לא היה תורן "נפרד" זמין)');
       }
     }
     if (!candidates.length) return null;
@@ -3916,25 +3921,32 @@ function actionGenerateScheduleV2(req) {
     var d1=pair[0], d2=pair[1];
     if (fwCovered[d1]||fwCovered[d2]) return;
     var hagScore = Math.max(DUTY_SCORES_MAP[DAY_CAT[d1]]||30, DUTY_SCORES_MAP[DAY_CAT[d2]]||30);
+
+    // Try the full pair first — a מלא torani doesn't travel through Yom Tov, so
+    // if one is available they cover both days together (same as a full weekend).
+    // pickLowest with both days only ever returns a מלא candidate here (see collect()).
+    var chosenPair = pickLowest([d1,d2], 'חג', null);
+    if (chosenPair) {
+      usedV[chosenPair]=true;
+      dayToV[d1]=dayToV[d2]=chosenPair;
+      slotPrimary[d1]=[chosenPair,'חג',hagScore];
+      slotPrimary[d2]=[chosenPair,'חג',0];
+      fwCovered[d1]=true; fwCovered[d2]=true;
+      scores[chosenPair]+=hagScore;
+      people[chosenPair].last_weekend=mon;
+      return;
+    }
+
+    // No מלא torani available for the full pair — split it between נפרד tornim,
+    // one per day (each single-day pick still excludes מלא except as last resort).
     var chosen = pickLowest([d1], 'חג', null);
     if (chosen) {
-      var isMala = people[chosen].weekendType === 'מלא';
       usedV[chosen]=true;
-      if (isMala && canDoDay(chosen, d2, false)) {
-        // מלא covers both days for a single (max) holiday score
-        dayToV[d1]=dayToV[d2]=chosen;
-        slotPrimary[d1]=[chosen,'חג',hagScore];
-        slotPrimary[d2]=[chosen,'חג',0];
-        fwCovered[d1]=true; fwCovered[d2]=true;
-        scores[chosen]+=hagScore;
-      } else {
-        // נפרד (or blocked on d2): covers only the first day; d2 assigned separately below
-        dayToV[d1]=chosen;
-        var sc1 = DUTY_SCORES_MAP[DAY_CAT[d1]]||30;
-        slotPrimary[d1]=[chosen, DAY_CAT[d1]||'חג', sc1];
-        fwCovered[d1]=true;
-        scores[chosen]+=sc1;
-      }
+      dayToV[d1]=chosen;
+      var sc1 = DUTY_SCORES_MAP[DAY_CAT[d1]]||30;
+      slotPrimary[d1]=[chosen, DAY_CAT[d1]||'חג', sc1];
+      fwCovered[d1]=true;
+      scores[chosen]+=sc1;
       people[chosen].last_weekend=mon;
     }
     // Assign second day separately if still uncovered
@@ -3945,9 +3957,11 @@ function actionGenerateScheduleV2(req) {
         var sc2 = DUTY_SCORES_MAP[DAY_CAT[d2]]||30;
         slotPrimary[d2]=[chosen2,'חג',sc2];
         scores[chosen2]+=sc2; fwCovered[d2]=true;
+        people[chosen2].last_weekend=mon;
       }
     }
   });
+
 
   // PRIORITY 1b: Single holiday days not part of a pair (V-marked days first)
   var hagSingles = [];
