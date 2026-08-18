@@ -2868,6 +2868,45 @@ function initAllSchedules() {
   return 'נוצרו ' + created + ' לוחות שנה!';
 }
 
+// ===== ניקוי חד-פעמי: מחיקת שלדים עתידיים ריקים שנוצרו לפני תיקון תאריכי החגים =====
+// הרץ פעם אחת מעורך Apps Script. מוחק כל גיליון Schedule_YYYYMM שהוא גם (א) עתידי
+// ביחס לתאריך האמיתי של הרצת הפונקציה, וגם (ב) ריק לגמרי (אין בו אף שיבוץ V/V2) —
+// כלומר שלד שמעולם לא נעשה בו שימוש, מהבנייה המרוכזת המקורית (initAllSchedules
+// ל-2026-2029, לפני התיקון מול Hebcal). חודשים עם שיבוצים אמיתיים לעולם לא נוגעים,
+// גם אם הם "עתידיים" באיזשהו מובן. בטוח להריץ שוב — לא עושה כלום אם אין מה למחוק.
+// אחרי הניקוי, actionGenerateScheduleV2 שומר אוטומטית שלד אחד תמיד מוכן חודש קדימה
+// (נוסף אוגוסט 2026), תמיד עם נתוני getIsraeliHolidays() העדכניים ביותר.
+function cleanupFutureEmptySkeletons() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var now = new Date();
+  var curKey = Utilities.formatDate(now, 'Asia/Jerusalem', 'yyyyMM');
+
+  var deleted = [], kept = [];
+  ss.getSheets().forEach(function(sh) {
+    var m = sh.getName().match(/^Schedule_(\d{6})$/);
+    if (!m) return;
+    var key = m[1];
+    if (key <= curKey) return; // לא עתידי — לעולם לא נוגעים
+
+    var lastRow = sh.getLastRow();
+    var hasData = false;
+    if (lastRow > 1) {
+      // עמודות D..J: מבצע, עתודה א, עתודה ב, הערות, סוג תורנות, ניקוד, מבצע שני
+      var rows = sh.getRange(2, 4, lastRow - 1, 7).getValues();
+      hasData = rows.some(function(r){ return String(r[0]||'').trim() || String(r[6]||'').trim(); });
+    }
+    if (hasData) { kept.push(sh.getName()); return; }
+
+    ss.deleteSheet(sh);
+    deleted.push(sh.getName());
+  });
+
+  Logger.log('נמחקו ' + deleted.length + ' שלדים ריקים: ' + deleted.join(', '));
+  if (kept.length) Logger.log('דולגו (יש בהם שיבוצים אמיתיים): ' + kept.join(', '));
+  return 'נמחקו ' + deleted.length + ' שלדים עתידיים ריקים.' +
+    (kept.length ? ' (' + kept.length + ' דולגו כי היה בהם שיבוץ: ' + kept.join(', ') + ')' : '');
+}
+
 // ===== צור לוחות שנה לשנה ספציפית =====
 function initYear2026() {
   for (var m=1; m<=12; m++) initMonthScheduleEx(2026, m);
@@ -4188,6 +4227,21 @@ function actionGenerateScheduleV2(req) {
   // Report only surprising exclusions (service ended); inactive/viewer accounts are expected
   var exList = Object.keys(excludedNames).filter(function(n){return excludedNames[n] === 'סיים שירות';});
   if(exList.length) msg += '\nℹ️ סיימו שירות ולא שובצו: ' + exList.join(', ');
+
+  // ── 10. Auto-create next month's skeleton (rolling window) ───────
+  // Keeps a skeleton always one month ahead so Itai never needs to bulk-build
+  // years in advance again. No-ops harmlessly if the sheet already exists —
+  // true for every month already covered by the original 2026-2029 bulk build.
+  try {
+    var nextYear = year, nextMon = mon + 1;
+    if (nextMon > 12) { nextMon = 1; nextYear += 1; }
+    var nextMonthKey = String(nextYear) + String(nextMon).padStart(2,'0');
+    if (!ss.getSheetByName('Schedule_' + nextMonthKey)) {
+      initMonthScheduleEx(nextYear, nextMon);
+      setScheduleStatus(nextMonthKey, 'draft');
+      msg += '\n🗓️ נוצר שלד ריק לחודש הבא (' + nextMonthKey + ') אוטומטית.';
+    }
+  } catch(e) { Logger.log('auto-create next month skeleton error: ' + e); }
 
   Logger.log('generateScheduleV2: ' + month + ' done, ' + Object.keys(result).length + ' days scheduled');
   return {success:true, message:msg};
