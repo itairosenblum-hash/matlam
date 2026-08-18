@@ -889,9 +889,12 @@ function actionGetSchedule(req, user) {
   return {success: true, schedule, month, draft: schedStatus === 'draft', skippedNames};
 }
 
-// Names deliberately passed over by the algorithm this month: active, in-rotation
-// tornim (same filter as calcAverageScore) whose pre-month accumulated score was
-// already at/above the group average, yet who received no V/V2 duty this month.
+// Names of tornim who received no duty this month at all (no V/V2 main duty,
+// and — since reserve slots are only drawn from people who already have a
+// V/V2 duty this month — no reserve either): active, in-rotation tornim (same
+// eligibility filter as calcAverageScore) with zero assignment this month,
+// plus anyone with a verified full-month "X" constraint regardless of
+// category. This is the persistent "🚫 מדולגים החודש" banner.
 // Admin's own name is always excluded, independent of the People dutyCategory value.
 function computeSkippedTornim(month) {
   try {
@@ -932,8 +935,6 @@ function computeSkippedTornim(month) {
       }
     }
 
-    var avg = calcAverageScore();
-
     var peopleMap = {};
     (actionGetPeople().people||[]).forEach(function(p){ peopleMap[String(p.name||'').trim()] = p; });
 
@@ -948,7 +949,6 @@ function computeSkippedTornim(month) {
     }
 
     var scoreRows = getScoresSheet(year).getDataRange().getValues();
-    var scoreColIdx0 = 5 + (mon-1)*2; // 0-indexed monthly SCORE col (F=5 for jan)
     var skipped = [];
 
     for (var j = 1; j < scoreRows.length; j++) {
@@ -963,7 +963,7 @@ function computeSkippedTornim(month) {
 
       // A verified full-month block (e.g. "🚫 לא מבצע החודש") is a skip on its
       // own, regardless of duty category (אב/פטור/etc.) or 0.5 activity —
-      // those categories affect the fairness/score comparison below, not
+      // those categories affect the eligibility check below, not
       // whether an explicit "I'm not available at all" constraint counts.
       if (fullConstraint[name]) {
         skipped.push(name + ' (אילוץ מלא החודש)');
@@ -971,13 +971,15 @@ function computeSkippedTornim(month) {
       }
 
       var cat = String(p.dutyCategory||'').trim();
-      if (AVG_EXCLUDED_CATEGORIES.indexOf(cat) !== -1) continue;
-      if (activity === '0.5') continue;
+      if (AVG_EXCLUDED_CATEGORIES.indexOf(cat) !== -1) continue; // structurally blocked from any day — not informative
+      if (activity === '0.5') continue;                          // paternity cadence — separate 2-month rule, not a "skip"
 
-      var total = Number(scoreRows[j][3]) || 0;             // col D: accumulated total (already incl. this month)
-      var thisMonthScore = Number(scoreRows[j][scoreColIdx0]) || 0;
-      var preMonth = total - thisMonthScore;
-      if (preMonth >= avg) skipped.push(name);
+      // Every remaining eligible person who received zero duty this month is
+      // flagged — not only those already at/above the group average. With more
+      // active tornim than daily duty slots, some eligible people miss out on
+      // both the main duty and reserve every month; this banner should surface
+      // all of them, not just the ones who "should" have had priority by score.
+      skipped.push(name);
     }
     return skipped;
   } catch(e) {
