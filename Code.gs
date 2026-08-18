@@ -955,23 +955,29 @@ function computeSkippedTornim(month) {
       var name = String(scoreRows[j][0]||'').trim();
       if (!name || name === adminName) continue;
       var p = peopleMap[name] || {};
+      var activity = String(p.activity||'1').trim();
+      if (activity === '0') continue;               // deactivated person — not in rotation at all
+      if (usersActive[name] === false) continue;      // account disabled
+      if (usersRole[name] === 'viewer') continue;
+      if (assigned[name]) continue;                    // got a duty this month
+
+      // A verified full-month block (e.g. "🚫 לא מבצע החודש") is a skip on its
+      // own, regardless of duty category (אב/פטור/etc.) or 0.5 activity —
+      // those categories affect the fairness/score comparison below, not
+      // whether an explicit "I'm not available at all" constraint counts.
+      if (fullConstraint[name]) {
+        skipped.push(name + ' (אילוץ מלא החודש)');
+        continue;
+      }
+
       var cat = String(p.dutyCategory||'').trim();
       if (AVG_EXCLUDED_CATEGORIES.indexOf(cat) !== -1) continue;
-      var activity = String(p.activity||'1').trim();
-      if (activity === '0' || activity === '0.5') continue;
-      if (usersActive[name] === false) continue;
-      if (usersRole[name] === 'viewer') continue;
-      if (assigned[name]) continue; // got a duty this month
+      if (activity === '0.5') continue;
 
       var total = Number(scoreRows[j][3]) || 0;             // col D: accumulated total (already incl. this month)
       var thisMonthScore = Number(scoreRows[j][scoreColIdx0]) || 0;
       var preMonth = total - thisMonthScore;
-
-      if (fullConstraint[name]) {
-        skipped.push(name + ' (אילוץ מלא החודש)');
-      } else if (preMonth >= avg) {
-        skipped.push(name);
-      }
+      if (preMonth >= avg) skipped.push(name);
     }
     return skipped;
   } catch(e) {
