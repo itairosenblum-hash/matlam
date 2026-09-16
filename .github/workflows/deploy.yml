@@ -58,7 +58,7 @@ jobs:
           echo "== probe preflight"
           curl -s -i -X OPTIONS https://me-west1-matlam-e5288.cloudfunctions.net/importData -H 'Origin: https://itairosenblum-hash.github.io' -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: content-type,authorization' | head -20
           echo "== recent errors"
-          gcloud logging read 'severity>=ERROR AND resource.type="cloud_run_revision"' --limit=15 --freshness=6h --format='value(timestamp,resource.labels.service_name,textPayload,jsonPayload.message,httpRequest.status)' 2>&1 | cut -c1-400
+          gcloud logging read 'resource.type="cloud_run_revision" AND (severity>=WARNING OR httpRequest.status>=400)' --limit=25 --freshness=6h --format='value(timestamp,resource.labels.service_name,textPayload,jsonPayload.message,httpRequest.status)' 2>&1 | cut -c1-400
           } > "$RUNNER_TEMP/diag.txt" 2>&1 || true
           cat "$RUNNER_TEMP/diag.txt"
       - name: Publish log
