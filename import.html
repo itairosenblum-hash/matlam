@@ -31,7 +31,8 @@
 </div>
 <script type="module">
 import { auth, login, currentKey, fnImport } from "./js/fb.js";
-import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { onAuthStateChanged, signOut, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { emailFor, fbPass } from "./js/emu.js";
 import { serRows } from "./js/cells.js";
 const $ = id => document.getElementById(id);
 const log = t => { $("log").textContent += t + "\n"; $("log").scrollTop = 1e9; };
@@ -46,8 +47,13 @@ onAuthStateChanged(auth, u => {
 });
 $("loginBtn").onclick = async () => {
   $("loginBtn").disabled = true; $("msg").textContent = "מתחבר...";
-  try { await login($("u").value.trim(), $("p").value); $("msg").textContent = ""; }
-  catch (e) { err(e.message || String(e)); }
+  const u = $("u").value.trim(), p = $("p").value;
+  try { await login(u, p); $("msg").textContent = ""; }
+  catch (e) {
+    // before the first import there are no passwords on the server yet: use the earlier test account
+    try { await signInWithEmailAndPassword(auth, emailFor(u), fbPass(p)); $("msg").textContent = ""; }
+    catch (_) { err(e.message || String(e)); }
+  }
   $("loginBtn").disabled = false;
 };
 $("file").onchange = () => { $("go").disabled = !$("file").files.length; };
