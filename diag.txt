@@ -1,0 +1,50 @@
+meta/import: {"by":"admin","at":"2026-09-16T06:03:26.624Z"}
+passwords doc: 43 entries
+admin hash: len=64 type=string hex=true
+non-hex hashes: 
+sheets: 27 → Constraints_202606, Constraints_202607, Constraints_202608, Constraints_202609, Constraints_202610, DutyTypes, Notifications, People, ProfileChangeRequests, Schedule_202601, Schedule_202602, Schedule_202603, Schedule_202604, Schedule_202605, Schedule_202606, Schedule_202607, Schedule_202608, Schedule_202609, Schedule_202610, Schedule_202611, Scores, Scores_2026, Scores_2027, Settings, SwapRequests, Users, גיליון1
+Users rows: 44 | header: ["ID","שם","שם משתמש","סיסמה","תפקיד","פעיל"]
+  row 1: name=איתי רוזנבלום user="admin" role=admin active=true
+auth admin@matlam-e5288.firebaseapp.com: uid=SNdK7C9ov1UxIEpi9LLAIQ946yu1 claims=undefined disabled=false
+roles/admin: {"role":"admin","active":true,"name":"איתי רוזנבלום"}
+== login logs
+2026-09-16T06:03:34.514015Z	login	401		
+2026-09-16T06:03:30.456780Z	login	401		
+2026-09-16T06:03:17.920728Z	login	401		
+2026-09-16T06:02:18.910105Z	login	401		
+2026-09-16T05:46:15.807371Z	login		Error: Invalid request, unable to process.
+    at entryFromArgs (/workspace/node_modules/firebase-functions/lib/logger/index.js:144:19)
+    at Object.error (/workspace/node_modules/firebase-functions/lib/logger/index.js:131:11)
+    at /workspace/node_modules/firebase-functions/lib/common/providers/https.js:432:24
+    at /workspace/node_modules/firebase-functions/lib/common/providers/https.js:393:25
+    at cors (/workspace/node_modules/cors/lib/index.js:188:7)
+    at /workspace/node_modules/cors/lib/index.js:224:17
+    at originCallback (/workspace/node_modules/cors/lib/index.js:214:15)
+    at /workspace/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/workspace/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/workspace/node_modules/cors/lib/index.js:204:7)	
+2026-09-16T05:46:15.806630Z	login		Request has invalid method. GET	
+2026-09-16T05:46:15.711681Z	importdata		Error: Invalid request, unable to process.
+    at entryFromArgs (/workspace/node_modules/firebase-functions/lib/logger/index.js:144:19)
+    at Object.error (/workspace/node_modules/firebase-functions/lib/logger/index.js:131:11)
+    at /workspace/node_modules/firebase-functions/lib/common/providers/https.js:432:24
+    at /workspace/node_modules/firebase-functions/lib/common/providers/https.js:393:25
+    at cors (/workspace/node_modules/cors/lib/index.js:188:7)
+    at /workspace/node_modules/cors/lib/index.js:224:17
+    at originCallback (/workspace/node_modules/cors/lib/index.js:214:15)
+    at /workspace/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/workspace/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/workspace/node_modules/cors/lib/index.js:204:7)	
+2026-09-16T05:46:15.711029Z	importdata		Request has invalid method. GET	
+2026-09-16T05:46:13.836539Z	login	400		
+2026-09-16T05:46:13.833405Z	importdata	400		
+2026-09-16T05:14:47.940660Z	login	401		
+2026-09-16T04:59:25.349871Z	login	400		
+2026-09-16T04:56:39.479639Z	importdata	403		
+2026-09-16T04:56:38.933962Z	importdata	403		
+2026-09-16T04:56:38.170871Z	importdata	403		
+2026-09-16T04:56:36.524132Z	importdata	403		
+2026-09-16T04:56:26.657693Z	login	401		
+2026-09-16T04:51:31.735177Z	login	400		
+2026-09-16T04:49:15.898546Z	login	400		
+2026-09-16T04:47:46.808267Z	login	401		
