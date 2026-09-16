@@ -28,7 +28,7 @@ const store = {
     });
     return this.ready;
   },
-  stop() { this.unsub && this.unsub(); this.unsub = null; this.docs.clear(); this.cache.clear(); this.audit = null; this.ready = null; },
+  stop() { this.unsub && this.unsub(); this.unsub = null; this.docs.clear(); this.cache.clear(); this.audit = null; this.auditAt = 0; this.ready = null; },
   rows(name) {
     const d = this.docs.get(name);
     if (!d) return null;
@@ -38,11 +38,13 @@ const store = {
     this.cache.set(name, { src: d.rows, rows });
     return rows;
   },
-  async loadAudit(n = 1000) {
+  auditAt: 0, auditN: 0,
+  async loadAudit(n = 300) {
+    if (this.audit && this.auditN >= n && Date.now() - this.auditAt < 30000) return;
     const snap = await getDocs(query(collection(db, "audit"), orderBy("ts", "desc"), limit(n)));
     const rows = [["תאריך", "משתמש", "פעולה", "פרטים"]];
     snap.docs.slice().reverse().forEach(d => { const x = d.data(); rows.push([x.ts || "", x.who || "", x.action || "", x.details || ""]); });
-    this.audit = rows;
+    this.audit = rows; this.auditAt = Date.now(); this.auditN = n;
   },
   src() {
     return {
@@ -107,11 +109,15 @@ export async function call(params) {
   if (!auth.currentUser) return { success: false, error: "אין הרשאה", code: 401 };
   try { await store.start(); } catch (e) { return { success: false, error: "אין הרשאה", code: 401 }; }
   if (SERVER_READ_ACTIONS.includes(a)) {
-    if (a === "getAuditLog" || a === "getAdminDashboard") { try { await store.loadAudit(); } catch (_) {} }
+    if (a === "getAuditLog" || a === "getAdminDashboard") {
+      const n = a === "getAdminDashboard" ? 5 : Math.min(parseInt(params.limit) || 300, 1000);
+      try { await store.loadAudit(n); } catch (_) {}
+    }
     return runLocal(params);
   }
   return remote(params);
 }
 
 window.__fbCallImpl = call;
+window.__fbSignOut = () => signOut(auth).catch(() => {});
 (window.__fbQueue || []).splice(0).forEach(q => call(q.p).then(q.res, q.rej));
