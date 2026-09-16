@@ -2,7 +2,7 @@
 // Reads: the original Code.gs runs right here, on a live mirror of the sheets (instant).
 // Writes: sent to the `api` Cloud Function, which runs the same code with full authority.
 import { deRows } from "./cells.js";
-import { auth, db, login as fbLogin, currentKey, fnApi } from "./fb.js";
+import { auth, db, login as fbLogin, currentKey, fnApi, fnForgot } from "./fb.js";
 import { Spreadsheet, runRoute, findUser, SERVER_READ_ACTIONS } from "./emu.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import { collection, onSnapshot, getDocs, query, orderBy, limit }
@@ -104,7 +104,10 @@ export async function call(params) {
   if (a === "logClientTiming") return { success: true };
   if (a === "login") return doLogin(params);
   if (a === "bootstrap" || a === "initSheets") return { success: false, error: "פעולה זו אינה זמינה בגרסה החדשה" };
-  if (a === "forgotPassword") return { success: false, error: "איפוס סיסמה עצמי אינו זמין. פנה למנהל." };
+  if (a === "forgotPassword") {
+    try { return (await fnForgot({ username: params.username, phone: params.phone })).data; }
+    catch (e) { return { success: false, error: e.message || "שגיאה באיפוס הסיסמה" }; }
+  }
   await authKnown;
   if (!auth.currentUser) return { success: false, error: "אין הרשאה", code: 401 };
   try { await store.start(); } catch (e) { return { success: false, error: "אין הרשאה", code: 401 }; }
