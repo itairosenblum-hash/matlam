@@ -1,0 +1,43 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+    function signedIn() { return request.auth != null && request.auth.token.email != null; }
+    function uname()    { return request.auth.token.email.split('@')[0]; }
+    function ownerDoc() { return /databases/$(db)/documents/meta/owner; }
+    function meDoc()    { return /databases/$(db)/documents/people/$(uname()); }
+    function isOwner()  { return signedIn() && exists(ownerDoc()) && get(ownerDoc()).data.username == uname(); }
+    function hasMe()    { return signedIn() && exists(meDoc()) && get(meDoc()).data.active == true; }
+    function isAdmin()  { return isOwner() || (hasMe() && get(meDoc()).data.role == 'admin'); }
+    function isMember() { return isAdmin() || hasMe(); }
+
+    match /meta/owner {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.username == uname();
+      allow update, delete: if false;
+    }
+    match /meta/{d} {
+      allow read: if isMember();
+      allow write: if isAdmin();
+    }
+    match /people/{k} {
+      allow read: if isMember() || (signedIn() && k == uname());
+      allow write: if isAdmin();
+    }
+    match /schedules/{m} {
+      allow read: if isAdmin() || (isMember() && (resource == null || resource.data.draft != true));
+      allow write: if isAdmin();
+    }
+    match /constraints/{m}/entries/{k} {
+      allow read, write: if isAdmin() || (isMember() && k == uname());
+    }
+    match /scores/{y} {
+      allow read: if isMember();
+      allow write: if isAdmin();
+    }
+    match /swaps/{id} {
+      allow read: if isMember();
+      allow write: if isAdmin();
+    }
+    match /{path=**} { allow read, write: if false; }
+  }
+}
