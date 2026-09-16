@@ -37,6 +37,17 @@ jobs:
           if [ -z "$SA" ]; then echo "secret FIREBASE_SERVICE_ACCOUNT is missing"; exit 1; fi
           printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/sa.json" >> "$GITHUB_ENV"
+      - name: Mail settings
+        env:
+          MAIL_USER: ${{ secrets.MAIL_USER }}
+          MAIL_PASS: ${{ secrets.MAIL_PASS }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+        run: |
+          : > functions/.env
+          [ -n "$MAIL_USER" ] && echo "MAIL_USER=$MAIL_USER" >> functions/.env
+          [ -n "$MAIL_PASS" ] && echo "MAIL_PASS=$(echo "$MAIL_PASS" | tr -d ' ')" >> functions/.env
+          [ -n "$ADMIN_EMAIL" ] && echo "ADMIN_EMAIL=$ADMIN_EMAIL" >> functions/.env
+          echo "mail vars: $(cut -d= -f1 functions/.env | tr '\n' ' ')"
       - name: Deploy
         run: |
           set -o pipefail
