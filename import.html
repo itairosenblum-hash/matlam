@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>מטל״מ v2 · ייבוא נתונים</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;800&display=swap">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="wrap" style="max-width:560px">
+  <div class="card">
+    <h1>ייבוא נתונים למערכת החדשה</h1>
+    <p class="muted" style="margin-top:6px">קורא בלבד מהמערכת הקיימת (שום דבר לא נכתב בה) ומעתיק ל-Firebase. אפשר להריץ שוב בכל שלב — הנתונים יתעדכנו.</p>
+    <label>כתובת Apps Script של המערכת הקיימת</label>
+    <input id="url" dir="ltr">
+    <label>שם משתמש (מנהל)</label><input id="u" autocapitalize="off" autocomplete="username">
+    <label>סיסמה</label><input id="p" type="password" autocomplete="current-password">
+    <div style="display:flex;gap:8px">
+      <div style="flex:1"><label>מחודש</label><input id="from" type="month"></div>
+      <div style="flex:1"><label>עד חודש</label><input id="to" type="month"></div>
+    </div>
+    <button class="btn btn-primary btn-block" id="go">התחבר והתחל ייבוא</button>
+    <div class="msg" id="msg"></div>
+    <div class="log" id="log"></div>
+    <a class="btn btn-block hidden" id="open" href="./">פתח את האפליקציה</a>
+  </div>
+</div>
+<script type="module">
+import { db, doc, getDoc, setDoc, writeBatch, serverTimestamp, oldApi, OLD_API_URL,
+         login, userKey, nameKey, currentKey } from "./js/fb.js";
+const $ = id => document.getElementById(id);
+$("url").value = OLD_API_URL;
+const now = new Date();
+const ym = (y, m) => y + "-" + String(m).padStart(2, "0");
+$("from").value = ym(now.getFullYear() - 1, 1);
+$("to").value = ym(now.getFullYear() + (now.getMonth() + 2 > 11 ? 1 : 0), (now.getMonth() + 2) % 12 + 1);
+const log = t => { $("log").textContent += t + "\n"; $("log").scrollTop = 1e9; };
+const clean = o => JSON.parse(JSON.stringify(o, (k, v) => v === undefined ? null : v));
+
+$("go").onclick = async () => {
+  $("go").disabled = true; $("log").textContent = ""; $("msg").className = "msg"; $("msg").textContent = "";
+  const url = $("url").value.trim(), u = $("u").value.trim(), p = $("p").value;
+  try {
+    log("מתחבר למערכת הקיימת...");
+    const lr = await oldApi({ action: "login", username: u, password: p }, null, url);
+    if (!lr.success) throw new Error(lr.error || "כניסה נכשלה");
+    if (lr.role !== "admin") throw new Error("נדרש משתמש מנהל");
+    const tok = lr.token;
+    const call = params => oldApi(params, tok, url).then(r => { if (!r || r.success === false) throw new Error((r && r.error) || "שגיאה"); return r; });
+    log("✓ מחובר כ-" + lr.name);
+
+    log("מתחבר ל-Firebase...");
+    await login(u, p);
+    const ownerRef = doc(db, "meta", "owner");
+    const own = await getDoc(ownerRef);
+    if (!own.exists()) { await setDoc(ownerRef, { username: currentKey(), name: lr.name, at: serverTimestamp() }); log("✓ נרשמת כבעלים של המערכת"); }
+    else if (own.data().username !== currentKey()) throw new Error("למערכת כבר רשום בעלים אחר: " + own.data().name);
+    else log("✓ Firebase מחובר");
+
+    // ---- people ----
+    log("טוען משתמשים ותורנים...");
+    const [ur, pr] = await Promise.all([call({ action: "getUsers" }), call({ action: "getPeople" })]);
+    const byName = {}, keyOfName = {}, keyOfUser = {};
+    for (const x of ur.users) {
+      const k = userKey(x.username);
+      keyOfUser[String(x.username).trim().toLowerCase()] = k;
+      keyOfName[String(x.name).trim()] = k;
+      byName[String(x.name).trim()] = { key: k, username: String(x.username).trim(), name: String(x.name).trim(), role: x.role || "user", active: !!x.active };
+    }
+    for (const person of pr.people) {
+      const n = String(person.name).trim();
+      const base = byName[n] || { key: nameKey(n), username: "", name: n, role: "user", active: true, noLogin: true };
+      if (!byName[n]) keyOfName[n] = base.key;
+      byName[n] = { ...person, ...base, name: n, isTorani: true };
+    }
+    let b = writeBatch(db), cnt = 0;
+    for (const x of Object.values(byName)) {
+      b.set(doc(db, "people", x.key), { ...clean({ ...x, isTorani: !!x.isTorani }), importedAt: serverTimestamp() }, { merge: true });
+      if (++cnt % 400 === 0) { await b.commit(); b = writeBatch(db); }
+    }
+    await b.commit();
+    log(`✓ ${cnt} אנשים (${ur.users.length} חשבונות, ${pr.people.length} תורנים)`);
+    const resolveKey = raw => {
+      const s = String(raw || "").trim();
+      return keyOfUser[s.toLowerCase()] || keyOfName[s] || nameKey(s);
+    };
+
+    // ---- months ----
+    const months = [];
+    let [fy, fm] = $("from").value.split("-").map(Number);
+    const [ty, tm] = $("to").value.split("-").map(Number);
+    while (fy < ty || (fy === ty && fm <= tm)) { months.push(fy + String(fm).padStart(2, "0")); fm++; if (fm > 12) { fm = 1; fy++; } }
+    let sCount = 0, cCount = 0;
+    const doMonth = async m => {
+      const [sr, cr] = await Promise.all([call({ action: "getSchedule", month: m }), call({ action: "getAllConstraints", month: m })]);
+      const bb = writeBatch(db);
+      if (sr.schedule && sr.schedule.length) {
+        bb.set(doc(db, "schedules", m), { ...clean({ month: m, draft: !!sr.draft, days: sr.schedule }), importedAt: serverTimestamp() });
+        sCount++;
+      }
+      const cons = cr.constraints || {};
+      const merged = {};
+      for (const [raw, v] of Object.entries(cons)) {
+        const k = resolveKey(raw);
+        const prev = merged[k];
+        const c = (v.constraints || []).slice(0, 31);
+        while (c.length < 31) c.push("");
+        if (prev) { // duplicate rows (name + username) — union them
+          prev.days = prev.days.map((x, i) => x || c[i]);
+          if (v.notes && !prev.notes.includes(v.notes)) prev.notes += (prev.notes ? " | " : "") + v.notes;
+        } else merged[k] = { days: c, notes: String(v.notes || ""), sourceName: String(raw) };
+      }
+      for (const [k, v] of Object.entries(merged)) {
+        bb.set(doc(db, "constraints", m, "entries", k), { ...v, key: k, month: m, importedAt: serverTimestamp() });
+        cCount++;
+      }
+      await bb.commit();
+      log(`  ${m}: לוח ${sr.schedule?.length ? "✓" : "—"} · אילוצים ${Object.keys(merged).length}`);
+    };
+    log(`מייבא ${months.length} חודשים...`);
+    for (let i = 0; i < months.length; i += 3) await Promise.all(months.slice(i, i + 3).map(doMonth));
+    log(`✓ ${sCount} לוחות, ${cCount} רשומות אילוצים`);
+
+    // ---- scores ----
+    log("טוען ניקוד...");
+    const sc = await call({ action: "getScores" });
+    const years = (sc.years && sc.years.length) ? sc.years : [sc.year || now.getFullYear()];
+    for (const y of years) {
+      const r = String(y) === String(sc.year) ? sc : await call({ action: "getScores", year: String(y) });
+      await setDoc(doc(db, "scores", String(r.year || y)), { year: String(r.year || y), json: JSON.stringify(r), importedAt: serverTimestamp() });
+      log("  ✓ ניקוד " + (r.year || y));
+    }
+
+    // ---- swaps ----
+    try {
+      const sw = await call({ action: "getSwaps" });
+      const b2 = writeBatch(db);
+      sw.swaps.slice(0, 450).forEach(x => b2.set(doc(db, "swaps", x.id), { ...clean(x), importedAt: serverTimestamp() }));
+      await b2.commit();
+      log(`✓ ${sw.swaps.length} בקשות החלפה`);
+    } catch (e) { log("⚠ החלפות: " + e.message); }
+
+    await setDoc(doc(db, "meta", "import"), { at: serverTimestamp(), by: currentKey(), months }, { merge: true });
+    $("msg").className = "msg ok"; $("msg").textContent = "הייבוא הושלם ✓";
+    $("open").classList.remove("hidden");
+  } catch (e) {
+    console.error(e);
+    $("msg").className = "msg err";
+    $("msg").textContent = (e.code === "permission-denied") ? "אין הרשאה ב-Firestore — ודא שכללי האבטחה הודבקו ופורסמו." : (e.message || String(e));
+    log("✗ " + ($("msg").textContent));
+  }
+  $("go").disabled = false;
+};
+</script>
+</body>
+</html>
