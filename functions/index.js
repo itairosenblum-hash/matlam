@@ -4,6 +4,7 @@ import { setGlobalOptions } from "firebase-functions/v2";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
+import nodemailer from "nodemailer";
 import vm from "node:vm";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -29,6 +30,27 @@ function wrapErr(e) {
   if (e instanceof HttpsError) throw e;
   console.error(e);
   throw new HttpsError("internal", "שגיאת שרת: " + (e && e.message ? e.message : String(e)).slice(0, 300));
+}
+// ---------- mail (only swap notifications are allowed) ----------
+const MAIL_USER = process.env.MAIL_USER || "", MAIL_PASS = process.env.MAIL_PASS || "";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || MAIL_USER;
+const APP_URL = "https://itairosenblum-hash.github.io/matlam-v2/";
+let transport = null;
+function mailer() {
+  if (!MAIL_USER || !MAIL_PASS) return null;
+  return transport || (transport = nodemailer.createTransport({ service: "gmail", auth: { user: MAIL_USER, pass: MAIL_PASS } }));
+}
+const MAIL_ACTIONS_BLOCKED = ["sendReminder", "sendScheduleEmails", "sendSchedule", "sendAdminMessage"];
+const MAIL_ALLOWED_ACTIONS = ["submitSwap", "updateSwap"];
+async function sendQueued(queue) {
+  const t = mailer();
+  if (!t || !queue.length) return;
+  for (const m of queue) {
+    const html = m.html.replace(/<p style="color:#999;font-size:11px">/,
+      '<p><a href="' + APP_URL + '" style="background:#2ea043;color:#fff;padding:10px 20px;text-decoration:none;border-radius:6px;display:inline-block">כניסה למערכת</a></p><p style="color:#999;font-size:11px">');
+    try { await t.sendMail({ from: `"מפקד תורן מטל״מ" <${MAIL_USER}>`, to: m.to, subject: m.subject, html }); }
+    catch (e) { console.error("mail failed", m.to, e.message); }
+  }
 }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -79,8 +101,9 @@ async function apiImpl(req) {
   if (!req.auth.token.managed) throw new HttpsError("unauthenticated", "יש להתחבר מחדש");
   const params = req.data || {};
   if (params.action === "__warm") return { success: true };
+  if (MAIL_ACTIONS_BLOCKED.includes(params.action)) return { success: false, error: "שליחת מיילים כללית אינה בשימוש" };
   const key = req.auth.token.email.split("@")[0];
-  let result;
+  let result, mailQueue = [];
   await db.runTransaction(async tx => {
     const [snap, pwSnap] = await Promise.all([tx.get(db.collection("sheets")), tx.get(PW)]);
     const docs = new Map();
@@ -108,7 +131,9 @@ async function apiImpl(req) {
       return u && u.active ? { username: u.username, name: u.name, role: u.role } : null;
     };
     const ss = new Spreadsheet(src);
-    result = runRoute(factory, ss, params, current);
+    mailQueue = [];   // transaction may retry: start clean each attempt
+    const mail = MAIL_ALLOWED_ACTIONS.includes(params.action) ? (m => mailQueue.push(m)) : null;
+    result = runRoute(factory, ss, params, current, { mail, adminEmail: ADMIN_EMAIL });
 
     const { sheets, audit } = changesOf(ss);
     for (const c of sheets) {
@@ -129,6 +154,7 @@ async function apiImpl(req) {
     }
     audit.forEach(a => tx.set(db.collection("audit").doc(), { ...a, by: key }));
   });
+  if (result && result.success) await sendQueued(mailQueue);
   return result;
 }
 
