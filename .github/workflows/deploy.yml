@@ -1,0 +1,39 @@
+name: Deploy Firebase backend
+on:
+  push:
+    branches: [main]
+    paths:
+      - "functions/**"
+      - "js/emu.js"
+      - "js/cells.js"
+      - "js/server.js"
+      - "firestore.rules"
+      - "firebase.json"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+concurrency: deploy
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Bundle shared code
+        run: |
+          mkdir -p functions/lib
+          cp js/emu.js js/cells.js js/server.js functions/lib/
+      - name: Install
+        run: cd functions && npm install --no-audit --no-fund
+      - name: Smoke test
+        run: cd functions && node -e "import('./lib/emu.js').then(m=>console.log('emu ok', m.hashHex('x').length))"
+      - name: Credentials
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SA" ]; then echo "secret FIREBASE_SERVICE_ACCOUNT is missing"; exit 1; fi
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/sa.json" >> "$GITHUB_ENV"
+      - name: Deploy
+        run: npx --yes firebase-tools@latest deploy --only functions,firestore:rules --project matlam-e5288 --non-interactive --force
