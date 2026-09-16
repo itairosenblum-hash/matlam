@@ -91,7 +91,7 @@ $("go").onclick = async () => {
     log(`נמצאו ${Object.keys(sheets).length} גיליונות: ${Object.keys(sheets).join(", ")}`);
     if (!sheets.Users || !sheets.People) throw new Error("הקובץ לא נראה כמו גיליון המטל״מ (חסרים Users / People)");
     // send in small parts: Users+People first, then each sheet, then the audit log in chunks
-    const parts = [{ sheets: { Users: sheets.Users, People: sheets.People } }];
+    const parts = [{ sheets: { Users: sheets.Users, People: sheets.People }, allSheets: Object.keys(sheets).filter(n => n !== "AuditLog") }];
     let cur = {}, curSize = 0;
     for (const [n, rows] of Object.entries(sheets)) {
       if (n === "Users" || n === "People" || n === "AuditLog") continue;
