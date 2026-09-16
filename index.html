@@ -491,7 +491,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
   .constraint-cal-day{padding:6px 4px;min-height:36px;font-size:11px}
 
   /* ── Notification panel ── */
-  #notif-panel{width:calc(100vw - 20px)!important;right:10px!important;left:10px!important}
+  #notif-panel{position:fixed!important;right:10px!important;left:10px!important;width:auto!important;min-width:0!important;max-height:70vh;overflow-y:auto}
 
   /* ── Guide cards ── */
   #tab-guide .card{padding:14px}
@@ -781,6 +781,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
   .ac-act{grid-column:span 2}
   #tab-admin-constraints .ac-btn{font-size:12px;padding:6px 4px;min-width:0;overflow:hidden;text-overflow:ellipsis}
 }
+  @media (max-width: 768px){ html, body { overflow-x: clip; } }
 </style>
 </head>
 <body>
@@ -1745,7 +1746,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">v2 16/09/2026 11:06</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">v2 16/09/2026 11:10</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1758,8 +1759,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = 'v2 16/09/2026 11:06';
-const BUILD_EPOCH = 1789546037194; // ms — when this exact file was pushed
+const BUILD_STAMP = 'v2 16/09/2026 11:10';
+const BUILD_EPOCH = 1789546274990; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -6722,6 +6723,13 @@ function toggleNotifPanel() {
   const panel = document.getElementById('notif-panel');
   if (!panel) return;
   panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  // On phones the panel is fixed to the viewport, just below the bell
+  if (panel.style.display === 'block' && window.matchMedia('(max-width: 768px)').matches) {
+    const btn = document.getElementById('bell-btn');
+    panel.style.top = ((btn ? btn.getBoundingClientRect().bottom : 56) + 6) + 'px';
+  } else {
+    panel.style.top = '40px';
+  }
   // Close on outside click
   if (panel.style.display === 'block') {
     setTimeout(() => document.addEventListener('click', closeNotifPanel, {once:true}), 100);
