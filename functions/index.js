@@ -23,6 +23,8 @@ const factory = globalThis.__matlamServerFactory;
 const PW = db.doc("private/passwords");
 const SYNCED = db.doc("private/synced");
 const OWNER = db.doc("meta/owner");
+const OWNER_KEY = "admin";   // Itai's account — the only one allowed to bootstrap an import
+OWNER.set({ username: OWNER_KEY, fixedAt: FieldValue.serverTimestamp() }).catch(() => {});
 function wrapErr(e) {
   if (e instanceof HttpsError) throw e;
   console.error(e);
@@ -135,8 +137,10 @@ export const importData = onCall({ invoker: "public", timeoutSeconds: 540, memor
 async function importImpl(req) {
   if (!req.auth || !req.auth.token.email) throw new HttpsError("unauthenticated", "אין הרשאה");
   const key = req.auth.token.email.split("@")[0];
-  const owner = await OWNER.get();
-  let allowed = owner.exists && owner.data().username === key;
+  // Before the first server import there are no passwords yet, so the owner may use the
+  // earlier (unmanaged) test account; afterwards only properly signed-in admins may import.
+  const hasPasswords = (await PW.get()).exists;
+  let allowed = key === OWNER_KEY && (req.auth.token.managed || !hasPasswords);
   if (!allowed && req.auth.token.managed) {
     const u = findUser(deRows(((await db.doc("sheets/Users").get()).data() || {}).rows), key);
     allowed = !!(u && u.active && u.role === "admin");
