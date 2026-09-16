@@ -10,7 +10,7 @@
   "lang": "he",
   "background_color": "#1a1f2e",
   "theme_color": "#2d4a3e",
-  "orientation": "portrait",
+  "orientation": "any",
   "icons": [
     { "src": "Mazad.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "Mazad.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
