@@ -1173,7 +1173,6 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
             <div class="section-title">📊 טבלת ניקוד</div>
             <div class="section-subtitle">ניקוד מצטבר לכל תורן</div>
           </div>
-          <button class="btn btn-secondary btn-sm" onclick="loadScores()">🔄 רענן</button>
           <button class="btn btn-secondary btn-sm" onclick="printScores()">🖨️ הדפס PDF</button>
           <button class="btn btn-secondary btn-sm" onclick="openAdjustScoreModal()">🎯 תגמול / קנס</button>
         </div>
@@ -1265,7 +1264,6 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
           <div class="card">
             <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
               <span>בקשות פתוחות</span>
-              <button class="btn btn-secondary btn-sm" onclick="loadSwapRequests()">🔄 רענן</button>
             </div>
             <div id="swap-debug" style="font-size:11px;color:var(--text3);margin-bottom:6px"></div>
             <div id="swap-requests-list"><div class="text-muted text-sm">טוען...</div></div>
@@ -1282,7 +1280,6 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
         <div class="card">
           <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
             <input id="audit-search" type="text" placeholder="🔍 חיפוש חופשי — שם, פעולה, פרטים..." style="flex:1;min-width:200px" oninput="filterAuditLog()">
-            <button class="btn btn-secondary btn-sm" onclick="loadAuditLog()">🔄 רענן</button>
           </div>
           <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
             <select id="audit-filter-action" style="min-width:150px" onchange="filterAuditLog()">
@@ -1478,7 +1475,6 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
             <div class="section-title">🔄 ניהול החלפות</div>
             <div class="section-subtitle">אישור או דחיית בקשות החלפת תורנות</div>
           </div>
-          <button class="btn btn-secondary btn-sm" onclick="loadAdminSwaps()">🔄 רענן</button>
           
         </div>
         <div id="admin-swaps-alert" style="margin-bottom:8px"></div>
@@ -1746,7 +1742,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">v2 16/09/2026 11:10</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">v2 16/09/2026 11:22</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1759,8 +1755,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = 'v2 16/09/2026 11:10';
-const BUILD_EPOCH = 1789546274990; // ms — when this exact file was pushed
+const BUILD_STAMP = 'v2 16/09/2026 11:22';
+const BUILD_EPOCH = 1789547024268; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -2569,8 +2565,7 @@ async function refreshCurrentTab(bypassServerCache) {
   if (!currentUser || !token) return; // not logged in — nothing to refresh
   _refreshing = true;
   if (bypassServerCache) _serverBypassUntil = Date.now() + 20000;
-  const btn = document.getElementById('refresh-btn');
-  if (btn) btn.classList.add('spinning');
+  const btn = null; // spinner is handled by manualRefresh
   try {
     clearApiCache();
     const loader = TAB_LOADERS[currentTab];
@@ -2586,8 +2581,31 @@ async function refreshCurrentTab(bypassServerCache) {
 // Manual refresh (🔄 button) — also refreshes the bell so a notification that
 // arrived between polls shows up immediately.
 async function manualRefresh() {
-  await refreshCurrentTab(true);   // 🔄 = read straight from the sheet
-  try { if (typeof checkNotifications === 'function') checkNotifications(); } catch(_) {}
+  const btn = document.getElementById('refresh-btn');
+  if (!btn || btn.classList.contains('spinning')) return;
+  const t0 = Date.now();
+  btn.classList.add('spinning');
+  try {
+    await refreshCurrentTab(true);
+    try { if (typeof checkNotifications === 'function') await checkNotifications(); } catch(_) {}
+  } finally {
+    // v2 data is live, so a refresh is near-instant — keep the spin visible briefly
+    const left = 700 - (Date.now() - t0);
+    setTimeout(() => { btn.classList.remove('spinning'); showRefreshToast(); }, Math.max(0, left));
+  }
+}
+function showRefreshToast() {
+  let t = document.getElementById('refresh-toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'refresh-toast';
+    t.style.cssText = 'position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:20px;padding:8px 16px;font-size:13px;box-shadow:0 4px 16px rgba(0,0,0,.2);z-index:9999;transition:opacity .3s';
+    document.body.appendChild(t);
+  }
+  t.textContent = '✓ הנתונים עודכנו';
+  t.style.opacity = '1';
+  clearTimeout(t._h);
+  t._h = setTimeout(() => { t.style.opacity = '0'; }, 1500);
 }
 
 // Auto-refresh on return to the app. The PWA case: the phone is locked with
