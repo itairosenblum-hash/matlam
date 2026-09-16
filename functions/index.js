@@ -94,6 +94,51 @@ export const login = onCall({ invoker: "public" }, async req => {
   throw new HttpsError("unauthenticated", "שם משתמש או סיסמה שגויים");
 });
 
+// ---------- forgot password: username + phone -> default password ----------
+const DEFAULT_PASSWORD = "Aa123456";
+const normPhone = v => { let d = String(v == null ? "" : v).replace(/\D/g, ""); if (d.startsWith("972")) d = d.slice(3); return d.replace(/^0+/, ""); };
+
+export const forgotPassword = onCall({ invoker: "public" }, async req => {
+  const username = String((req.data && req.data.username) || "").trim();
+  const phone = normPhone(req.data && req.data.phone);
+  if (!username || !phone) throw new HttpsError("invalid-argument", "יש למלא שם משתמש ומספר טלפון");
+  const lower = username.toLowerCase();
+  const fail = async () => { await sleep(900); return { success: false, error: "הפרטים אינם תואמים לרישום במערכת. פנה למנהל." }; };
+
+  // throttle: at most 5 attempts per username per hour
+  const thRef = db.collection("private").doc("forgotThrottle");
+  const now = Date.now();
+  const th = ((await thRef.get()).data() || {})[userKey(username)] || [];
+  const recent = th.filter(t => now - t < 3600000);
+  if (recent.length >= 5) return { success: false, error: "יותר מדי ניסיונות. נסה שוב בעוד שעה או פנה למנהל." };
+  await thRef.set({ [userKey(username)]: [...recent, now] }, { merge: true });
+
+  const [us, ps] = await Promise.all([db.doc("sheets/Users").get(), db.doc("sheets/People").get()]);
+  const users = deRows(us.exists ? us.data().rows : []);
+  const people = deRows(ps.exists ? ps.data().rows : []);
+  const row = users.slice(1).find(r => String(r[2] || "").trim().toLowerCase() === lower);
+  if (!row) return fail();
+  if (!row[5]) return { success: false, error: "החשבון מושבת. פנה למנהל." };
+  const name = String(row[1] || "").trim();
+  const person = people.find(r => String(r[0] || "").trim() === name);
+  const stored = person ? normPhone(person[3]) : "";
+  if (!stored) return { success: false, error: "לא רשום מספר טלפון לחשבון זה. פנה למנהל." };
+  if (stored !== phone) return fail();
+
+  const uname = String(row[2]).trim();
+  await PW.set({ h: { [uname.toLowerCase()]: hashHex(DEFAULT_PASSWORD) } }, { merge: true });
+  await db.collection("audit").doc().set({ ts: new Date().toISOString(), who: name, action: "איפוס סיסמה עצמי", details: uname + " | אומת לפי טלפון", by: userKey(uname) });
+  const t = mailer();
+  if (t) {
+    const email = person ? String(person[5] || "").trim() : "";
+    const html = `<div dir="rtl" style="font-family:Arial,sans-serif"><h3>🔑 איפוס סיסמה</h3><p>הסיסמה של <b>${name}</b> (${uname}) אופסה לסיסמת ברירת המחדל דרך "שכחתי סיסמה".</p><p>אם לא אתה ביצעת את האיפוס — פנה למנהל מיד.</p></div>`;
+    for (const to of [email, ADMIN_EMAIL].filter(x => x && x.includes("@"))) {
+      try { await t.sendMail({ from: `"מפקד תורן מטל״מ" <${MAIL_USER}>`, to, subject: "🔑 איפוס סיסמה — " + name, html }); } catch (e) { console.error(e.message); }
+    }
+  }
+  return { success: true, message: "הסיסמה אופסה ל-" + DEFAULT_PASSWORD + ". היכנס ושנה אותה בעמוד הפרופיל." };
+});
+
 // ---------- api ----------
 export const api = onCall({ invoker: "public" }, req => apiImpl(req).catch(wrapErr));
 async function apiImpl(req) {
