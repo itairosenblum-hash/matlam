@@ -181,6 +181,26 @@ async function importImpl(req) {
   const rev = Date.now();
   const report = { sheets: 0, users: 0, audit: 0, skipped: [] };
 
+  // First part of a full import: wipe what the workbook will replace, so nothing
+  // created only in v2 during testing survives (extra sheets, audit, old collections).
+  const allNames = Array.isArray(req.data && req.data.allSheets) ? req.data.allSheets : null;
+  if (sheets.Users && allNames) {
+    const keep = new Set(allNames);
+    const dels = [];
+    (await db.collection("sheets").listDocuments()).forEach(d => { if (!keep.has(d.id)) dels.push(d); });
+    for (const coll of ["audit", "people", "schedules", "constraints", "scores", "swaps", "roles"]) {
+      (await db.collection(coll).listDocuments()).forEach(d => dels.push(d));
+    }
+    (await db.collection("constraints").listDocuments()).forEach(() => {});
+    for (let i = 0; i < dels.length; i += 400) {
+      const b = db.batch(); dels.slice(i, i + 400).forEach(d => b.delete(d)); await b.commit();
+    }
+    for (const m of await db.collection("constraints").listDocuments()) {
+      const subs = await m.collection("entries").listDocuments();
+      for (let i = 0; i < subs.length; i += 400) { const b = db.batch(); subs.slice(i, i + 400).forEach(d => b.delete(d)); await b.commit(); }
+    }
+    report.cleared = dels.length;
+  }
   if (sheets.Users) {
     const users = deRows(sheets.Users);
     const h = {};
