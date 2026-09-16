@@ -30,6 +30,7 @@ function sheetConv(v) {
   if (typeof v === "object" && typeof v !== "boolean") return String(v);
   return v;
 }
+const isActivitySheet = n => n === "People" || n === "Scores" || /^Scores_\d{4}$/.test(n);
 const cloneCell = v => (v instanceof Date ? new Date(v.getTime()) : v);
 
 // ---------------- Sheets emulation ----------------
@@ -69,7 +70,9 @@ class Sheet {
     while (this._rows.length < r) this._rows.push([]);
     const row = this._rows[r - 1];
     while (row.length < c) row.push("");
-    row[c - 1] = sheetConv(v);
+    // activity column (People/Scores col B) is kept as text: the code does String(x || '1'),
+    // which would turn a numeric 0 ("inactive") into '1'
+    row[c - 1] = (c === 2 && isActivitySheet(this._name) && v !== "" && v != null) ? String(v) : sheetConv(v);
     this._touch();
   }
   getName() { return this._name; }
@@ -121,7 +124,9 @@ export class Spreadsheet {
     if (this._m.has(name)) return this._m.get(name);
     const d = this._src.meta(name);
     if (!d) return null;
-    const e = { sheet: new Sheet(this, name, this._src.rows(name).map(r => r.map(cloneCell)), d.sid || sidFor(name)), baseRev: d.rev, deleted: false };
+    const act = isActivitySheet(name);
+    const rows = this._src.rows(name).map(r => r.map((v, j) => (act && j === 1 && typeof v === "number") ? String(v) : cloneCell(v)));
+    const e = { sheet: new Sheet(this, name, rows, d.sid || sidFor(name)), baseRev: d.rev, deleted: false };
     this._m.set(name, e);
     return e;
   }
