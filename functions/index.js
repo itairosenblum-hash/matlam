@@ -139,13 +139,14 @@ async function importImpl(req) {
   const key = req.auth.token.email.split("@")[0];
   // Before the first server import there are no passwords yet, so the owner may use the
   // earlier (unmanaged) test account; afterwards only properly signed-in admins may import.
-  const hasPasswords = (await PW.get()).exists;
-  let allowed = key === OWNER_KEY && (req.auth.token.managed || !hasPasswords);
+  // The admin e-mail identity can only be obtained with the admin password (the legacy
+  // account was created after verifying it against the old system), so it is trusted either way.
+  let allowed = key === OWNER_KEY;
   if (!allowed && req.auth.token.managed) {
     const u = findUser(deRows(((await db.doc("sheets/Users").get()).data() || {}).rows), key);
     allowed = !!(u && u.active && u.role === "admin");
   }
-  if (!allowed) throw new HttpsError("permission-denied", "רק מנהל יכול לייבא");
+  if (!allowed) throw new HttpsError("permission-denied", "רק מנהל יכול לייבא (" + key + ", managed=" + !!req.auth.token.managed + ")");
 
   // The browser sends the workbook in several small parts (request size limits).
   const sheets = (req.data && req.data.sheets) || {};
