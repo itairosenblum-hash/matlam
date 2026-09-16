@@ -228,7 +228,7 @@ export function findUser(rows, key) {
   return null;
 }
 
-export function makeEnv(ss, currentUser) {
+export function makeEnv(ss, currentUser, opts = {}) {
   return {
     SpreadsheetApp: { getActiveSpreadsheet: () => ss, getUi: () => ({ alert() {} }) },
     Utilities: {
@@ -238,9 +238,16 @@ export function makeEnv(ss, currentUser) {
       DigestAlgorithm: { SHA_256: "SHA_256" }, Charset: { UTF_8: "UTF_8" },
       sleep: () => {}
     },
-    Session: { getScriptTimeZone: () => TZ, getActiveUser: () => ({ getEmail: () => "" }), getEffectiveUser: () => ({ getEmail: () => "" }) },
+    Session: { getScriptTimeZone: () => TZ, getActiveUser: () => ({ getEmail: () => opts.adminEmail || "" }), getEffectiveUser: () => ({ getEmail: () => opts.adminEmail || "" }) },
     CacheService: { getScriptCache: () => noCache },
-    MailApp: { sendEmail() { throw new Error("שליחת מייל אינה זמינה בגרסה החדשה"); }, getRemainingDailyQuota: () => 0 },
+    MailApp: {
+      sendEmail(m) {
+        if (!opts.mail) throw new Error("שליחת מייל אינה זמינה");
+        if (!m || !m.to || !String(m.to).includes("@")) throw new Error("אין כתובת מייל");
+        opts.mail({ to: String(m.to), subject: String(m.subject || ""), html: String(m.htmlBody || m.body || "") });
+      },
+      getRemainingDailyQuota: () => (opts.mail ? 100 : 0)
+    },
     ContentService: { createTextOutput: t => ({ setMimeType() { return this; }, t }), MimeType: { JSON: 1, JAVASCRIPT: 2, TEXT: 3 } },
     Logger: { log: (...a) => console.debug("[gs]", ...a) },
     currentUser
@@ -276,8 +283,8 @@ export function rolesFromUsers(rows) {
   return out;
 }
 
-export function runRoute(factory, ss, params, currentUser) {
-  const server = factory(makeEnv(ss, currentUser));
+export function runRoute(factory, ss, params, currentUser, opts) {
+  const server = factory(makeEnv(ss, currentUser, opts));
   let result;
   try { result = server.route(normalizeParams(params)); }
   catch (e) { console.error(e); result = { success: false, error: String(e) }; }
