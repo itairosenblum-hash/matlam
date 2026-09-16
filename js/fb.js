@@ -26,6 +26,7 @@ export const db = initializeFirestore(app, {
 const functions = getFunctions(app, REGION);
 export const fnLogin = httpsCallable(functions, "login", { timeout: 60000 });
 export const fnApi = httpsCallable(functions, "api", { timeout: 180000 });
+export const fnForgot = httpsCallable(functions, "forgotPassword", { timeout: 60000 });
 export const fnImport = httpsCallable(functions, "importData", { timeout: 540000 });
 
 export { userKey };
