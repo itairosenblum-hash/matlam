@@ -4,40 +4,37 @@ service cloud.firestore {
     function signedIn() { return request.auth != null && request.auth.token.email != null; }
     function uname()    { return request.auth.token.email.split('@')[0]; }
     function ownerDoc() { return /databases/$(db)/documents/meta/owner; }
-    function meDoc()    { return /databases/$(db)/documents/people/$(uname()); }
+    function roleDoc()  { return /databases/$(db)/documents/roles/$(uname()); }
     function isOwner()  { return signedIn() && exists(ownerDoc()) && get(ownerDoc()).data.username == uname(); }
-    function hasMe()    { return signedIn() && exists(meDoc()) && get(meDoc()).data.active == true; }
-    function isAdmin()  { return isOwner() || (hasMe() && get(meDoc()).data.role == 'admin'); }
-    function isMember() { return isAdmin() || hasMe(); }
+    function hasRole()  { return signedIn() && exists(roleDoc()) && get(roleDoc()).data.active == true; }
+    function isAdmin()  { return isOwner() || (hasRole() && get(roleDoc()).data.role == 'admin'); }
+    function isMember() { return isAdmin() || hasRole(); }
+    function isEditor() { return isAdmin() || (hasRole() && get(roleDoc()).data.role != 'viewer'); }
 
     match /meta/owner {
       allow read: if signedIn();
       allow create: if signedIn() && request.resource.data.username == uname();
       allow update, delete: if false;
     }
-    match /meta/{d} {
-      allow read: if isMember();
-      allow write: if isAdmin();
-    }
-    match /people/{k} {
+    match /meta/{d} { allow read: if isMember(); allow write: if isAdmin(); }
+    match /roles/{k} {
       allow read: if isMember() || (signedIn() && k == uname());
       allow write: if isAdmin();
     }
-    match /schedules/{m} {
-      allow read: if isAdmin() || (isMember() && (resource == null || resource.data.draft != true));
-      allow write: if isAdmin();
-    }
-    match /constraints/{m}/entries/{k} {
-      allow read, write: if isAdmin() || (isMember() && k == uname());
-    }
-    match /scores/{y} {
+    // Each document is one sheet of the original spreadsheet
+    match /sheets/{name} {
       allow read: if isMember();
-      allow write: if isAdmin();
+      allow write: if isAdmin()
+        || (isMember() && name == 'Notifications')
+        || (isEditor() && (name == 'SwapRequests' || name == 'People' || name.matches('Constraints_[0-9]{6}')));
     }
-    match /swaps/{id} {
-      allow read: if isMember();
-      allow write: if isAdmin();
+    match /audit/{id} {
+      allow read: if isAdmin();
+      allow create: if isMember() && request.resource.data.by == uname();
     }
-    match /{path=**} { allow read, write: if false; }
+    // leftovers from the first test import
+    match /{coll}/{rest=**} {
+      allow read, write: if isAdmin() && coll in ['people', 'schedules', 'constraints', 'scores', 'swaps'];
+    }
   }
 }
