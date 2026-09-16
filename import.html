@@ -30,9 +30,8 @@
   </div>
 </div>
 <script type="module">
-import { db, auth, login, currentKey, userKey } from "./js/fb.js";
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import { doc, getDoc, setDoc, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { auth, login, currentKey, fnImport } from "./js/fb.js";
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import { serRows } from "./js/cells.js";
 const $ = id => document.getElementById(id);
 const log = t => { $("log").textContent += t + "\n"; $("log").scrollTop = 1e9; };
@@ -42,11 +41,12 @@ const SKIP = ["Sessions", "SlowLog"];
 onAuthStateChanged(auth, u => {
   $("loginBox").classList.toggle("hidden", !!u);
   $("fileBox").classList.toggle("hidden", !u);
-  if (u) $("who").textContent = "מחובר: " + currentKey();
+  if (u) $("who").innerHTML = "מחובר: " + currentKey() + ' · <a href="#" id="lo">התנתק</a>';
+  const lo = document.getElementById("lo"); if (lo) lo.onclick = e => { e.preventDefault(); signOut(auth); };
 });
 $("loginBtn").onclick = async () => {
   $("loginBtn").disabled = true; $("msg").textContent = "מתחבר...";
-  try { await login($("u").value.trim(), $("p").value, t => $("msg").textContent = t); $("msg").textContent = ""; }
+  try { await login($("u").value.trim(), $("p").value); $("msg").textContent = ""; }
   catch (e) { err(e.message || String(e)); }
   $("loginBtn").disabled = false;
 };
@@ -66,8 +66,6 @@ function sheetRows(ws) {
         if (cell.t === "n" && cell.z && XLSX.SSF.is_date(cell.z)) {
           const p = XLSX.SSF.parse_date_code(cell.v);
           v = new Date(p.y, p.m - 1, p.d, p.H, p.M, Math.round(p.S));
-        } else if (cell.t === "d") {
-          const d = cell.v; v = new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds());
         }
       }
       row.push(v);
@@ -76,69 +74,27 @@ function sheetRows(ws) {
   }
   return rows;
 }
-const tsStr = v => v instanceof Date ? v.toISOString() : String(v || "");
 
 $("go").onclick = async () => {
   $("go").disabled = true; $("log").textContent = ""; $("msg").className = "msg"; $("msg").textContent = "";
   try {
-    const me = currentKey();
-    const own = await getDoc(doc(db, "meta", "owner"));
-    if (!own.exists()) { await setDoc(doc(db, "meta", "owner"), { username: me, at: serverTimestamp() }); log("✓ נרשמת כבעלים"); }
-    else if (own.data().username !== me) throw new Error("רק בעל המערכת יכול לייבא");
-
     log("קורא את הקובץ...");
     const wb = XLSX.read(await $("file").files[0].arrayBuffer(), { type: "array", cellNF: true, cellDates: false });
     const sheets = {};
-    wb.SheetNames.forEach(n => { if (!SKIP.includes(n)) sheets[n] = sheetRows(wb.Sheets[n]); });
-    const names = Object.keys(sheets);
-    log(`נמצאו ${names.length} גיליונות: ${names.join(", ")}`);
+    wb.SheetNames.forEach(n => { if (!SKIP.includes(n)) sheets[n] = serRows(sheetRows(wb.Sheets[n])); });
+    log(`נמצאו ${Object.keys(sheets).length} גיליונות: ${Object.keys(sheets).join(", ")}`);
     if (!sheets.Users || !sheets.People) throw new Error("הקובץ לא נראה כמו גיליון המטל״מ (חסרים Users / People)");
-
-    // roles first (they grant access)
-    const users = sheets.Users.map((r, i) => i === 0 ? r : r.map((v, j) => j === 3 ? "" : v));
-    sheets.Users = users;
-    let b = writeBatch(db), n = 0, roles = 0;
-    for (const r of users.slice(1)) {
-      if (r[2] === "" || r[2] == null) continue;
-      b.set(doc(db, "roles", userKey(String(r[2]))), { role: String(r[4] || "user"), active: !!r[5], name: String(r[1] || "") });
-      roles++;
-    }
-    await b.commit();
-    log(`✓ ${roles} חשבונות משתמש`);
-
-    const rev = Date.now();
-    b = writeBatch(db); n = 0; let size = 0;
-    for (const name of names) {
-      if (name === "AuditLog") continue;
-      const ser = serRows(sheets[name]);
-      const bytes = JSON.stringify(ser).length;
-      if (bytes > 900000) { log(`⚠ ${name} גדול מדי (${Math.round(bytes / 1024)}KB) — דולג`); continue; }
-      b.set(doc(db, "sheets", name), { rows: ser, rev, sid: 0, by: me, at: serverTimestamp() });
-      n++; size += bytes;
-      if (n % 15 === 0 || size > 5e6) { await b.commit(); b = writeBatch(db); size = 0; }
-      log(`  ${name}: ${sheets[name].length} שורות`);
-    }
-    await b.commit();
-    log(`✓ ${n} גיליונות נשמרו`);
-
-    if (sheets.AuditLog) {
-      const rows = sheets.AuditLog.slice(1).filter(r => r[0] !== "");
-      b = writeBatch(db); let k = 0;
-      for (let i = 0; i < rows.length; i++) {
-        const ts = tsStr(rows[i][0]);
-        b.set(doc(db, "audit", "imp_" + String(i).padStart(5, "0") + "_" + ts.replace(/[^0-9A-Za-z]/g, "")),
-          { ts, who: String(rows[i][1] || ""), action: String(rows[i][2] || ""), details: String(rows[i][3] || ""), by: me });
-        if (++k % 400 === 0) { await b.commit(); b = writeBatch(db); }
-      }
-      await b.commit();
-      log(`✓ ${rows.length} רשומות יומן פעולות`);
-    }
-    await setDoc(doc(db, "meta", "import"), { at: serverTimestamp(), by: me, sheets: names }, { merge: true });
-    $("msg").className = "msg ok"; $("msg").textContent = "הייבוא הושלם ✓";
+    log("שולח לשרת... (עשוי לקחת עד דקה)");
+    const r = (await fnImport({ sheets })).data;
+    log(`✓ ${r.sheets} גיליונות · ${r.users} חשבונות · ${r.audit} רשומות יומן`);
+    if (r.skipped && r.skipped.length) log("⚠ דולגו (גדולים מדי): " + r.skipped.join(", "));
+    $("msg").className = "msg ok";
+    $("msg").textContent = "הייבוא הושלם ✓ — כעת התנתק והתחבר מחדש באפליקציה";
+    await signOut(auth);
     $("open").classList.remove("hidden");
   } catch (e) {
     console.error(e);
-    err(e.code === "permission-denied" ? "אין הרשאה — ודא שכללי האבטחה העדכניים פורסמו." : (e.message || String(e)));
+    err(e.message || String(e));
     log("✗ " + $("msg").textContent);
   }
   $("go").disabled = false;
