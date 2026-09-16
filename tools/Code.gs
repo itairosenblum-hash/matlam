@@ -602,10 +602,51 @@ function liveCarryIn(year, name, storedC, depth) {
   var prev = depth < 6 ? scoreRowsFor(py) : null;
   if (!prev || !prev[name]) return Number(storedC) || 0;
   var r = prev[name];
-  var c = liveCarryIn(py, name, r[2], depth + 1) + (Number(r[SCORE_ADJ_COL - 1]) || 0);
-  for (var m = 0; m < 12; m++) c += Number(r[5 + m * 2]) || 0;
+  var c = liveCarryIn(py, name, r[2], depth + 1) + (Number(r[SCORE_ADJ_COL - 1]) || 0) + monthsSum(py, name);
   return Math.round(c * 10) / 10;
 }
+// Monthly scores for a whole year, computed exactly like the scores page shows them:
+// schedule sheets (V + V2) first, falling back to the Scores sheet's monthly columns
+// (exemptions / manual entries). name -> [12 x {score, type}]
+var _monthScoresMemo = {};
+function yearMonthScoresFor(year) {
+  year = String(year);
+  if (_monthScoresMemo.hasOwnProperty(year)) return _monthScoresMemo[year];
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var out = {};
+  var ensure = function(n) { if (!out[n]) { out[n] = []; for (var k = 0; k < 12; k++) out[n].push({score: 0, type: '', fromSched: false}); } return out[n]; };
+  for (var mo = 1; mo <= 12; mo++) {
+    var sh = ss.getSheetByName('Schedule_' + year + (mo < 10 ? '0' + mo : mo));
+    if (!sh) continue;
+    var rows = sheetValues(sh);
+    for (var i = 1; i < rows.length; i++) {
+      var vN = String(rows[i][3] || '').trim(), v2N = String(rows[i][9] || '').trim();
+      var dt = String(rows[i][7] || rows[i][2] || ''), sc = Number(rows[i][8]) || 0;
+      if (sc <= 0) continue;
+      if (vN)  { var a = ensure(vN)[mo - 1];  a.score += sc; a.type = dt; a.fromSched = true; }
+      if (v2N) { var b = ensure(v2N)[mo - 1]; if (!b.fromSched) b.type = dt; b.score += sc; b.fromSched = true; }
+    }
+  }
+  var rowsMap = scoreRowsFor(year) || {};
+  Object.keys(rowsMap).forEach(function(n) {
+    var r = rowsMap[n], arr = ensure(n);
+    for (var k = 0; k < 12; k++) {
+      if (arr[k].score) continue;
+      var fbT = String(r[4 + k * 2] || '').trim(), fbS = Number(r[5 + k * 2]) || 0;
+      if (fbT || fbS) { arr[k].type = fbT; arr[k].score = fbS; }
+    }
+  });
+  _monthScoresMemo[year] = out;
+  return out;
+}
+function monthsSum(year, name, skipMon) {
+  var arr = yearMonthScoresFor(year)[name];
+  if (!arr) return 0;
+  var t = 0;
+  for (var k = 0; k < 12; k++) if (k + 1 !== skipMon) t += arr[k].score;
+  return t;
+}
+
 // Duty type a person had `back` months before (year, mon); crosses into previous years.
 function monthTypeBack(year, mon, back, name, curRow) {
   var y = year, m = mon - back;
@@ -616,9 +657,7 @@ function monthTypeBack(year, mon, back, name, curRow) {
 // Live total for a Scores row of `year`
 function liveTotal(year, row) {
   var name = String(row[0] || '').trim();
-  var t = liveCarryIn(year, name, row[2]) + (Number(row[SCORE_ADJ_COL - 1]) || 0);
-  for (var m = 0; m < 12; m++) t += Number(row[5 + m * 2]) || 0;
-  return t;
+  return liveCarryIn(year, name, row[2]) + (Number(row[SCORE_ADJ_COL - 1]) || 0) + monthsSum(year, name);
 }
 
 var SCORES_HEADERS = ['שם','פעילות','מצטבר קודם','מצטבר שנתי',
@@ -795,48 +834,7 @@ function actionGetScores(req) {
     };
   }
 
-  // Only the ACTIVE scoring year's schedules.
-  // initAllSchedules() created 2026-2029, so the sheet holds 48 Schedule_ tabs —
-  // 36 of them empty future months. The result below is built purely from
-  // SCORE_YEAR, so every other year was fetched, parsed, and thrown away.
-  // Measured (diagScores): reading all 48 = 13,197ms out of a 14,402ms total — 92%.
-  const yearRe = new RegExp('^Schedule_' + SCORE_YEAR + '\\d{2}$');
-  const scheduleSheets = sheets.filter(s => yearRe.test(s.getName()));
-
-  // Compute scores per person per month from actual schedules
-  const personMonthScores = {}; // name -> { '202601': {score, type}, ... }
-
-  scheduleSheets.forEach(sheet => {
-    const monthCode = sheet.getName().replace('Schedule_',''); // e.g. '202606'
-    const year = monthCode.substring(0,4);
-    const mon = parseInt(monthCode.substring(4,6));
-    const rows = sheetValues(sheet);
-
-    // Headers: תאריך, יום, סוג יום, מבצע, עתודה א, עתודה ב, הערות, סוג תורנות, ניקוד, מבצע שני, עתודה א שנייה, עתודה ב שנייה
-    for (let i = 1; i < rows.length; i++) {
-      const vName  = String(rows[i][3] || '').trim();
-      const v2Name = String(rows[i][9] || '').trim();
-      const dutyType = String(rows[i][7] || rows[i][2] || '');
-      const sc = Number(rows[i][8]) || 0;
-
-      // Add score for V (main)
-      if (vName && sc > 0) {
-        if (!personMonthScores[vName]) personMonthScores[vName] = {};
-        if (!personMonthScores[vName][monthCode])
-          personMonthScores[vName][monthCode] = {score: 0, type: dutyType};
-        personMonthScores[vName][monthCode].score += sc;
-        personMonthScores[vName][monthCode].type = dutyType;
-      }
-
-      // Add score for V2 (second shift) - same score as main duty
-      if (v2Name && sc > 0) {
-        if (!personMonthScores[v2Name]) personMonthScores[v2Name] = {};
-        if (!personMonthScores[v2Name][monthCode])
-          personMonthScores[v2Name][monthCode] = {score: 0, type: dutyType};
-        personMonthScores[v2Name][monthCode].score += sc;
-      }
-    }
-  });
+  const yearMonths = yearMonthScoresFor(SCORE_YEAR);
 
   // Build result.
   // The scores page ranks people competing for the same duties, so anyone who
@@ -858,34 +856,13 @@ function actionGetScores(req) {
     return true;
   }).map(p => {
     const base = baseScores[p.name] || {};
-    const monthData = personMonthScores[p.name] || {};
-
-    // Compute 2026 accumulated total from schedules
     let acc2026 = 0;
     const monthScores = {};
-    const sRow = scoreRowByName[p.name];
+    const ym = yearMonths[p.name] || [];
     monthNames.forEach((mKey, idx) => {
-      const mon = idx + 1;
-      const code2026 = SCORE_YEAR + String(mon).padStart(2,'0');
-      const md = monthData[code2026] || {score:0, type:''};
-
-      let mType = md.type, mScore = md.score;
-
-      // The schedule sheets only know about people who were ASSIGNED a duty.
-      // Exemptions (פטור) and manual corrections are written straight into the
-      // Scores sheet's monthly columns by actionGenerateScheduleV2 and by hand —
-      // reading only the schedules silently drops them (a פטור month showed 0
-      // instead of 10). So when the schedule yields nothing for a month, fall
-      // back to the Scores sheet, which is the authority for those entries.
-      // Scores layout: col E(4)=ינואר סוג, F(5)=ינואר ניקוד, G(6)=פברואר סוג ...
-      if (!mScore && sRow) {
-        const fbType  = String(sRow[4 + idx * 2] || '').trim();
-        const fbScore = Number(sRow[5 + idx * 2]) || 0;
-        if (fbType || fbScore) { mType = fbType; mScore = fbScore; }
-      }
-
-      monthScores[mKey] = {score: mScore, type: mType};
-      acc2026 += mScore;
+      const md = ym[idx] || {score: 0, type: ''};
+      monthScores[mKey] = {score: md.score, type: md.type};
+      acc2026 += md.score;
     });
 
     const result = {
@@ -3920,11 +3897,7 @@ function actionGenerateScheduleV2(req) {
     // IDEMPOTENT accumulated total: base-2025 (col C) + sum of monthly score columns
     // EXCLUDING the month being generated — so re-running never double-counts.
     var base2025 = liveCarryIn(year, sname, scoreRows[j][2]) + (Number(scoreRows[j][SCORE_ADJ_COL - 1])||0);
-    var acc2026 = base2025;
-    for (var accM = 1; accM <= 12; accM++) {
-      if (accM === mon) continue;
-      acc2026 += Number(scoreRows[j][5 + (accM-1)*2])||0; // 0-indexed monthly SCORE col (F=5 for jan)
-    }
+    var acc2026 = base2025 + monthsSum(year, sname, mon);
     var pm      = peopleMap[sname] || {name:sname,activity:'1',dutyCategory:'',weekendType:'מלא'};
 
     // Check last full-weekend, last weekend, and last duty of any kind from monthly columns
