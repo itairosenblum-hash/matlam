@@ -56,6 +56,7 @@ jobs:
         if: always()
         run: |
           {
+          echo "mail vars: $(cut -d= -f1 functions/.env 2>/dev/null | tr '\n' ' ')"
           gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS" 2>&1
           gcloud config set project matlam-e5288 2>&1
           for svc in api login importdata; do
