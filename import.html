@@ -90,18 +90,36 @@ $("go").onclick = async () => {
     wb.SheetNames.forEach(n => { if (!SKIP.includes(n)) sheets[n] = serRows(sheetRows(wb.Sheets[n])); });
     log(`נמצאו ${Object.keys(sheets).length} גיליונות: ${Object.keys(sheets).join(", ")}`);
     if (!sheets.Users || !sheets.People) throw new Error("הקובץ לא נראה כמו גיליון המטל״מ (חסרים Users / People)");
-    log(`שולח לשרת (${Math.round(JSON.stringify(sheets).length/1024)}KB)... עשוי לקחת עד דקה`);
-    const r = (await fnImport({ sheets })).data;
+    // send in small parts: Users+People first, then each sheet, then the audit log in chunks
+    const parts = [{ sheets: { Users: sheets.Users, People: sheets.People } }];
+    let cur = {}, curSize = 0;
+    for (const [n, rows] of Object.entries(sheets)) {
+      if (n === "Users" || n === "People" || n === "AuditLog") continue;
+      const sz = JSON.stringify(rows).length;
+      if (curSize && curSize + sz > 700000) { parts.push({ sheets: cur }); cur = {}; curSize = 0; }
+      cur[n] = rows; curSize += sz;
+    }
+    if (curSize) parts.push({ sheets: cur });
+    const audit = sheets.AuditLog || [];
+    for (let i = 0; i < audit.length; i += 1500) parts.push({ sheets: { AuditLog: audit.slice(i, i + 1500) }, auditOffset: i });
+    const tot = { sheets: 0, users: 0, audit: 0, skipped: [], errors: [] };
+    for (let i = 0; i < parts.length; i++) {
+      log(`שולח חלק ${i + 1}/${parts.length}: ${Object.keys(parts[i].sheets).join(", ")}`);
+      const r = (await fnImport(parts[i])).data;
+      tot.sheets += r.sheets; tot.users += r.users; tot.audit += r.audit;
+      tot.skipped.push(...(r.skipped || [])); tot.errors.push(...(r.errors || []));
+    }
+    const r = tot;
     log(`✓ ${r.sheets} גיליונות · ${r.users} חשבונות · ${r.audit} רשומות יומן`);
-    if (r.skipped && r.skipped.length) log("⚠ דולגו (גדולים מדי): " + r.skipped.join(", "));
-    if (r.errors && r.errors.length) { log("✗ שגיאות:\n" + r.errors.join("\n")); throw new Error("חלק מהנתונים לא נשמרו"); }
+    if (r.skipped.length) log("⚠ דולגו (גדולים מדי): " + r.skipped.join(", "));
+    if (r.errors.length) { log("✗ שגיאות:\n" + r.errors.join("\n")); throw new Error("חלק מהנתונים לא נשמרו"); }
     $("msg").className = "msg ok";
     $("msg").textContent = "הייבוא הושלם ✓ — כעת התנתק והתחבר מחדש באפליקציה";
     await signOut(auth);
     $("open").classList.remove("hidden");
   } catch (e) {
     console.error(e);
-    err(e.message || String(e));
+    err((e.code ? e.code + ": " : "") + (e.message || String(e)));
     log("✗ " + $("msg").textContent);
   }
   $("go").disabled = false;
