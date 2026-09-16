@@ -575,6 +575,52 @@ function actionUpdatePerson(req) {
 
 var SCORE_ADJ_COL = 29; // AC — manual bonus/penalty total for the year
 
+// ===== v2: cross-year score helpers =====
+// Previous years are read-only while an action runs, so they are memoized per run.
+var _prevYearRows = {};
+function scoreRowsFor(year) {           // name -> row of Scores_<year>, or null if no such sheet
+  year = String(year);
+  if (_prevYearRows.hasOwnProperty(year)) return _prevYearRows[year];
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName('Scores_' + year);
+  if (!sh) { var lg = ss.getSheetByName(SH.SCORES); if (lg && legacyScoresYear(lg) === year) sh = lg; }
+  var map = null;
+  if (sh) {
+    map = {};
+    var rows = sh.getDataRange().getValues();
+    for (var i = 1; i < rows.length; i++) { var n = String(rows[i][0] || '').trim(); if (n && !map[n]) map[n] = rows[i]; }
+  }
+  _prevYearRows[year] = map;
+  return map;
+}
+// Carry-in for `year` = previous year's (carry-in + adjustments + 12 monthly scores), computed
+// live, so months finished after the new year's sheet was created still count.
+// Falls back to the stored column C when the person has no row in the previous year.
+function liveCarryIn(year, name, storedC, depth) {
+  depth = depth || 0;
+  var py = parseInt(year, 10) - 1;
+  var prev = depth < 6 ? scoreRowsFor(py) : null;
+  if (!prev || !prev[name]) return Number(storedC) || 0;
+  var r = prev[name];
+  var c = liveCarryIn(py, name, r[2], depth + 1) + (Number(r[SCORE_ADJ_COL - 1]) || 0);
+  for (var m = 0; m < 12; m++) c += Number(r[5 + m * 2]) || 0;
+  return Math.round(c * 10) / 10;
+}
+// Duty type a person had `back` months before (year, mon); crosses into previous years.
+function monthTypeBack(year, mon, back, name, curRow) {
+  var y = year, m = mon - back;
+  while (m < 1) { m += 12; y--; }
+  var row = (y === year) ? curRow : ((scoreRowsFor(y) || {})[name] || null);
+  return row ? String(row[4 + (m - 1) * 2] || '').trim() : '';
+}
+// Live total for a Scores row of `year`
+function liveTotal(year, row) {
+  var name = String(row[0] || '').trim();
+  var t = liveCarryIn(year, name, row[2]) + (Number(row[SCORE_ADJ_COL - 1]) || 0);
+  for (var m = 0; m < 12; m++) t += Number(row[5 + m * 2]) || 0;
+  return t;
+}
+
 var SCORES_HEADERS = ['שם','פעילות','מצטבר קודם','מצטבר שנתי',
   'ינואר סוג','ינואר ניקוד','פברואר סוג','פברואר ניקוד',
   'מרץ סוג','מרץ ניקוד','אפריל סוג','אפריל ניקוד',
@@ -669,6 +715,11 @@ function createScoresSheetForYear(year) {
 // so it follows automatically whenever the sheet is rolled over to a new year.
 function getActiveScoreYear() {
   try {
+    var cur = new Date().getFullYear();
+    var ss0 = SpreadsheetApp.getActiveSpreadsheet();
+    for (var yy = cur; yy >= cur - 3; yy--) if (ss0.getSheetByName('Scores_' + yy)) return String(yy);
+  } catch(e) {}
+  try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var lg = ss.getSheetByName(SH.SCORES);
     if (lg) { var ly = legacyScoresYear(lg); if (ly) return ly; }
@@ -685,6 +736,7 @@ function getActiveScoreYear() {
 function guardScoreYear(month) {
   var reqYear = String(month || '').substring(0, 4);
   if (!reqYear) return null;
+  if (SpreadsheetApp.getActiveSpreadsheet().getSheets().some(function(s){ return /^Scores_\d{4}$/.test(s.getName()); })) return null;
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   if (ss.getSheetByName('Scores_' + reqYear)) return null;   // year has its own sheet
   var legacy = ss.getSheetByName(SH.SCORES);
@@ -737,7 +789,7 @@ function actionGetScores(req) {
     const sName = String(scoreRows[i][0]).trim();
     scoreRowByName[sName] = scoreRows[i];
     baseScores[sName] = {
-      acc2025: (Number(scoreRows[i][2]) || 0) + (Number(scoreRows[i][SCORE_ADJ_COL - 1]) || 0),
+      acc2025: liveCarryIn(SCORE_YEAR, sName, scoreRows[i][2]) + (Number(scoreRows[i][SCORE_ADJ_COL - 1]) || 0),
       adjust: Number(scoreRows[i][SCORE_ADJ_COL - 1]) || 0,
       activity: String(scoreRows[i][1] || '1')
     };
@@ -1920,7 +1972,7 @@ function actionAddTorani(req) {
     }
   }
   if (!foundInScores) {
-    scoreSheet.appendRow([name, activity||'1', 0, avgScore]);
+    scoreSheet.appendRow([name, activity||'1', avgScore, avgScore]);
     Logger.log('New torani ' + name + ' → avg score: ' + avgScore);
   }
 
@@ -1940,8 +1992,9 @@ function actionAddTorani(req) {
 // People is the single source of truth here.
 var AVG_EXCLUDED_CATEGORIES = ['אב', 'פטור', 'לא מוסמך', 'טרם הוסמך', 'מנהל מערכת'];
 
-function calcAverageScore() {
-  var rows = getScoresSheet(scoreYearOf(null)).getDataRange().getValues();
+function calcAverageScore(forYear) {
+  var avgYear = forYear ? String(forYear) : scoreYearOf(null);
+  var rows = getScoresSheet(avgYear).getDataRange().getValues();
 
   var peopleMap = {};
   try {
@@ -1962,7 +2015,7 @@ function calcAverageScore() {
     var name = String(rows[i][0] || '').trim();
     if (!name) continue;
 
-    var score = Number(rows[i][3]) || 0;
+    var score = liveTotal(avgYear, rows[i]);
     if (score <= 0) continue;
 
     var scoresActivity = String(rows[i][1] || '1').trim();
@@ -3833,6 +3886,27 @@ function actionGenerateScheduleV2(req) {
     }
   });
 
+  // v2: every schedulable torani must have a row in this year's scores sheet
+  // (people added after the sheet was created would otherwise never be scheduled)
+  try {
+    var haveRow = {};
+    for (var hr = 1; hr < scoreRows.length; hr++) haveRow[String(scoreRows[hr][0]||'').trim()] = true;
+    var missing = Object.keys(peopleMap).filter(function(nm){
+      var pp = peopleMap[nm];
+      return !haveRow[nm] && !excludedNames[nm] && pp.dutyCategory !== 'מנהל מערכת' && String(pp.activity) !== '0' && usersRole[nm] !== 'admin';
+    });
+    if (missing.length) {
+      var scSheetAdd = getScoresSheet(String(year));
+      var avgNew = null;
+      missing.forEach(function(nm){
+        var prevRows = scoreRowsFor(year - 1);
+        var carryNew = (prevRows && prevRows[nm]) ? liveCarryIn(year, nm, 0) : (avgNew !== null ? avgNew : (avgNew = calcAverageScore(year)));
+        scSheetAdd.appendRow([nm, peopleMap[nm].activity || '1', carryNew, carryNew]);
+      });
+      scoreRows = scSheetAdd.getDataRange().getValues();
+    }
+  } catch(e) { Logger.log('add missing score rows: ' + e); }
+
   // Build scores map + history
   var scores = {}, people = {};
   for (var j = 1; j < scoreRows.length; j++) {
@@ -3845,7 +3919,7 @@ function actionGenerateScheduleV2(req) {
     if (excludedNames[sname]) continue;
     // IDEMPOTENT accumulated total: base-2025 (col C) + sum of monthly score columns
     // EXCLUDING the month being generated — so re-running never double-counts.
-    var base2025 = (Number(scoreRows[j][2])||0) + (Number(scoreRows[j][SCORE_ADJ_COL - 1])||0);
+    var base2025 = liveCarryIn(year, sname, scoreRows[j][2]) + (Number(scoreRows[j][SCORE_ADJ_COL - 1])||0);
     var acc2026 = base2025;
     for (var accM = 1; accM <= 12; accM++) {
       if (accM === mon) continue;
@@ -3857,10 +3931,8 @@ function actionGenerateScheduleV2(req) {
     // Scores sheet: col E(5)=ינואר סוג, F(6)=ינואר ניקוד, G(7)=פברואר סוג...
     var lastFW = null, lastWeekend = null, lastDuty = null;
     for (var back = 1; back <= 12; back++) {
-      var mNum = mon - back;
-      if (mNum < 1) break;
-      var colIdx = 4 + (mNum-1)*2;
-      var dtype = String(scoreRows[j][colIdx]||'').trim();
+      var mNum = mon - back;          // may be <= 0: a month of the previous year
+      var dtype = monthTypeBack(year, mon, back, sname, scoreRows[j]);
       if (!dtype) continue;
       if (lastDuty === null && dtype !== 'פטור' && dtype !== 'דולג') lastDuty = mNum;
       if (lastFW === null && dtype.indexOf('סוף שבוע מלא') !== -1) lastFW = mNum;
@@ -3870,11 +3942,7 @@ function actionGenerateScheduleV2(req) {
     }
     
     // Check if prev month had חג
-    var prevMonDuty = '';
-    if (mon > 1) {
-      var prevColIdx = 4 + (mon-2)*2;
-      prevMonDuty = String(scoreRows[j][prevColIdx]||'').trim();
-    }
+    var prevMonDuty = monthTypeBack(year, mon, 1, sname, scoreRows[j]);
 
     people[sname] = Object.assign({}, pm, {
       score_2026:   acc2026,
@@ -3984,17 +4052,12 @@ function actionGenerateScheduleV2(req) {
     var last = p.last_fw;
     if (last !== null && (mon - last) < 6) return false;
     // חג in last 6 months disqualifies from full weekend
+    var ownRow = null;
+    for (var sr = 1; sr < scoreRows.length; sr++) {
+      if (String(scoreRows[sr][0]||'').trim() === p.name) { ownRow = scoreRows[sr]; break; }
+    }
     for (var back2 = 1; back2 <= 6; back2++) {
-      var mNum2 = mon - back2;
-      if (mNum2 < 1) break;
-      var colIdx2 = 4 + (mNum2-1)*2;
-      // find this person in scoreRows
-      for (var sr = 1; sr < scoreRows.length; sr++) {
-        if (String(scoreRows[sr][0]||'').trim() === p.name) {
-          if ((String(scoreRows[sr][colIdx2]||'').indexOf('חג') !== -1)) return false;
-          break;
-        }
-      }
+      if (monthTypeBack(year, mon, back2, p.name, ownRow).indexOf('חג') !== -1) return false;
     }
     return true;
   }
@@ -4530,7 +4593,7 @@ function actionGenerateScheduleV2(req) {
     if(scores[sn]===undefined) {
       if (excludedNames[sn]) {
         // Deactivated/ended: clear this month's columns and keep the total consistent
-        var exBase = (Number(scoreRows[sui][2])||0) + (Number(scoreRows[sui][SCORE_ADJ_COL - 1])||0);
+        var exBase = liveCarryIn(year, sn, scoreRows[sui][2]) + (Number(scoreRows[sui][SCORE_ADJ_COL - 1])||0);
         for (var exM = 1; exM <= 12; exM++) {
           if (exM === mon) continue;
           exBase += Number(scoreRows[sui][5 + (exM-1)*2])||0;
