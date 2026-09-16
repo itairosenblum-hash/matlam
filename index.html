@@ -110,7 +110,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
 .nav-tab.active{background:var(--surface3);color:var(--text)}
 /* ---- BOTTOM NAV (mobile only) ---- */
 #bottom-nav{display:none}
-@media(max-width:768px){
+@media(max-width:600px){
   #bottom-nav{
     display:flex;position:fixed;bottom:0;right:0;left:0;z-index:200;
     background:var(--surface);border-top:1px solid var(--border);
@@ -149,7 +149,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
 .guide-score-duty{color:var(--text);flex:1;text-align:right}
 .guide-score-num{font-weight:700;font-size:15px;margin-right:12px;min-width:32px;text-align:center}
 /* ---- GUIDE & SWAP MOBILE ---- */
-@media(max-width:768px){
+@media(max-width:600px){
   #tab-guide > div, #tab-swap > div{max-width:100%!important}
   #tab-guide .card{padding:14px 12px}
   #tab-guide p{font-size:13px!important;line-height:1.6!important}
@@ -267,7 +267,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
 .hamburger-btn.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
 .hamburger-btn.open span:nth-child(2){opacity:0}
 .hamburger-btn.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
-@media(max-width:768px){
+@media(max-width:600px){
   .nav-inner{justify-content:flex-start}
   .hamburger-btn{display:flex;margin-right:auto;margin-left:0;order:10}
   .nav-tabs{
@@ -286,7 +286,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
 .swap-filter-btn:hover{border-color:var(--border2);color:var(--text)}
 .swap-filter-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
 
-@media(max-width:640px){
+@media(max-width:600px){
   /* ── Calendar: clean card rows ── */
   /* Override the min-width wrapper so mobile layout works */
   #admin-schedule-content > div > div,
@@ -426,7 +426,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
 .constraint-preferred{background:rgba(46,160,67,0.1)!important;border-color:rgba(46,160,67,0.35)!important}
 .constraint-preferred .cal-day-num{color:var(--accent)}
 /* ---- RESPONSIVE ---- */
-@media(max-width:768px){
+@media(max-width:600px){
   /* ── Navbar ── */
   .navbar{padding:0 12px;flex-wrap:nowrap;height:56px;gap:8px;overflow:visible}
   .nav-brand{font-size:13px;flex-shrink:0}
@@ -772,7 +772,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 .ac-lock{min-width:130px}
 .ac-legend{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-bottom:12px;font-size:12px;color:var(--text2)}
 #tab-admin-constraints{max-width:100%;min-width:0}
-@media(max-width:768px){
+@media(max-width:600px){
   #tab-admin-constraints .section-header{align-items:stretch}
   .ac-toolbar{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));width:100%}
   .ac-month{grid-column:span 3;min-width:0}
@@ -781,7 +781,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
   .ac-act{grid-column:span 2}
   #tab-admin-constraints .ac-btn{font-size:12px;padding:6px 4px;min-width:0;overflow:hidden;text-overflow:ellipsis}
 }
-  @media (max-width: 768px){ html, body { overflow-x: clip; } }
+  @media (max-width: 600px){ html, body { overflow-x: clip; } }
 </style>
 </head>
 <body>
@@ -1730,7 +1730,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">v2 16/09/2026 11:34</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">v2 16/09/2026 12:38</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1743,8 +1743,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = 'v2 16/09/2026 11:34';
-const BUILD_EPOCH = 1789547700850; // ms — when this exact file was pushed
+const BUILD_STAMP = 'v2 16/09/2026 12:38';
+const BUILD_EPOCH = 1789551578957; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -2060,7 +2060,7 @@ function showImpersonateBanner(name) {
   if (existing) existing.remove();
   const banner = document.createElement('div');
   banner.id = 'impersonate-banner';
-  const isMob = window.innerWidth <= 768;
+  const isMob = window.innerWidth <= 600;
   const bottomOffset = isMob ? 'calc(60px + env(safe-area-inset-bottom, 0px) + 12px)' : '16px';
   banner.style.cssText = `position:fixed;bottom:${bottomOffset};right:16px;background:rgba(210,153,34,0.95);color:#000;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:600;z-index:9999;display:flex;align-items:center;gap:10px;box-shadow:0 4px 16px rgba(0,0,0,0.3)`;
   banner.innerHTML = `<span style="font-size:16px">👁️</span> צפייה כ: <strong>${name}</strong> <button onclick="exitImpersonate()" style="background:rgba(0,0,0,0.15);border:none;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600;margin-right:8px">חזור למנהל</button>`;
@@ -2606,6 +2606,19 @@ function showRefreshToast() {
   });
 })();
 
+(function initFoldSwitch(){
+  let wasMob = window.innerWidth <= 600, t = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(t);
+    t = setTimeout(() => {
+      const isMob = window.innerWidth <= 600;
+      if (isMob === wasMob) return;
+      wasMob = isMob;
+      if (typeof refreshCurrentTab === 'function') refreshCurrentTab();
+    }, 250);
+  });
+})();
+
 function populateMonthSelects() {
   const now = new Date();
   const currentVal = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}`;
@@ -2677,7 +2690,7 @@ function renderConstraintGrid(year, mon, days) {
   const firstDay = new Date(year, mon-1, 1).getDay();
   const dayHeaders = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
   const HEB_DAYS_FULL = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
-  const isMob = window.innerWidth <= 640;
+  const isMob = window.innerWidth <= 600;
 
   if (isMob) {
     // ── Mobile: same row-per-day style as schedule list ──
@@ -2796,7 +2809,7 @@ function toggleConstraint(idx) {
     if (next === 'V') cell.classList.add('constraint-preferred');
   }
   if (indicator) {
-    const isMob = window.innerWidth <= 640;
+    const isMob = window.innerWidth <= 600;
     if (isMob) {
       indicator.innerHTML =
         next === 'V' ? '<span style="color:var(--accent);font-size:22px;font-weight:800">✓</span>' :
@@ -4206,7 +4219,7 @@ function renderAdminSchedule(schedule, month) {
     container.innerHTML = `<div class="empty-state"><div class="icon">📭</div><p>אין לוח תורנויות לחודש זה. לחץ "הפק שיבוץ" כדי להתחיל.</p></div>`;
     return;
   }
-  if (window.innerWidth <= 640) {
+  if (window.innerWidth <= 600) {
     container.innerHTML = renderScheduleList(schedule, month, 'admin');
     return;
   }
@@ -4702,7 +4715,7 @@ function renderScores(list) {
     return;
   }
 
-  if (window.innerWidth <= 640) {
+  if (window.innerWidth <= 600) {
     var html = '<div style="display:grid;gap:8px;padding:8px">';
     list.forEach(function(s, i) {
       var p = pMap[s.name] || {};
@@ -6061,7 +6074,7 @@ async function loadUserFullSchedule() {
 
 function renderUserSchedule(schedule, month) {
   const container = document.getElementById('user-schedule-content');
-  if (window.innerWidth <= 640) {
+  if (window.innerWidth <= 600) {
     container.innerHTML = renderScheduleList(schedule, month, 'user');
     return;
   }
@@ -6726,7 +6739,7 @@ function toggleNotifPanel() {
   if (!panel) return;
   panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
   // On phones the panel is fixed to the viewport, just below the bell
-  if (panel.style.display === 'block' && window.matchMedia('(max-width: 768px)').matches) {
+  if (panel.style.display === 'block' && window.matchMedia('(max-width: 600px)').matches) {
     const btn = document.getElementById('bell-btn');
     panel.style.top = ((btn ? btn.getBoundingClientRect().bottom : 56) + 6) + 'px';
   } else {
