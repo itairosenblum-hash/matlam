@@ -23,6 +23,11 @@ const factory = globalThis.__matlamServerFactory;
 const PW = db.doc("private/passwords");
 const SYNCED = db.doc("private/synced");
 const OWNER = db.doc("meta/owner");
+function wrapErr(e) {
+  if (e instanceof HttpsError) throw e;
+  console.error(e);
+  throw new HttpsError("internal", "שגיאת שרת: " + (e && e.message ? e.message : String(e)).slice(0, 300));
+}
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // ---------- login ----------
@@ -66,7 +71,8 @@ export const login = onCall({ invoker: "public" }, async req => {
 });
 
 // ---------- api ----------
-export const api = onCall({ invoker: "public" }, async req => {
+export const api = onCall({ invoker: "public" }, req => apiImpl(req).catch(wrapErr));
+async function apiImpl(req) {
   if (!req.auth || !req.auth.token.email) throw new HttpsError("unauthenticated", "אין הרשאה");
   if (!req.auth.token.managed) throw new HttpsError("unauthenticated", "יש להתחבר מחדש");
   const params = req.data || {};
@@ -122,10 +128,11 @@ export const api = onCall({ invoker: "public" }, async req => {
     audit.forEach(a => tx.set(db.collection("audit").doc(), { ...a, by: key }));
   });
   return result;
-});
+}
 
 // ---------- one-shot import from the spreadsheet (.xlsx parsed in the browser) ----------
-export const importData = onCall({ invoker: "public", timeoutSeconds: 540, memory: "1GiB" }, async req => {
+export const importData = onCall({ invoker: "public", timeoutSeconds: 540, memory: "1GiB" }, req => importImpl(req).catch(wrapErr));
+async function importImpl(req) {
   if (!req.auth || !req.auth.token.email) throw new HttpsError("unauthenticated", "אין הרשאה");
   const key = req.auth.token.email.split("@")[0];
   const owner = await OWNER.get();
@@ -149,10 +156,11 @@ export const importData = onCall({ invoker: "public", timeoutSeconds: 540, memor
   Object.entries(rolesFromUsers(users)).forEach(([k, v]) => { writes.push([db.collection("roles").doc(k), v]); report.users++; });
   sheets.Users = serRows(stripUsers(users));
 
+  const bytes = x => Buffer.byteLength(JSON.stringify(x), "utf8");
   for (const [name, rows] of Object.entries(sheets)) {
     if (name === "AuditLog" || SKIP_SHEETS.includes(name)) continue;
-    if (JSON.stringify(rows).length > 950000) { report.skipped.push(name); continue; }
-    writes.push([db.collection("sheets").doc(name), { rows, rev, sid: 0, by: key, at: FieldValue.serverTimestamp() }]);
+    if (bytes(rows) > 900000) { report.skipped.push(name + " (" + Math.round(bytes(rows) / 1024) + "KB)"); continue; }
+    writes.push([db.collection("sheets").doc(name), { rows, rev, sid: 0, by: key, at: FieldValue.serverTimestamp() }, name]);
     report.sheets++;
   }
   if (sheets.AuditLog) {
@@ -160,15 +168,30 @@ export const importData = onCall({ invoker: "public", timeoutSeconds: 540, memor
       if (r[0] === "") return;
       const ts = r[0] instanceof Date ? r[0].toISOString() : String(r[0]);
       writes.push([db.collection("audit").doc("imp_" + String(i).padStart(5, "0")),
-        { ts, who: String(r[1] || ""), action: String(r[2] || ""), details: String(r[3] || ""), by: key }]);
+        { ts, who: String(r[1] || ""), action: String(r[2] || ""), details: String(r[3] || "").slice(0, 5000), by: key }, "AuditLog"]);
       report.audit++;
     });
   }
-  for (let i = 0; i < writes.length; i += 200) {
-    const b = db.batch();
-    writes.slice(i, i + 200).forEach(([ref, data]) => b.set(ref, data));
-    await b.commit();
+  report.errors = [];
+  let batch = db.batch(), count = 0, size = 0;
+  const flush = async () => {
+    if (!count) return;
+    try { await batch.commit(); }
+    catch (e) {
+      // retry one by one to pinpoint the failing document
+      for (const [ref, data, nm] of pending) {
+        try { await ref.set(data); } catch (e2) { report.errors.push(nm + ": " + e2.message); }
+      }
+    }
+    batch = db.batch(); count = 0; size = 0; pending = [];
+  };
+  let pending = [];
+  for (const w of writes) {
+    const sz = bytes(w[1].rows !== undefined ? w[1].rows : w[1]);
+    if (count >= 200 || size + sz > 4000000) await flush();
+    batch.set(w[0], w[1]); pending.push(w); count++; size += sz;
   }
+  await flush();
   await db.doc("meta/import").set({ at: FieldValue.serverTimestamp(), by: key, sheets: Object.keys(sheets) }, { merge: true });
   return report;
-});
+}
