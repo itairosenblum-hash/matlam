@@ -41,12 +41,33 @@ jobs:
         run: |
           set -o pipefail
           npx --yes firebase-tools@latest deploy --only functions,firestore:rules --project matlam-e5288 --non-interactive --force --debug 2>&1 | tee "$RUNNER_TEMP/deploy.log" | grep -v '^\[debug\]' 
+      - name: Make callables public + diagnose
+        if: always()
+        run: |
+          {
+          gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS" 2>&1
+          gcloud config set project matlam-e5288 2>&1
+          for svc in api login importdata; do
+            echo "== $svc"
+            gcloud run services add-iam-policy-binding "$svc" --region=me-west1 --member=allUsers --role=roles/run.invoker --quiet 2>&1 | tail -3
+            gcloud run services get-iam-policy "$svc" --region=me-west1 --format=json 2>&1 | tr -d '\n '
+            echo
+          done
+          echo "== probe login"
+          curl -s -i -X POST https://me-west1-matlam-e5288.cloudfunctions.net/login -H 'Content-Type: application/json' -d '{"data":{}}' | head -20
+          echo "== probe preflight"
+          curl -s -i -X OPTIONS https://me-west1-matlam-e5288.cloudfunctions.net/importData -H 'Origin: https://itairosenblum-hash.github.io' -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: content-type,authorization' | head -20
+          echo "== recent errors"
+          gcloud logging read 'severity>=ERROR AND resource.type="cloud_run_revision"' --limit=15 --freshness=6h --format='value(timestamp,resource.labels.service_name,textPayload,jsonPayload.message,httpRequest.status)' 2>&1 | cut -c1-400
+          } > "$RUNNER_TEMP/diag.txt" 2>&1 || true
+          cat "$RUNNER_TEMP/diag.txt"
       - name: Publish log
         if: always()
         run: |
           cd "$RUNNER_TEMP" && mkdir logrepo && cd logrepo
           git init -q && git checkout -q -b deploy-logs
           tail -c 400000 "$RUNNER_TEMP/deploy.log" > deploy.log 2>/dev/null || echo "no log" > deploy.log
+          cp "$RUNNER_TEMP/diag.txt" diag.txt 2>/dev/null || true
           echo "${{ github.sha }} ${{ job.status }}" > status.txt
           git add . && git -c user.name=ci -c user.email=ci@local commit -qm "deploy log ${{ github.run_id }}"
           git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" deploy-logs
