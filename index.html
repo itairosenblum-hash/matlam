@@ -14,6 +14,7 @@ window.__fbCall = function (p) {
 </script>
 <script src="js/server.js"></script>
 <script type="module" src="js/backend.js"></script>
+<link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" href="https://itairosenblum-hash.github.io/matlam/SemelMatzad_Color.svg.png">
 <link rel="apple-touch-icon" href="https://itairosenblum-hash.github.io/matlam/SemelMatzad_Color.svg.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -7287,7 +7288,7 @@ async function saveVehicleDetails() {
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    /* v2: no service worker */
+    navigator.serviceWorker.register('./sw.js', {scope: './'}).catch(() => {});
   });
 }
 </script>
