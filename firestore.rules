@@ -1,40 +1,20 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{db}/documents {
+    // All writes go through Cloud Functions (Admin SDK bypasses these rules).
     function signedIn() { return request.auth != null && request.auth.token.email != null; }
     function uname()    { return request.auth.token.email.split('@')[0]; }
-    function ownerDoc() { return /databases/$(db)/documents/meta/owner; }
     function roleDoc()  { return /databases/$(db)/documents/roles/$(uname()); }
-    function isOwner()  { return signedIn() && exists(ownerDoc()) && get(ownerDoc()).data.username == uname(); }
-    function hasRole()  { return signedIn() && exists(roleDoc()) && get(roleDoc()).data.active == true; }
-    function isAdmin()  { return isOwner() || (hasRole() && get(roleDoc()).data.role == 'admin'); }
-    function isMember() { return isAdmin() || hasRole(); }
-    function isEditor() { return isAdmin() || (hasRole() && get(roleDoc()).data.role != 'viewer'); }
+    function isMember() {
+      return signedIn() && request.auth.token.managed == true
+        && exists(roleDoc()) && get(roleDoc()).data.active == true;
+    }
+    function isAdmin()  { return isMember() && get(roleDoc()).data.role == 'admin'; }
 
-    match /meta/owner {
-      allow read: if signedIn();
-      allow create: if signedIn() && request.resource.data.username == uname();
-      allow update, delete: if false;
-    }
-    match /meta/{d} { allow read: if isMember(); allow write: if isAdmin(); }
-    match /roles/{k} {
-      allow read: if isMember() || (signedIn() && k == uname());
-      allow write: if isAdmin();
-    }
-    // Each document is one sheet of the original spreadsheet
-    match /sheets/{name} {
-      allow read: if isMember();
-      allow write: if isAdmin()
-        || (isMember() && name == 'Notifications')
-        || (isEditor() && (name == 'SwapRequests' || name == 'People' || name.matches('Constraints_[0-9]{6}')));
-    }
-    match /audit/{id} {
-      allow read: if isAdmin();
-      allow create: if isMember() && request.resource.data.by == uname();
-    }
-    // leftovers from the first test import
-    match /{coll}/{rest=**} {
-      allow read, write: if isAdmin() && coll in ['people', 'schedules', 'constraints', 'scores', 'swaps'];
-    }
+    match /sheets/{name} { allow read: if isMember(); }
+    match /roles/{k}     { allow read: if signedIn() && k == uname(); }
+    match /audit/{id}    { allow read: if isAdmin(); }
+    match /meta/owner    { allow read: if signedIn(); allow create: if signedIn() && request.resource.data.username == uname(); }
+    match /{document=**} { allow read, write: if false; }
   }
 }
