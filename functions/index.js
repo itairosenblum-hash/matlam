@@ -96,6 +96,7 @@ export const login = onCall({ invoker: "public" }, async req => {
 
 // ---------- forgot password: username + phone -> default password ----------
 const DEFAULT_PASSWORD = "Aa123456";
+const PROTECTED_USERS = ["admin"];   // their password can only be changed by themselves
 const normPhone = v => { let d = String(v == null ? "" : v).replace(/\D/g, ""); if (d.startsWith("972")) d = d.slice(3); return d.replace(/^0+/, ""); };
 
 export const forgotPassword = onCall({ invoker: "public" }, async req => {
@@ -119,6 +120,8 @@ export const forgotPassword = onCall({ invoker: "public" }, async req => {
   const row = users.slice(1).find(r => String(r[2] || "").trim().toLowerCase() === lower);
   if (!row) return fail();
   if (!row[5]) return { success: false, error: "החשבון מושבת. פנה למנהל." };
+  if (PROTECTED_USERS.includes(lower) || String(row[4] || "").trim() === "admin")
+    return { success: false, error: "לא ניתן לאפס חשבון זה דרך האתר." };
   const name = String(row[1] || "").trim();
   const person = people.find(r => String(r[0] || "").trim() === name);
   const stored = person ? normPhone(person[3]) : "";
@@ -148,6 +151,13 @@ async function apiImpl(req) {
   if (params.action === "__warm") return { success: true };
   if (MAIL_ACTIONS_BLOCKED.includes(params.action)) return { success: false, error: "שליחת מיילים כללית אינה בשימוש" };
   const key = req.auth.token.email.split("@")[0];
+  {
+    const a = params.action;
+    const target = String(a === "resetPassword" ? (params.targetUsername || "") : (params.username || "")).trim().toLowerCase();
+    const resetsPassword = a === "resetPassword" || ((a === "updateTorani" || a === "updateUser") && params.newPassword);
+    if (resetsPassword && PROTECTED_USERS.includes(target))
+      return { success: false, error: "לא ניתן לאפס את סיסמת חשבון זה דרך האתר" };
+  }
   let result, mailQueue = [];
   await db.runTransaction(async tx => {
     const [snap, pwSnap] = await Promise.all([tx.get(db.collection("sheets")), tx.get(PW)]);
