@@ -1,0 +1,29 @@
+name: Diagnostics
+on:
+  push:
+    branches: [main]
+    paths: ["diag/**", ".github/workflows/diag.yml"]
+permissions:
+  contents: write
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Run
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          cd diag && npm install --no-audit --no-fund >/dev/null 2>&1
+          { node check.mjs 2>&1; echo "== login logs";
+            gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS" >/dev/null 2>&1
+            gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name=("login" OR "importdata") AND (severity>=WARNING OR httpRequest.status>=400)' --project=matlam-e5288 --limit=20 --freshness=3h --format='value(timestamp,resource.labels.service_name,httpRequest.status,textPayload,jsonPayload.message)' 2>&1 | cut -c1-300
+          } > "$RUNNER_TEMP/out.txt" 2>&1 || true
+          cat "$RUNNER_TEMP/out.txt"
+          cd "$RUNNER_TEMP" && mkdir r && cd r && git init -q && git checkout -q -b diag-logs
+          cp ../out.txt diag.txt && git add . && git -c user.name=ci -c user.email=ci@local commit -qm diag
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" diag-logs
