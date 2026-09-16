@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>מטל״מ v2</title>
+<link rel="preconnect" href="https://www.gstatic.com">
+<link rel="preconnect" href="https://firestore.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;800&display=swap">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<!-- LOGIN -->
+<section id="login" class="wrap hidden" style="max-width:400px;margin-top:10vh">
+  <div class="card">
+    <h1>מטל״מ <span class="pill">גרסה 2 · בדיקות</span></h1>
+    <p class="muted" style="margin-top:6px">התחבר עם אותם פרטים של המערכת הקיימת</p>
+    <form id="loginForm">
+      <label>שם משתמש</label><input id="lu" autocomplete="username" autocapitalize="off" required>
+      <label>סיסמה</label><input id="lp" type="password" autocomplete="current-password" required>
+      <button class="btn btn-primary btn-block" id="lbtn">כניסה</button>
+      <div class="msg" id="lmsg"></div>
+    </form>
+  </div>
+</section>
+
+<!-- APP -->
+<section id="app" class="hidden">
+  <div class="topbar">
+    <div class="title">מטל״מ <span class="pill">v2</span></div>
+    <span class="muted" id="who"></span>
+    <button class="btn" id="logout">יציאה</button>
+  </div>
+  <div class="wrap">
+    <div id="notice" class="card hidden" style="margin-bottom:12px"></div>
+    <div class="month-nav">
+      <button class="btn" id="prev" aria-label="חודש קודם">›</button>
+      <div class="label" id="mlabel"></div>
+      <button class="btn" id="next" aria-label="חודש הבא">‹</button>
+    </div>
+    <div id="sched"></div>
+  </div>
+</section>
+
+<script type="module">
+import { auth, db, doc, onSnapshot, onAuthStateChanged, signOut, login, currentKey } from "./js/fb.js";
+const $ = id => document.getElementById(id);
+const MONTHS = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+let me = null, unsubMe = null, unsubSched = null;
+let cur = new Date(); cur = { y: cur.getFullYear(), m: cur.getMonth() + 1 };
+const mcode = () => cur.y + String(cur.m).padStart(2, "0");
+
+$("loginForm").onsubmit = async e => {
+  e.preventDefault();
+  $("lbtn").disabled = true; $("lmsg").className = "msg"; $("lmsg").textContent = "מתחבר...";
+  try { await login($("lu").value.trim(), $("lp").value, t => $("lmsg").textContent = t); }
+  catch (err) { $("lmsg").className = "msg err"; $("lmsg").textContent = err.message || String(err); }
+  $("lbtn").disabled = false;
+};
+$("logout").onclick = () => signOut(auth);
+$("prev").onclick = () => { cur.m--; if (cur.m < 1) { cur.m = 12; cur.y--; } loadMonth(); };
+$("next").onclick = () => { cur.m++; if (cur.m > 12) { cur.m = 1; cur.y++; } loadMonth(); };
+
+onAuthStateChanged(auth, user => {
+  unsubMe && unsubMe(); unsubSched && unsubSched();
+  if (!user) { $("app").classList.add("hidden"); $("login").classList.remove("hidden"); return; }
+  $("login").classList.add("hidden"); $("app").classList.remove("hidden");
+  $("who").textContent = "";
+  unsubMe = onSnapshot(doc(db, "people", currentKey()), s => {
+    me = s.exists() ? s.data() : null;
+    $("who").textContent = me ? me.name : "";
+    const n = $("notice");
+    if (!me) { n.classList.remove("hidden"); n.innerHTML = "החשבון שלך עוד לא הועבר למערכת החדשה. המנהל צריך להריץ ייבוא נתונים."; }
+    else if (!me.active) { n.classList.remove("hidden"); n.textContent = "החשבון מושבת."; }
+    else n.classList.add("hidden");
+    renderLast();
+  }, () => {});
+  loadMonth();
+});
+
+let lastDays = null;
+function loadMonth() {
+  $("mlabel").textContent = MONTHS[cur.m - 1] + " " + cur.y;
+  unsubSched && unsubSched();
+  lastDays = null;
+  $("sched").innerHTML = '<div class="skel"></div>'.repeat(6);
+  const code = mcode();
+  unsubSched = onSnapshot(doc(db, "schedules", code), s => {
+    if (code !== mcode()) return;
+    const d = s.exists() ? s.data() : null;
+    lastDays = d ? { days: d.days || [], draft: !!d.draft } : { days: [], draft: false };
+    renderLast();
+  }, err => {
+    $("sched").innerHTML = '<div class="card muted">אין לוח זמין לחודש זה.</div>';
+  });
+}
+
+function renderLast() {
+  if (!lastDays) return;
+  const { days, draft } = lastDays;
+  if (!days.length) { $("sched").innerHTML = '<div class="card muted">אין לוח זמין לחודש זה.</div>'; return; }
+  const myName = me ? String(me.name).trim() : "";
+  const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Jerusalem" });
+  const nm = (n, label) => n ? `<div><span class="tag">${label}</span><span class="${String(n).trim() === myName ? "me" : ""}">${esc(n)}</span></div>` : "";
+  let html = draft ? '<div class="card" style="margin-bottom:8px;border-color:var(--warn)">📝 טיוטה — לא מפורסם לתורנים</div>' : "";
+  for (const r of days) {
+    const names = [r.v, r.a, r.b, r.v2, r.a2, r.b2, r.t].map(x => String(x || "").trim());
+    const mine = myName && names.includes(myName);
+    const type = String(r.dayType || r.dutyType || "");
+    const cls = ["day", mine && "mine", r.date === today && "today",
+      /שבת|סופ/.test(type) && "weekend", /חג|הדממה/.test(type) && "holiday"].filter(Boolean).join(" ");
+    const dd = String(r.date || "").slice(8, 10);
+    html += `<div class="${cls}">
+      <div class="d"><b>${esc(dd)}</b><span class="muted">${esc(r.day)}</span></div>
+      <div class="people">
+        ${nm(r.v, "מבצע")}${nm(r.v2, "מבצע 2")}${nm(r.a, "עתודה א")}${nm(r.b, "עתודה ב")}
+        ${nm(r.a2, "עתודה א2")}${nm(r.b2, "עתודה ב2")}${nm(r.t, "🎓 הסמכה")}
+        ${type ? `<div><span class="pill">${esc(type)}</span>${r.notes ? ` <span class="muted">${esc(r.notes)}</span>` : ""}</div>` : ""}
+      </div></div>`;
+  }
+  $("sched").innerHTML = html;
+}
+</script>
+</body>
+</html>
