@@ -147,18 +147,21 @@ async function importImpl(req) {
   }
   if (!allowed) throw new HttpsError("permission-denied", "רק מנהל יכול לייבא");
 
+  // The browser sends the workbook in several small parts (request size limits).
   const sheets = (req.data && req.data.sheets) || {};
-  if (!sheets.Users || !sheets.People) throw new HttpsError("invalid-argument", "חסרים Users / People");
+  const auditOffset = Number((req.data && req.data.auditOffset) || 0);
   const writes = [];
   const rev = Date.now();
   const report = { sheets: 0, users: 0, audit: 0, skipped: [] };
 
-  const users = deRows(sheets.Users);
-  const h = {};
-  users.slice(1).forEach(r => { if (r[2] !== "" && r[2] != null && r[3]) h[String(r[2]).trim().toLowerCase()] = String(r[3]); });
-  writes.push([PW, { h }]);
-  Object.entries(rolesFromUsers(users)).forEach(([k, v]) => { writes.push([db.collection("roles").doc(k), v]); report.users++; });
-  sheets.Users = serRows(stripUsers(users));
+  if (sheets.Users) {
+    const users = deRows(sheets.Users);
+    const h = {};
+    users.slice(1).forEach(r => { if (r[2] !== "" && r[2] != null && r[3]) h[String(r[2]).trim().toLowerCase()] = String(r[3]); });
+    writes.push([PW, { h }]);
+    Object.entries(rolesFromUsers(users)).forEach(([k, v]) => { writes.push([db.collection("roles").doc(k), v]); report.users++; });
+    sheets.Users = serRows(stripUsers(users));
+  }
 
   const bytes = x => Buffer.byteLength(JSON.stringify(x), "utf8");
   for (const [name, rows] of Object.entries(sheets)) {
@@ -168,10 +171,10 @@ async function importImpl(req) {
     report.sheets++;
   }
   if (sheets.AuditLog) {
-    deRows(sheets.AuditLog).slice(1).forEach((r, i) => {
-      if (r[0] === "") return;
+    deRows(sheets.AuditLog).forEach((r, i) => {
+      if (r[0] === "" || (auditOffset + i === 0)) return;   // skip blanks + header row
       const ts = r[0] instanceof Date ? r[0].toISOString() : String(r[0]);
-      writes.push([db.collection("audit").doc("imp_" + String(i).padStart(5, "0")),
+      writes.push([db.collection("audit").doc("imp_" + String(auditOffset + i).padStart(6, "0")),
         { ts, who: String(r[1] || ""), action: String(r[2] || ""), details: String(r[3] || "").slice(0, 5000), by: key }, "AuditLog"]);
       report.audit++;
     });
@@ -196,6 +199,6 @@ async function importImpl(req) {
     batch.set(w[0], w[1]); pending.push(w); count++; size += sz;
   }
   await flush();
-  await db.doc("meta/import").set({ at: FieldValue.serverTimestamp(), by: key, sheets: Object.keys(sheets) }, { merge: true });
+  if (sheets.Users) await db.doc("meta/import").set({ at: FieldValue.serverTimestamp(), by: key }, { merge: true });
   return report;
 }
