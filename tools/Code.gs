@@ -4592,3 +4592,7 @@ function actionGenerateScheduleV2(req) {
   Logger.log('generateScheduleV2: ' + month + ' done, ' + Object.keys(result).length + ' days scheduled');
   return {success:true, message:msg};
 }
+
+
+// v2: referenced by the router/UI but never implemented upstream
+function actionDebugSwap(req) { return {success: true, debug: {}}; }
