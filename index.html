@@ -1731,7 +1731,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">v2 16/09/2026 12:47</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">v2 16/09/2026 20:45</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1744,8 +1744,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = 'v2 16/09/2026 12:47';
-const BUILD_EPOCH = 1789552110532; // ms — when this exact file was pushed
+const BUILD_STAMP = 'v2 16/09/2026 20:45';
+const BUILD_EPOCH = 1789580796327; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -2264,6 +2264,14 @@ async function initApp() {
 
 // ===== TORANI DUTY HISTORY =====
 const _historyCache = {};
+
+// Scores page: admin can tap a name to open that torani's duty history
+function scoreNameLink(name) {
+  const safe = escapeHtml(name);
+  if (!currentUser || currentUser.role !== 'admin') return safe;
+  return '<a href="#" data-name="' + safe + '" onclick="openToraniHistory(this.dataset.name);return false" '
+    + 'style="color:inherit;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px" title="היסטוריית תורנויות">' + safe + '</a>';
+}
 
 async function openToraniHistory(name) {
   if (!name) return;
@@ -3125,10 +3133,13 @@ async function loadUsers() { // keep name for tab switching
 
   // ── Stats summary ──
   const activeOnly = sorted.filter(t => t.active && t.role !== 'admin');
-  const countRegular = activeOnly.filter(t => !t.dutyCategory || t.dutyCategory === 'רגיל').length;
+  const countRegular = activeOnly.filter(t => !isExemptTorani(t)).length;
   const countAv      = activeOnly.filter(t => t.dutyCategory === 'אב').length;
   const countUnqual  = activeOnly.filter(t => t.dutyCategory === 'טרם הוסמך' || t.dutyCategory === 'לא מוסמך').length;
   const countTotal   = activeOnly.length;
+  const countPatur   = activeOnly.filter(t => t.dutyCategory === 'פטור').length;
+  const countInact   = activeOnly.filter(t => String(t.activity) === '0' && !['אב','פטור','טרם הוסמך','לא מוסמך'].includes(t.dutyCategory)).length;
+  const countExempt  = activeOnly.filter(isExemptTorani).length;
   const countEndingSoon = activeOnly.filter(t => getEndDateStatus(t.endDate) === 'soon').length;
   const statsEl = document.getElementById('tornim-stats');
   if (statsEl) {
@@ -3145,6 +3156,9 @@ async function loadUsers() { // keep name for tab switching
       pill('✅', 'תורנים רגילים', countRegular, 'var(--accent)', "filterTornimByCategory('regular')") +
       pill('👶', 'משרת אב', countAv, '#f59e0b', "filterTornimByCategory('av')") +
       pill('🎓', 'טרם הוסמכו', countUnqual, 'var(--text3)', "filterTornimByCategory('unqual')") +
+      pill('🛡️', 'פטור', countPatur, 'var(--danger)', "filterTornimByCategory('patur')") +
+      (countInact ? pill('⏸️', 'לא פעילים בסבב', countInact, 'var(--text2)', "filterTornimByCategory('inactive')") : '') +
+      pill('📋', 'סה"כ פטורים מתורנות', countExempt, 'var(--warn)', "filterTornimByCategory('exempt')") +
       pill('⏳', 'מסיימים תפקיד ב-3 חודשים', countEndingSoon, 'var(--warn)', 'filterTornimEndingSoon()');
   }
 
@@ -3415,6 +3429,11 @@ function filterTornim(query) {
   container.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">${cards}</div>`;
 }
 
+// Anyone who is not in the regular duty rotation
+function isExemptTorani(t) {
+  return ['אב','פטור','טרם הוסמך','לא מוסמך'].includes(t.dutyCategory) || String(t.activity) === '0';
+}
+
 function filterTornimByCategory(kind) {
   if (!window._allTornimData) return;
   const container = document.getElementById('tornim-content');
@@ -3429,14 +3448,20 @@ function filterTornimByCategory(kind) {
     return 'var(--text2)';
   };
   const matchers = {
-    regular: t => !t.dutyCategory || t.dutyCategory === 'רגיל',
+    regular: t => !isExemptTorani(t),
     av: t => t.dutyCategory === 'אב',
-    unqual: t => t.dutyCategory === 'טרם הוסמך' || t.dutyCategory === 'לא מוסמך'
+    unqual: t => t.dutyCategory === 'טרם הוסמך' || t.dutyCategory === 'לא מוסמך',
+    patur: t => t.dutyCategory === 'פטור',
+    inactive: t => String(t.activity) === '0' && !['אב','פטור','טרם הוסמך','לא מוסמך'].includes(t.dutyCategory),
+    exempt: t => isExemptTorani(t)
   };
   const labels = {
     regular: { icon: '✅', text: 'תורנים רגילים' },
     av: { icon: '👶', text: 'תורנים במשרת אב' },
-    unqual: { icon: '🎓', text: 'תורנים שטרם הוסמכו' }
+    unqual: { icon: '🎓', text: 'תורנים שטרם הוסמכו' },
+    patur: { icon: '🛡️', text: 'תורנים בפטור' },
+    inactive: { icon: '⏸️', text: 'תורנים שאינם פעילים בסבב' },
+    exempt: { icon: '📋', text: 'פטורים מתורנות (אב, פטור, טרם הוסמכו, לא פעילים)' }
   };
   const matchFn = matchers[kind];
   if (!matchFn) return;
@@ -4738,7 +4763,7 @@ function renderScores(list) {
       });
       html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px">'
         + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
-        + '<div><div style="font-weight:700;font-size:15px">'+s.name+'</div>'
+        + '<div><div style="font-weight:700;font-size:15px">'+scoreNameLink(s.name)+'</div>'
         + '<div style="font-size:11px;color:var(--text2);margin-top:2px">'+(cat||'רגיל')+' · '+(wkd||'—')+'</div></div>'
         + '<div style="text-align:center"><div style="font-size:22px;font-weight:800;color:var(--accent)">'+s._total+'</div>'
         + '<div style="font-size:10px;color:var(--text3)">נקודות</div></div></div>'
@@ -4762,7 +4787,7 @@ function renderScores(list) {
       var pct = n>1 ? Math.round(((n-i)/(n-1))*100) : 100; var barColor = i < topT ? 'var(--accent)' : i < midT ? '#f97316' : '#ef4444';
       var wl = wkdType==='מלא'?'מלא':wkdType==='בנפרד'?'בנפרד':wkdType||'—';
       var mCells = activeMon.map(function(m){ var sc=(s[m.k]||{}).score; return '<td style="text-align:center;color:var(--text2);font-size:12px">'+(sc||'—')+'</td>'; }).join('');
-      return '<tr><td style="font-weight:700;padding:8px 12px;white-space:nowrap">'+s.name+'</td>'
+      return '<tr><td style="font-weight:700;padding:8px 12px;white-space:nowrap">'+scoreNameLink(s.name)+'</td>'
         +'<td style="font-size:12px;padding:8px 12px;color:var(--text2)">'+dutyCat+'</td>'
         +'<td style="font-size:12px;padding:8px 12px;color:var(--text2)">'+wl+'</td>'
         +'<td style="padding:8px 12px;color:var(--text2)">'+(s.carryIn!==undefined?s.carryIn:(s.acc2025||0))+'</td>'
