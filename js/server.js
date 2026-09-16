@@ -1,6 +1,5 @@
-/* AUTO-GENERATED from matlam/Code.gs — do not edit by hand.
-   The original Apps Script backend, run in the browser on top of a
-   Sheets emulation backed by Firestore (see js/backend.js). */
+/* AUTO-GENERATED from tools/Code.gs (v2 fork of matlam/Code.gs) — do not edit by hand.
+   The original Apps Script backend, run on top of a Sheets emulation backed by Firestore. */
 window.__matlamServerFactory = function (__env) {
   var SpreadsheetApp = __env.SpreadsheetApp, Utilities = __env.Utilities, Session = __env.Session,
       CacheService = __env.CacheService, MailApp = __env.MailApp, ContentService = __env.ContentService,
@@ -581,6 +580,8 @@ function actionUpdatePerson(req) {
 // Dec 2026 edits and Jan 2027 generation then land in different sheets and never
 // collide, so there is no rollover moment and no danger window.
 
+var SCORE_ADJ_COL = 29; // AC — manual bonus/penalty total for the year
+
 var SCORES_HEADERS = ['שם','פעילות','מצטבר קודם','מצטבר שנתי',
   'ינואר סוג','ינואר ניקוד','פברואר סוג','פברואר ניקוד',
   'מרץ סוג','מרץ ניקוד','אפריל סוג','אפריל ניקוד',
@@ -651,7 +652,7 @@ function createScoresSheetForYear(year) {
     for (var i = 1; i < prevRows.length; i++) {
       var nm = String(prevRows[i][0] || '').trim();
       if (!nm) continue;
-      var carry = Number(prevRows[i][2]) || 0;           // previous carry-in
+      var carry = (Number(prevRows[i][2]) || 0) + (Number(prevRows[i][SCORE_ADJ_COL - 1]) || 0); // previous carry-in + adjustments
       for (var mI = 0; mI < 12; mI++) carry += Number(prevRows[i][5 + mI * 2]) || 0;
       var row = new Array(hdrs.length).fill('');
       row[0] = nm;
@@ -743,7 +744,8 @@ function actionGetScores(req) {
     const sName = String(scoreRows[i][0]).trim();
     scoreRowByName[sName] = scoreRows[i];
     baseScores[sName] = {
-      acc2025: Number(scoreRows[i][2]) || 0,
+      acc2025: (Number(scoreRows[i][2]) || 0) + (Number(scoreRows[i][SCORE_ADJ_COL - 1]) || 0),
+      adjust: Number(scoreRows[i][SCORE_ADJ_COL - 1]) || 0,
       activity: String(scoreRows[i][1] || '1')
     };
   }
@@ -849,6 +851,7 @@ function actionGetScores(req) {
       // carryIn / total are the year-neutral names. acc2025/acc2026 are kept as
       // aliases so the existing frontend keeps working unchanged during rollout.
       carryIn: base.acc2025 || 0,
+      adjust:  base.adjust || 0,
       total:   Math.round(acc2026),
       acc2025: base.acc2025 || 0,
       acc2026: Math.round(acc2026)
@@ -3299,6 +3302,10 @@ function actionAdjustScore(req) {
       var cur = Number(rows[i][3]) || 0;
       var newVal = cur + numScore;
       scoreSheet.getRange(i+1, 4).setValue(newVal);
+      // v2: the total shown and used by the scheduler is (carry-in + months + adjustments)
+      var curAdj = Number(rows[i][SCORE_ADJ_COL - 1]) || 0;
+      scoreSheet.getRange(1, SCORE_ADJ_COL).setValue('התאמות ידניות');
+      scoreSheet.getRange(i+1, SCORE_ADJ_COL).setValue(curAdj + numScore);
       var sign = numScore > 0 ? '+' : '';
       Logger.log('adjustScore: ' + personName + ' ' + cur + ' -> ' + newVal + ' (' + reason + ')');
       return {success:true, message: personName + ' קיבל ' + sign + numScore + ' ניקוד (היה: ' + cur + ', עכשיו: ' + newVal + ') | סיבה: ' + reason};
@@ -3845,7 +3852,7 @@ function actionGenerateScheduleV2(req) {
     if (excludedNames[sname]) continue;
     // IDEMPOTENT accumulated total: base-2025 (col C) + sum of monthly score columns
     // EXCLUDING the month being generated — so re-running never double-counts.
-    var base2025 = Number(scoreRows[j][2])||0;
+    var base2025 = (Number(scoreRows[j][2])||0) + (Number(scoreRows[j][SCORE_ADJ_COL - 1])||0);
     var acc2026 = base2025;
     for (var accM = 1; accM <= 12; accM++) {
       if (accM === mon) continue;
@@ -4530,7 +4537,7 @@ function actionGenerateScheduleV2(req) {
     if(scores[sn]===undefined) {
       if (excludedNames[sn]) {
         // Deactivated/ended: clear this month's columns and keep the total consistent
-        var exBase = Number(scoreRows[sui][2])||0;
+        var exBase = (Number(scoreRows[sui][2])||0) + (Number(scoreRows[sui][SCORE_ADJ_COL - 1])||0);
         for (var exM = 1; exM <= 12; exM++) {
           if (exM === mon) continue;
           exBase += Number(scoreRows[sui][5 + (exM-1)*2])||0;
