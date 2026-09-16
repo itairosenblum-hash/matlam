@@ -1506,7 +1506,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
     </div>
     <div class="modal-body">
       <div id="forgot-alert"></div>
-      <p style="font-size:13px;color:var(--text2);margin-bottom:12px">לאימות זהותך, הזן את הפרטים כפי שהם רשומים במערכת:</p>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px">הזן את שם המשתמש ואת מספר הטלפון הרשום במערכת. אם הפרטים נכונים, הסיסמה תאופס לסיסמת ברירת המחדל, ומומלץ לשנות אותה מיד אחרי הכניסה (בעמוד הפרופיל).</p>
       <div class="form-group">
         <label>שם משתמש</label>
         <input id="forgot-user" type="text" placeholder="שם משתמש" autocomplete="username">
@@ -1514,18 +1514,6 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
       <div class="form-group">
         <label>מספר טלפון</label>
         <input id="forgot-phone" type="tel" placeholder="050-1234567">
-      </div>
-      <div class="form-group">
-        <label>כתובת אימייל</label>
-        <input id="forgot-email" type="email" placeholder="name@example.com">
-      </div>
-      <div class="form-group">
-        <label>סיסמה חדשה (לפחות 6 תווים)</label>
-        <input id="forgot-newpass" type="password" placeholder="סיסמה חדשה" autocomplete="new-password">
-      </div>
-      <div class="form-group">
-        <label>אימות סיסמה חדשה</label>
-        <input id="forgot-newpass2" type="password" placeholder="הקלד שוב את הסיסמה" autocomplete="new-password">
       </div>
     </div>
     <div class="modal-footer">
@@ -1742,7 +1730,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">v2 16/09/2026 11:26</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">v2 16/09/2026 11:34</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1755,8 +1743,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = 'v2 16/09/2026 11:26';
-const BUILD_EPOCH = 1789547237194; // ms — when this exact file was pushed
+const BUILD_STAMP = 'v2 16/09/2026 11:34';
+const BUILD_EPOCH = 1789547700850; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -2098,7 +2086,7 @@ function toggleLoginPass() {
 }
 
 function openForgotModal() {
-  ['forgot-user','forgot-phone','forgot-email','forgot-newpass','forgot-newpass2'].forEach(id => { document.getElementById(id).value = ''; });
+  ['forgot-user','forgot-phone'].forEach(id => { document.getElementById(id).value = ''; });
   document.getElementById('forgot-alert').innerHTML = '';
   const u = document.getElementById('login-user').value.trim();
   if (u) document.getElementById('forgot-user').value = u;
@@ -2108,16 +2096,11 @@ function openForgotModal() {
 async function submitForgotPassword() {
   const username = document.getElementById('forgot-user').value.trim();
   const phone = document.getElementById('forgot-phone').value.trim();
-  const email = document.getElementById('forgot-email').value.trim();
-  const newPassword = document.getElementById('forgot-newpass').value;
-  const newPassword2 = document.getElementById('forgot-newpass2').value;
-  if (!username || !phone || !email || !newPassword) return showAlert('forgot-alert','יש למלא את כל השדות','error');
-  if (newPassword.length < 6) return showAlert('forgot-alert','הסיסמה חייבת להכיל לפחות 6 תווים','error');
-  if (newPassword !== newPassword2) return showAlert('forgot-alert','הסיסמאות אינן תואמות','error');
+  if (!username || !phone) return showAlert('forgot-alert','יש למלא שם משתמש ומספר טלפון','error');
   const btn = document.getElementById('forgot-submit-btn');
   btn.disabled = true;
   try {
-    const res = await api({action:'forgotPassword', username, phone, email, newPassword});
+    const res = await api({action:'forgotPassword', username, phone});
     if (res.success) {
       closeModal('modal-forgot-pass');
       showAlert('login-alert', '✓ ' + (res.message || 'הסיסמה עודכנה בהצלחה'), 'success');
