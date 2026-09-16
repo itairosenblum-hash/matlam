@@ -199,8 +199,8 @@ export function sha256Bytes(str) {
     for (let i = 0; i < 16; i++) w[i] = (bytes[o + i * 4] << 24) | (bytes[o + i * 4 + 1] << 16) | (bytes[o + i * 4 + 2] << 8) | bytes[o + i * 4 + 3];
     for (let i = 16; i < 64; i++) {
       const a = w[i - 15], b = w[i - 2];
-      const s0 = ((a >>> 7) | (a << 25)) ^ ((a >>> 18) | (a << 14)) ^ ((a >>> 3) | (a << 29));
-      const s1 = ((b >>> 17) | (b << 15)) ^ ((b >>> 19) | (b << 13)) ^ ((b >>> 10) | (b << 22));
+      const s0 = ((a >>> 7) | (a << 25)) ^ ((a >>> 18) | (a << 14)) ^ (a >>> 3);
+      const s1 = ((b >>> 17) | (b << 15)) ^ ((b >>> 19) | (b << 13)) ^ (b >>> 10);
       w[i] = (w[i - 16] + s0 + w[i - 7] + s1) | 0;
     }
     let [a, b, c, d, e, f, g, h] = H;
