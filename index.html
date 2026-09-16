@@ -1742,7 +1742,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">v2 16/09/2026 11:22</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">v2 16/09/2026 11:26</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1755,8 +1755,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = 'v2 16/09/2026 11:22';
-const BUILD_EPOCH = 1789547024268; // ms — when this exact file was pushed
+const BUILD_STAMP = 'v2 16/09/2026 11:26';
+const BUILD_EPOCH = 1789547237194; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -2164,6 +2164,7 @@ function doLogout() {
   localStorage.removeItem('v2duty_token');
   localStorage.removeItem('v2duty_user');
   sessionStorage.clear();
+  if (window.__fbSignOut) window.__fbSignOut();
   showPage('login-page');
 }
 
