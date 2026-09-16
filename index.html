@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<meta name="theme-color" content="#2d4a3e">
+<meta name="theme-color" content="#0B2545">
 <script>
 window.__fbCallImpl = null; window.__fbQueue = [];
 window.__fbCall = function (p) {
@@ -782,6 +782,41 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
   #tab-admin-constraints .ac-btn{font-size:12px;padding:6px 4px;min-width:0;overflow:hidden;text-overflow:ellipsis}
 }
   @media (max-width: 600px){ html, body { overflow-x: clip; } }
+
+/* ===== v2 theme: "צי" — naval navy + gold ===== */
+:root{
+  --bg:#081427; --surface:#0E1F3A; --surface2:#13284A; --surface3:#1A3358;
+  --border:#22406A; --border2:#2E5185;
+  --accent:#E9C46A; --accent2:#D4A843; --accent-glow:rgba(233,196,106,.14);
+  --info:#5AA9FF; --text:#EAF0F8; --text2:#9FB2CC; --text3:#6F85A3;
+  --navy:#0B2545; --gold:#E9C46A; --on-accent:#0B2545;
+  --shadow:0 8px 32px rgba(0,0,0,.45);
+}
+body.light-mode{
+  --bg:#EEF2F7; --surface:#FFFFFF; --surface2:#F3F6FA; --surface3:#E6ECF4;
+  --border:#C9D3E0; --border2:#A9B8CC;
+  --accent:#1B4B8A; --accent2:#0B2545; --accent-glow:rgba(27,75,138,.10);
+  --info:#1B6FD1; --text:#0B2545; --text2:#4A5E7A; --text3:#8193AB;
+  --on-accent:#FFFFFF; --shadow:0 8px 32px rgba(11,37,69,.12);
+}
+.btn-primary{background:var(--accent);color:var(--on-accent)}
+.btn-primary:hover{background:var(--accent2);color:var(--on-accent)}
+/* navy chrome in both modes */
+.navbar,#bottom-nav{
+  --text:#FFFFFF; --text2:#B9C7DB; --text3:#8FA3BF;
+  --surface2:rgba(255,255,255,.08); --surface3:rgba(255,255,255,.13);
+  --border:rgba(255,255,255,.18); --border2:rgba(255,255,255,.3);
+  --accent:#E9C46A; --accent-glow:rgba(233,196,106,.16);
+  background:#0B2545!important; border-color:#0B2545!important; color:#fff;
+}
+.navbar .nav-brand{color:#fff}
+.navbar .nav-tab.active{color:#E9C46A;box-shadow:inset 0 -2px 0 #E9C46A}
+.navbar select,.navbar select option{color:#0B2545}
+.navbar select{background:#E9C46A!important;border-color:#E9C46A!important}
+#bottom-nav .bnav-item.active{color:#E9C46A}
+#login-page{background:radial-gradient(ellipse at 50% 0%,rgba(233,196,106,.10),transparent 70%)}
+body.light-mode #login-page{background:radial-gradient(ellipse at 50% 0%,rgba(11,37,69,.10),transparent 70%)}
+.card-title,.section-title{letter-spacing:.1px}
 </style>
 </head>
 <body>
@@ -1730,7 +1765,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">v2 16/09/2026 12:38</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">v2 16/09/2026 12:42</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1743,8 +1778,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = 'v2 16/09/2026 12:38';
-const BUILD_EPOCH = 1789551578957; // ms — when this exact file was pushed
+const BUILD_STAMP = 'v2 16/09/2026 12:42';
+const BUILD_EPOCH = 1789551823655; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -5601,7 +5636,7 @@ function buildCalGridHTML(schedule, month) {
 
   let html = '<div style="direction:rtl;font-family:Arial,sans-serif">'
     + '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:2px">'
-    + dayHeaders.map(d => '<div style="background:#2d4a3e;color:#fff;text-align:center;padding:6px 2px;font-size:12px;font-weight:600">' + d + '</div>').join('')
+    + dayHeaders.map(d => '<div style="background:#0B2545;color:#fff;text-align:center;padding:6px 2px;font-size:12px;font-weight:600">' + d + '</div>').join('')
     + '</div>'
     + '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">';
 
@@ -5670,7 +5705,7 @@ function exportToJPG() {
   wrapper.style.cssText = 'position:fixed;top:-9999px;left:-9999px;background:#ffffff;padding:20px;width:1050px;box-sizing:border-box';
 
   const titleEl = document.createElement('div');
-  titleEl.style.cssText = 'text-align:center;font-size:22px;font-weight:bold;color:#2d4a3e;padding:8px 0 16px;border-bottom:2px solid #2d4a3e;margin-bottom:14px;font-family:Arial,sans-serif;direction:rtl';
+  titleEl.style.cssText = 'text-align:center;font-size:22px;font-weight:bold;color:#0B2545;padding:8px 0 16px;border-bottom:2px solid #E9C46A;margin-bottom:14px;font-family:Arial,sans-serif;direction:rtl';
   titleEl.textContent = 'לוח תורנויות — ' + monthName;
 
   const gridDiv = document.createElement('div');
