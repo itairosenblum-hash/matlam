@@ -4600,6 +4600,10 @@ function actionGenerateScheduleV2(req) {
   return {success:true, message:msg};
 }
 
+
+// v2: referenced by the router/UI but never implemented upstream
+function actionDebugSwap(req) { return {success: true, debug: {}}; }
+
   // ---- v2 overrides ----
   validateToken = function () { return __env.currentUser(); };
   logSlowRequest = function () {};
