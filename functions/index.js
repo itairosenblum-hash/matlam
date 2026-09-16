@@ -44,7 +44,7 @@ async function ensureAccount(username, password, hash) {
   if (synced[key] !== hash) await SYNCED.set({ [key]: hash }, { merge: true });
 }
 
-export const login = onCall(async req => {
+export const login = onCall({ invoker: "public" }, async req => {
   const username = String((req.data && req.data.username) || "").trim();
   const password = String((req.data && req.data.password) || "");
   if (!username || !password) throw new HttpsError("invalid-argument", "חסרים פרטי כניסה");
@@ -66,7 +66,7 @@ export const login = onCall(async req => {
 });
 
 // ---------- api ----------
-export const api = onCall(async req => {
+export const api = onCall({ invoker: "public" }, async req => {
   if (!req.auth || !req.auth.token.email) throw new HttpsError("unauthenticated", "אין הרשאה");
   if (!req.auth.token.managed) throw new HttpsError("unauthenticated", "יש להתחבר מחדש");
   const params = req.data || {};
@@ -125,7 +125,7 @@ export const api = onCall(async req => {
 });
 
 // ---------- one-shot import from the spreadsheet (.xlsx parsed in the browser) ----------
-export const importData = onCall({ timeoutSeconds: 540, memory: "1GiB" }, async req => {
+export const importData = onCall({ invoker: "public", timeoutSeconds: 540, memory: "1GiB" }, async req => {
   if (!req.auth || !req.auth.token.email) throw new HttpsError("unauthenticated", "אין הרשאה");
   const key = req.auth.token.email.split("@")[0];
   const owner = await OWNER.get();
