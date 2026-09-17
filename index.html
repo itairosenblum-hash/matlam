@@ -1750,7 +1750,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">v2 17/09/2026 07:15</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">v2 17/09/2026 07:19</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1763,8 +1763,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = 'v2 17/09/2026 07:15';
-const BUILD_EPOCH = 1789618579447; // ms — when this exact file was pushed
+const BUILD_STAMP = 'v2 17/09/2026 07:19';
+const BUILD_EPOCH = 1789618847977; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -2002,7 +2002,11 @@ let _realUser = null; // saves real admin user during impersonation
 
 async function loadImpersonateList() {
   const effectiveRole = (_realUser ? _realUser.role : currentUser.role);
-  if (effectiveRole !== 'admin') return;
+  if (effectiveRole !== 'admin') {
+    const ic = document.getElementById('impersonate-container');
+    if (ic) ic.style.display = 'none';
+    return;
+  }
   let res;
   try { res = await api({action:'getAllTornim'}); }
   catch(e) { console.error('loadImpersonateList error:', e); return; }
@@ -2164,6 +2168,12 @@ function doLogout() {
   const rb = document.getElementById('refresh-btn');
   if (rb) { rb.style.display = 'none'; rb.classList.remove('spinning'); }
   token = ''; currentUser = null; allPeople = [];
+  // admin-only "view as" must never carry over to the next user on this device
+  _realUser = null;
+  const ic = document.getElementById('impersonate-container');
+  if (ic) ic.style.display = 'none';
+  const isel = document.getElementById('impersonate-select');
+  if (isel) isel.innerHTML = '<option value="">— עצמי (מנהל) —</option>';
   localStorage.removeItem('v2duty_token');
   localStorage.removeItem('v2duty_user');
   sessionStorage.clear();
@@ -2225,6 +2235,10 @@ async function initApp() {
   document.getElementById('nav-role-badge').textContent = currentUser.role === 'admin' ? 'מנהל' : currentUser.role === 'viewer' ? 'צפייה' : 'תורן';
   buildNavTabs();
   populateMonthSelects();
+  if (currentUser.role !== 'admin' && !_realUser) {
+    const ic = document.getElementById('impersonate-container');
+    if (ic) ic.style.display = 'none';
+  }
   if (currentUser.role === 'admin') {
     const now = new Date();
     const currentMonth = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}`;
