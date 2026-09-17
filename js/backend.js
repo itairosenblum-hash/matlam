@@ -2,7 +2,7 @@
 // Reads: the original Code.gs runs right here, on a live mirror of the sheets (instant).
 // Writes: sent to the `api` Cloud Function, which runs the same code with full authority.
 import { deRows } from "./cells.js";
-import { auth, db, login as fbLogin, currentKey, fnApi, fnForgot } from "./fb.js";
+import { auth, db, login as fbLogin, currentKey, fnApi, fnForgot, fnExport } from "./fb.js";
 import { Spreadsheet, runRoute, findUser, SERVER_READ_ACTIONS } from "./emu.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import { collection, onSnapshot, getDocs, query, orderBy, limit }
@@ -123,4 +123,11 @@ export async function call(params) {
 
 window.__fbCallImpl = call;
 window.__fbSignOut = () => signOut(auth).catch(() => {});
+// full backup as { sheetName: rows[][] } (dates as Date objects)
+window.__fbExportBackup = async () => {
+  const r = (await fnExport({})).data;
+  const out = {};
+  Object.entries(r.sheets).forEach(([n, rows]) => { out[n] = deRows(rows); });
+  return out;
+};
 (window.__fbQueue || []).splice(0).forEach(q => call(q.p).then(q.res, q.rej));
