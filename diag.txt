@@ -1,0 +1,62 @@
+mail vars: MAIL_USER MAIL_PASS ADMIN_EMAIL 
+Activated service account credentials for: [github-deploy@matlam-e5288.iam.gserviceaccount.com]
+Updated property [core/project].
+== api
+  role: roles/run.invoker
+etag: BwZbrme80h0=
+version: 1
+{"bindings":[{"members":["allUsers"],"role":"roles/run.invoker"}],"etag":"BwZbrme80h0=","version":1}
+== login
+  role: roles/run.invoker
+etag: BwZbrmgeC_U=
+version: 1
+{"bindings":[{"members":["allUsers"],"role":"roles/run.invoker"}],"etag":"BwZbrmgeC_U=","version":1}
+== importdata
+  role: roles/run.invoker
+etag: BwZbrmh639g=
+version: 1
+{"bindings":[{"members":["allUsers"],"role":"roles/run.invoker"}],"etag":"BwZbrmh639g=","version":1}
+== forgotpassword
+  role: roles/run.invoker
+etag: BwZbrmjWbKg=
+version: 1
+{"bindings":[{"members":["allUsers"],"role":"roles/run.invoker"}],"etag":"BwZbrmjWbKg=","version":1}
+== exportbackup
+  role: roles/run.invoker
+etag: BwZbrmkjCQw=
+version: 1
+{"bindings":[{"members":["allUsers"],"role":"roles/run.invoker"}],"etag":"BwZbrmkjCQw=","version":1}
+== probe login
+HTTP/2 400 
+vary: Origin
+content-type: application/json; charset=utf-8
+x-cloud-trace-context: c7e509b460333e2e5b4adbe8c004aa09;o=1
+date: Thu, 17 Sep 2026 14:15:10 GMT
+server: Google Frontend
+content-length: 82
+alt-svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+
+{"error":{"message":"חסרים פרטי כניסה","status":"INVALID_ARGUMENT"}}== probe preflight
+HTTP/2 204 
+access-control-allow-origin: https://itairosenblum-hash.github.io
+vary: Origin, Access-Control-Request-Headers
+access-control-allow-methods: POST
+access-control-allow-headers: content-type,authorization
+x-cloud-trace-context: 557d58cdac915dd6a9c7c00e623587a1;o=1
+date: Thu, 17 Sep 2026 14:15:12 GMT
+content-type: text/html
+server: Google Frontend
+alt-svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+
+== data diag
+Scores: rows=-1 maxCols=0 hdrAC=null adjRows=0 adjSum=0 rev=1789617357282 by=admin
+Scores_2026: rows=40 maxCols=29 hdrAC="התאמות ידניות" adjRows=6 adjSum=30 rev=1789617357298 by=admin
+Scores_2027: rows=40 maxCols=4 hdrAC=null adjRows=0 adjSum=0 rev=1789617357282 by=admin
+audit adjust entries (last 400): 8; latest: 2026-09-17T11:43:00.279Z ניקוד: +5  || 2026-09-17T11:42:47.156Z ניקוד: +5  || 2026-09-17T11:42:26.940Z ניקוד: +5  || 2026-09-17T11:42:10.309Z ניקוד: +5  || 2026-09-17T11:41:56.051Z ניקוד: +5 
+migrations: ["holidayScores25"]
+== recent errors
+2026-09-17T11:38:43.030204Z	login			400
+2026-09-17T11:36:17.240519Z	login			400
+2026-09-17T11:17:17.457455Z	login			401
+2026-09-17T11:17:06.715399Z	login			401
+2026-09-17T09:40:30.488554Z	login			400

@@ -1,0 +1,244 @@
+npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+npm warn deprecated json-ptr@3.1.1: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+npm warn deprecated uuid@9.0.1: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
+npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+[2026-09-17T14:14:14.496Z] ----------------------------------------------------------------------
+[2026-09-17T14:14:14.498Z] Command:       /opt/hostedtoolcache/node/22.23.2/x64/bin/node /home/runner/.npm/_npx/ba4f1959e38407b5/node_modules/.bin/firebase deploy --only functions,firestore:rules --project matlam-e5288 --non-interactive --force --debug
+[2026-09-17T14:14:14.498Z] CLI Version:   15.30.1
+[2026-09-17T14:14:14.498Z] Platform:      linux
+[2026-09-17T14:14:14.498Z] Node Version:  v22.23.2
+[2026-09-17T14:14:14.499Z] Detected Agent: unknown
+[2026-09-17T14:14:14.499Z] Time:          Thu Sep 17 2026 14:14:14 GMT+0000 (Coordinated Universal Time)
+[2026-09-17T14:14:14.499Z] ----------------------------------------------------------------------
+
+[2026-09-17T14:14:15.426Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[2026-09-17T14:14:15.646Z] Running auto auth
+[2026-09-17T14:14:15.646Z] [iam] checking project matlam-e5288 for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[2026-09-17T14:14:15.647Z] No OAuth tokens found
+[2026-09-17T14:14:15.648Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/matlam-e5288:testIamPermissions [none]
+[2026-09-17T14:14:15.648Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/matlam-e5288:testIamPermissions  x-goog-user-project=matlam-e5288
+[2026-09-17T14:14:15.649Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/matlam-e5288:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[2026-09-17T14:14:16.097Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/matlam-e5288:testIamPermissions 200
+[2026-09-17T14:14:16.097Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/matlam-e5288:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[2026-09-17T14:14:16.098Z] No OAuth tokens found
+[2026-09-17T14:14:16.098Z] >>> [apiv2][query] POST https://iam.googleapis.com/v1/projects/matlam-e5288/serviceAccounts/matlam-e5288@appspot.gserviceaccount.com:testIamPermissions [none]
+[2026-09-17T14:14:16.098Z] >>> [apiv2][body] POST https://iam.googleapis.com/v1/projects/matlam-e5288/serviceAccounts/matlam-e5288@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[2026-09-17T14:14:16.384Z] <<< [apiv2][status] POST https://iam.googleapis.com/v1/projects/matlam-e5288/serviceAccounts/matlam-e5288@appspot.gserviceaccount.com:testIamPermissions 200
+[2026-09-17T14:14:16.384Z] <<< [apiv2][body] POST https://iam.googleapis.com/v1/projects/matlam-e5288/serviceAccounts/matlam-e5288@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+
+=== Deploying to 'matlam-e5288'...
+
+i  deploying firestore, functions 
+i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[2026-09-17T14:14:16.386Z] No OAuth tokens found
+[2026-09-17T14:14:16.386Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/firestore.googleapis.com [none]
+[2026-09-17T14:14:16.386Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/firestore.googleapis.com  x-goog-user-project=matlam-e5288
+[2026-09-17T14:14:16.817Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/firestore.googleapis.com 200
+[2026-09-17T14:14:16.817Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/firestore.googleapis.com [omitted]
+✔  firestore: required API firestore.googleapis.com is enabled 
+i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[2026-09-17T14:14:16.824Z] No OAuth tokens found
+[2026-09-17T14:14:16.824Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/matlam-e5288/databases/(default) [none]
+[2026-09-17T14:14:18.131Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/matlam-e5288/databases/(default) 200
+[2026-09-17T14:14:18.131Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/matlam-e5288/databases/(default) {"name":"projects/matlam-e5288/databases/(default)","uid":"77872ebd-bc8a-4e32-8bc3-fc6b30be625e","createTime":"2026-09-16T02:21:45.701260Z","updateTime":"2026-09-16T02:21:45.701260Z","locationId":"me-west1","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2026-09-17T13:14:18.022271Z","appEngineIntegrationMode":"DISABLED","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","enhancedTextSearchQueryMode":"ENHANCED_QUERY_MODE_ENABLED","etag":"IKrh9rHm9ZYDMOna8ryJ8pYD"}
+i  cloud.firestore: checking firestore.rules for compilation errors... 
+[2026-09-17T14:14:18.132Z] No OAuth tokens found
+[2026-09-17T14:14:18.132Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/matlam-e5288:test [none]
+[2026-09-17T14:14:18.132Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/matlam-e5288:test [omitted]
+[2026-09-17T14:14:18.266Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/matlam-e5288:test 200
+[2026-09-17T14:14:18.267Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/matlam-e5288:test {}
+✔  cloud.firestore: rules file firestore.rules compiled successfully 
+[2026-09-17T14:14:18.267Z] No OAuth tokens found
+[2026-09-17T14:14:18.268Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/cloudresourcemanager.googleapis.com [none]
+[2026-09-17T14:14:18.268Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/cloudresourcemanager.googleapis.com  x-goog-user-project=matlam-e5288
+[2026-09-17T14:14:18.603Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/cloudresourcemanager.googleapis.com 200
+[2026-09-17T14:14:18.603Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/cloudresourcemanager.googleapis.com [omitted]
+[2026-09-17T14:14:18.605Z] No OAuth tokens found
+[2026-09-17T14:14:18.605Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/projects/matlam-e5288 [none]
+[2026-09-17T14:14:18.746Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/projects/matlam-e5288 200
+[2026-09-17T14:14:18.746Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/projects/matlam-e5288 {"projectNumber":"752992069219","projectId":"matlam-e5288","lifecycleState":"ACTIVE","name":"matlam","labels":{"firebase":"enabled","firebase-core":"disabled"},"createTime":"2026-09-16T02:19:07.242Z"}
+i  functions: preparing codebase default for deployment 
+i  functions: ensuring required API cloudfunctions.googleapis.com is enabled... 
+[2026-09-17T14:14:18.747Z] No OAuth tokens found
+[2026-09-17T14:14:18.747Z] No OAuth tokens found
+i  functions: ensuring required API cloudbuild.googleapis.com is enabled... 
+[2026-09-17T14:14:18.747Z] No OAuth tokens found
+i  artifactregistry: ensuring required API artifactregistry.googleapis.com is enabled... 
+[2026-09-17T14:14:18.748Z] No OAuth tokens found
+[2026-09-17T14:14:18.748Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/cloudfunctions.googleapis.com [none]
+[2026-09-17T14:14:18.748Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/cloudfunctions.googleapis.com  x-goog-user-project=matlam-e5288
+[2026-09-17T14:14:18.748Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/runtimeconfig.googleapis.com [none]
+[2026-09-17T14:14:18.748Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/runtimeconfig.googleapis.com  x-goog-user-project=matlam-e5288
+[2026-09-17T14:14:18.750Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/cloudbuild.googleapis.com [none]
+[2026-09-17T14:14:18.750Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/cloudbuild.googleapis.com  x-goog-user-project=matlam-e5288
+[2026-09-17T14:14:18.751Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/artifactregistry.googleapis.com [none]
+[2026-09-17T14:14:18.751Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/artifactregistry.googleapis.com  x-goog-user-project=matlam-e5288
+[2026-09-17T14:14:19.062Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/cloudfunctions.googleapis.com 200
+[2026-09-17T14:14:19.062Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/cloudfunctions.googleapis.com [omitted]
+✔  functions: required API cloudfunctions.googleapis.com is enabled 
+[2026-09-17T14:14:19.096Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/artifactregistry.googleapis.com 200
+[2026-09-17T14:14:19.096Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/artifactregistry.googleapis.com [omitted]
+✔  artifactregistry: required API artifactregistry.googleapis.com is enabled 
+[2026-09-17T14:14:19.268Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/runtimeconfig.googleapis.com 200
+[2026-09-17T14:14:19.268Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/runtimeconfig.googleapis.com [omitted]
+[2026-09-17T14:14:19.292Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/cloudbuild.googleapis.com 200
+[2026-09-17T14:14:19.292Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/cloudbuild.googleapis.com [omitted]
+✔  functions: required API cloudbuild.googleapis.com is enabled 
+[2026-09-17T14:14:19.293Z] No OAuth tokens found
+[2026-09-17T14:14:19.293Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/matlam-e5288/adminSdkConfig [none]
+[2026-09-17T14:14:19.479Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/matlam-e5288/adminSdkConfig 200
+[2026-09-17T14:14:19.479Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/matlam-e5288/adminSdkConfig {"projectId":"matlam-e5288","storageBucket":"matlam-e5288.firebasestorage.app"}
+[2026-09-17T14:14:19.479Z] No OAuth tokens found
+[2026-09-17T14:14:19.479Z] >>> [apiv2][query] GET https://runtimeconfig.googleapis.com/v1beta1/projects/matlam-e5288/configs [none]
+[2026-09-17T14:14:19.651Z] <<< [apiv2][status] GET https://runtimeconfig.googleapis.com/v1beta1/projects/matlam-e5288/configs 200
+[2026-09-17T14:14:19.652Z] <<< [apiv2][body] GET https://runtimeconfig.googleapis.com/v1beta1/projects/matlam-e5288/configs {}
+[2026-09-17T14:14:19.653Z] Validating nodejs source
+⚠  functions: package.json indicates an outdated version of firebase-functions. Please upgrade using npm install --save firebase-functions@latest in your functions directory. 
+⚠  functions: Please note that there will be breaking changes when you upgrade. 
+[2026-09-17T14:14:19.940Z] > [functions] package.json contents: {
+  "name": "matlam-functions",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "engines": {
+    "node": "22"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^6.1.0",
+    "nodemailer": "^6.9.16"
+  }
+}
+[2026-09-17T14:14:19.940Z] Building nodejs source
+i  functions: Loaded environment variables from functions/.env 
+i  functions: Loading and analyzing source code for codebase default to determine what to deploy 
+[2026-09-17T14:14:19.941Z] Could not find functions.yaml. Must use http discovery
+[2026-09-17T14:14:19.944Z] Found firebase-functions binary at '/home/runner/work/matlam/matlam/functions/node_modules/.bin/firebase-functions'
+Serving at port 8065
+
+[2026-09-17T14:14:20.381Z] Got response from /__/functions.yaml {"endpoints":{"api":{"availableMemoryMb":512,"timeoutSeconds":120,"minInstances":null,"maxInstances":5,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","region":["me-west1"],"labels":{},"callableTrigger":{},"entryPoint":"api"},"exportBackup":{"availableMemoryMb":1024,"timeoutSeconds":120,"minInstances":null,"maxInstances":5,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","region":["me-west1"],"labels":{},"callableTrigger":{},"entryPoint":"exportBackup"},"forgotPassword":{"availableMemoryMb":512,"timeoutSeconds":120,"minInstances":null,"maxInstances":5,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","region":["me-west1"],"labels":{},"callableTrigger":{},"entryPoint":"forgotPassword"},"importData":{"availableMemoryMb":1024,"timeoutSeconds":540,"minInstances":null,"maxInstances":5,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","region":["me-west1"],"labels":{},"callableTrigger":{},"entryPoint":"importData"},"login":{"availableMemoryMb":512,"timeoutSeconds":120,"minInstances":null,"maxInstances":5,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","region":["me-west1"],"labels":{},"callableTrigger":{},"entryPoint":"login"}},"specVersion":"v1alpha1","requiredAPIs":[],"extensions":{}}
+[2026-09-17T14:14:23.413Z] No OAuth tokens found
+[2026-09-17T14:14:23.413Z] >>> [apiv2][query] GET https://cloudfunctions.googleapis.com/v1/projects/matlam-e5288/locations/-/functions [none]
+[2026-09-17T14:14:23.866Z] <<< [apiv2][status] GET https://cloudfunctions.googleapis.com/v1/projects/matlam-e5288/locations/-/functions 200
+[2026-09-17T14:14:23.866Z] <<< [apiv2][body] GET https://cloudfunctions.googleapis.com/v1/projects/matlam-e5288/locations/-/functions {}
+[2026-09-17T14:14:23.866Z] No OAuth tokens found
+[2026-09-17T14:14:23.866Z] >>> [apiv2][query] GET https://cloudfunctions.googleapis.com/v2/projects/matlam-e5288/locations/-/functions filter=environment%3D%22GEN_2%22
+[2026-09-17T14:14:24.416Z] <<< [apiv2][status] GET https://cloudfunctions.googleapis.com/v2/projects/matlam-e5288/locations/-/functions 200
+[2026-09-17T14:14:24.416Z] <<< [apiv2][body] GET https://cloudfunctions.googleapis.com/v2/projects/matlam-e5288/locations/-/functions {"functions":[{"name":"projects/matlam-e5288/locations/me-west1/functions/importData","buildConfig":{"build":"projects/752992069219/locations/me-west1/builds/84c499ee-4232-4a37-a9c2-f052e19d78ba","runtime":"nodejs22","entryPoint":"importData","source":{"storageSource":{"bucket":"gcf-v2-sources-752992069219-me-west1","object":"importData/function-source.zip","generation":"1789645075997663"}},"environmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""},"dockerRepository":"projects/matlam-e5288/locations/me-west1/repositories/gcf-artifacts","sourceProvenance":{"resolvedStorageSource":{"bucket":"gcf-v2-sources-752992069219-me-west1","object":"importData/function-source.zip","generation":"1789645075997663"}},"dockerRegistry":"ARTIFACT_REGISTRY","serviceAccount":"projects/matlam-e5288/serviceAccounts/752992069219-compute@developer.gserviceaccount.com","automaticUpdatePolicy":{}},"serviceConfig":{"service":"projects/matlam-e5288/locations/me-west1/services/importdata","timeoutSeconds":540,"environmentVariables":{"MAIL_USER":"itai.rosenblum@gmail.com","MAIL_PASS":"fxkwnsduixhjlohj","ADMIN_EMAIL":"itai.rosenblum@gmail.com","FIREBASE_CONFIG":"{\"projectId\":\"matlam-e5288\",\"storageBucket\":\"matlam-e5288.firebasestorage.app\"}","GCLOUD_PROJECT":"matlam-e5288","EVENTARC_CLOUD_EVENT_SOURCE":"projects/matlam-e5288/locations/me-west1/services/importData","FUNCTION_REGION":"me-west1","FUNCTION_TARGET":"importData","LOG_EXECUTION_ID":"true","FUNCTION_SIGNATURE_TYPE":"http"},"maxInstanceCount":5,"ingressSettings":"ALLOW_ALL","uri":"https://importdata-cwgid56i3a-zf.a.run.app","serviceAccountEmail":"752992069219-compute@developer.gserviceaccount.com","availableMemory":"1024Mi","allTrafficOnLatestRevision":true,"revision":"importdata-00026-keq","maxInstanceRequestConcurrency":80,"availableCpu":"1"},"state":"ACTIVE","updateTime":"2026-09-17T11:38:04.079338023Z","labels":{"firebase-functions-hash":"3b40f24e07543bcc30d64126a360bf92e3d80b56","deployment-tool":"cli-firebase","deployment-callable":"true"},"environment":"GEN_2","url":"https://me-west1-matlam-e5288.cloudfunctions.net/importData","satisfiesPzs":true,"createTime":"2026-09-16T04:28:40.512497640Z","satisfiesPzi":true},{"name":"projects/matlam-e5288/locations/me-west1/functions/forgotPassword","buildConfig":{"build":"projects/752992069219/locations/me-west1/builds/a76bdddf-6327-4a4c-abd5-c11dae6e8a1b","runtime":"nodejs22","entryPoint":"forgotPassword","source":{"storageSource":{"bucket":"gcf-v2-sources-752992069219-me-west1","object":"forgotPassword/function-source.zip","generation":"1789645075271283"}},"environmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""},"dockerRepository":"projects/matlam-e5288/locations/me-west1/repositories/gcf-artifacts","sourceProvenance":{"resolvedStorageSource":{"bucket":"gcf-v2-sources-752992069219-me-west1","object":"forgotPassword/function-source.zip","generation":"1789645075271283"}},"dockerRegistry":"ARTIFACT_REGISTRY","serviceAccount":"projects/matlam-e5288/serviceAccounts/752992069219-compute@developer.gserviceaccount.com","automaticUpdatePolicy":{}},"serviceConfig":{"service":"projects/matlam-e5288/locations/me-west1/services/forgotpassword","timeoutSeconds":120,"environmentVariables":{"MAIL_USER":"itai.rosenblum@gmail.com","MAIL_PASS":"fxkwnsduixhjlohj","ADMIN_EMAIL":"itai.rosenblum@gmail.com","FIREBASE_CONFIG":"{\"projectId\":\"matlam-e5288\",\"storageBucket\":\"matlam-e5288.firebasestorage.app\"}","GCLOUD_PROJECT":"matlam-e5288","EVENTARC_CLOUD_EVENT_SOURCE":"projects/matlam-e5288/locations/me-west1/services/forgotPassword","FUNCTION_REGION":"me-west1","FUNCTION_TARGET":"forgotPassword","LOG_EXECUTION_ID":"true","FUNCTION_SIGNATURE_TYPE":"http"},"maxInstanceCount":5,"ingressSettings":"ALLOW_ALL","uri":"https://forgotpassword-cwgid56i3a-zf.a.run.app","serviceAccountEmail":"752992069219-compute@developer.gserviceaccount.com","availableMemory":"512Mi","allTrafficOnLatestRevision":true,"revision":"forgotpassword-00013-jir","maxInstanceRequestConcurrency":80,"availableCpu":"1"},"state":"ACTIVE","updateTime":"2026-09-17T11:38:05.795896447Z","labels":{"deployment-tool":"cli-firebase","deployment-callable":"true","firebase-functions-hash":"3b40f24e07543bcc30d64126a360bf92e3d80b56"},"environment":"GEN_2","url":"https://me-west1-matlam-e5288.cloudfunctions.net/forgotPassword","satisfiesPzs":true,"createTime":"2026-09-16T08:36:16.793304136Z","satisfiesPzi":true},{"name":"projects/matlam-e5288/locations/me-west1/functions/login","buildConfig":{"build":"projects/752992069219/locations/me-west1/builds/a76bdddf-6327-4a4c-abd5-c11dae6e8a1b","runtime":"nodejs22","entryPoint":"login","source":{"storageSource":{"bucket":"gcf-v2-sources-752992069219-me-west1","object":"login/function-source.zip","generation":"1789645075322865"}},"environmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""},"dockerRepository":"projects/matlam-e5288/locations/me-west1/repositories/gcf-artifacts","sourceProvenance":{"resolvedStorageSource":{"bucket":"gcf-v2-sources-752992069219-me-west1","object":"login/function-source.zip","generation":"1789645075322865"}},"dockerRegistry":"ARTIFACT_REGISTRY","serviceAccount":"projects/matlam-e5288/serviceAccounts/752992069219-compute@developer.gserviceaccount.com","automaticUpdatePolicy":{}},"serviceConfig":{"service":"projects/matlam-e5288/locations/me-west1/services/login","timeoutSeconds":120,"environmentVariables":{"MAIL_USER":"itai.rosenblum@gmail.com","MAIL_PASS":"fxkwnsduixhjlohj","ADMIN_EMAIL":"itai.rosenblum@gmail.com","FIREBASE_CONFIG":"{\"projectId\":\"matlam-e5288\",\"storageBucket\":\"matlam-e5288.firebasestorage.app\"}","GCLOUD_PROJECT":"matlam-e5288","EVENTARC_CLOUD_EVENT_SOURCE":"projects/matlam-e5288/locations/me-west1/services/login","FUNCTION_REGION":"me-west1","FUNCTION_TARGET":"login","LOG_EXECUTION_ID":"true","FUNCTION_SIGNATURE_TYPE":"http"},"maxInstanceCount":5,"ingressSettings":"ALLOW_ALL","uri":"https://login-cwgid56i3a-zf.a.run.app","serviceAccountEmail":"752992069219-compute@developer.gserviceaccount.com","availableMemory":"512Mi","allTrafficOnLatestRevision":true,"revision":"login-00026-feb","maxInstanceRequestConcurrency":80,"availableCpu":"1"},"state":"ACTIVE","updateTime":"2026-09-17T11:38:04.173470465Z","labels":{"deployment-tool":"cli-firebase","deployment-callable":"true","firebase-functions-hash":"3b40f24e07543bcc30d64126a360bf92e3d80b56"},"environment":"GEN_2","url":"https://me-west1-matlam-e5288.cloudfunctions.net/login","satisfiesPzs":true,"createTime":"2026-09-16T04:28:40.655941552Z","satisfiesPzi":true},{"name":"projects/matlam-e5288/locations/me-west1/functions/exportBackup","buildConfig":{"build":"projects/752992069219/locations/me-west1/builds/84c499ee-4232-4a37-a9c2-f052e19d78ba","runtime":"nodejs22","entryPoint":"exportBackup","source":{"storageSource":{"bucket":"gcf-v2-sources-752992069219-me-west1","object":"exportBackup/function-source.zip","generation":"1789645032110010"}},"environmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""},"dockerRepository":"projects/matlam-e5288/locations/me-west1/repositories/gcf-artifacts","sourceProvenance":{"resolvedStorageSource":{"bucket":"gcf-v2-sources-752992069219-me-west1","object":"exportBackup/function-source.zip","generation":"1789645032110010"}},"dockerRegistry":"ARTIFACT_REGISTRY","serviceAccount":"projects/matlam-e5288/serviceAccounts/752992069219-compute@developer.gserviceaccount.com","automaticUpdatePolicy":{}},"serviceConfig":{"service":"projects/matlam-e5288/locations/me-west1/services/exportbackup","timeoutSeconds":120,"environmentVariables":{"MAIL_USER":"itai.rosenblum@gmail.com","MAIL_PASS":"fxkwnsduixhjlohj","ADMIN_EMAIL":"itai.rosenblum@gmail.com","FIREBASE_CONFIG":"{\"projectId\":\"matlam-e5288\",\"storageBucket\":\"matlam-e5288.firebasestorage.app\"}","GCLOUD_PROJECT":"matlam-e5288","EVENTARC_CLOUD_EVENT_SOURCE":"projects/matlam-e5288/locations/me-west1/services/exportBackup","FUNCTION_REGION":"me-west1","FUNCTION_TARGET":"exportBackup","LOG_EXECUTION_ID":"true"},"maxInstanceCount":5,"ingressSettings":"ALLOW_ALL","uri":"https://exportbackup-cwgid56i3a-zf.a.run.app","serviceAccountEmail":"752992069219-compute@developer.gserviceaccount.com","availableMemory":"1024Mi","allTrafficOnLatestRevision":true,"revision":"exportbackup-00008-wal","maxInstanceRequestConcurrency":80,"availableCpu":"1"},"state":"ACTIVE","updateTime":"2026-09-17T11:37:57.479174642Z","labels":{"deployment-callable":"true","firebase-functions-hash":"3b40f24e07543bcc30d64126a360bf92e3d80b56","deployment-tool":"cli-firebase"},"environment":"GEN_2","url":"https://me-west1-matlam-e5288.cloudfunctions.net/exportBackup","satisfiesPzs":true,"createTime":"2026-09-17T03:49:31.951741876Z","satisfiesPzi":true},{"name":"projects/matlam-e5288/locations/me-west1/functions/api","buildConfig":{"build":"projects/752992069219/locations/me-west1/builds/a76bdddf-6327-4a4c-abd5-c11dae6e8a1b","runtime":"nodejs22","entryPoint":"api","source":{"storageSource":{"bucket":"gcf-v2-sources-752992069219-me-west1","object":"api/function-source.zip","generation":"1789645031100005"}},"environmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""},"dockerRepository":"projects/matlam-e5288/locations/me-west1/repositories/gcf-artifacts","sourceProvenance":{"resolvedStorageSource":{"bucket":"gcf-v2-sources-752992069219-me-west1","object":"api/function-source.zip","generation":"1789645031100005"}},"dockerRegistry":"ARTIFACT_REGISTRY","serviceAccount":"projects/matlam-e5288/serviceAccounts/752992069219-compute@developer.gserviceaccount.com","automaticUpdatePolicy":{}},"serviceConfig":{"service":"projects/matlam-e5288/locations/me-west1/services/api","timeoutSeconds":120,"environmentVariables":{"MAIL_USER":"itai.rosenblum@gmail.com","MAIL_PASS":"fxkwnsduixhjlohj","ADMIN_EMAIL":"itai.rosenblum@gmail.com","FIREBASE_CONFIG":"{\"projectId\":\"matlam-e5288\",\"storageBucket\":\"matlam-e5288.firebasestorage.app\"}","GCLOUD_PROJECT":"matlam-e5288","EVENTARC_CLOUD_EVENT_SOURCE":"projects/matlam-e5288/locations/me-west1/services/api","FUNCTION_REGION":"me-west1","FUNCTION_TARGET":"api","LOG_EXECUTION_ID":"true"},"maxInstanceCount":5,"ingressSettings":"ALLOW_ALL","uri":"https://api-cwgid56i3a-zf.a.run.app","serviceAccountEmail":"752992069219-compute@developer.gserviceaccount.com","availableMemory":"512Mi","allTrafficOnLatestRevision":true,"revision":"api-00027-riz","maxInstanceRequestConcurrency":80,"availableCpu":"1"},"state":"ACTIVE","updateTime":"2026-09-17T11:37:55.785505629Z","labels":{"firebase-functions-hash":"3b40f24e07543bcc30d64126a360bf92e3d80b56","deployment-tool":"cli-firebase","deployment-callable":"true"},"environment":"GEN_2","url":"https://me-west1-matlam-e5288.cloudfunctions.net/api","satisfiesPzs":true,"createTime":"2026-09-16T04:29:20.071458875Z","satisfiesPzi":true}]}
+i  extensions: ensuring required API firebaseextensions.googleapis.com is enabled... 
+[2026-09-17T14:14:24.418Z] No OAuth tokens found
+[2026-09-17T14:14:24.418Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/firebaseextensions.googleapis.com [none]
+[2026-09-17T14:14:24.418Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/firebaseextensions.googleapis.com  x-goog-user-project=matlam-e5288
+[2026-09-17T14:14:24.777Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/firebaseextensions.googleapis.com 200
+[2026-09-17T14:14:24.777Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/firebaseextensions.googleapis.com [omitted]
+✔  extensions: required API firebaseextensions.googleapis.com is enabled 
+[2026-09-17T14:14:25.062Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[2026-09-17T14:14:25.062Z] Running auto auth
+[2026-09-17T14:14:25.062Z] [iam] checking project matlam-e5288 for permissions ["firebase.projects.get","firebaseextensions.instances.list"]
+[2026-09-17T14:14:25.063Z] No OAuth tokens found
+[2026-09-17T14:14:25.063Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/matlam-e5288:testIamPermissions [none]
+[2026-09-17T14:14:25.063Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/matlam-e5288:testIamPermissions  x-goog-user-project=matlam-e5288
+[2026-09-17T14:14:25.063Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/matlam-e5288:testIamPermissions {"permissions":["firebase.projects.get","firebaseextensions.instances.list"]}
+[2026-09-17T14:14:25.167Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/matlam-e5288:testIamPermissions 200
+[2026-09-17T14:14:25.167Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/matlam-e5288:testIamPermissions {"permissions":["firebase.projects.get","firebaseextensions.instances.list"]}
+[2026-09-17T14:14:25.168Z] No OAuth tokens found
+[2026-09-17T14:14:25.168Z] >>> [apiv2][query] GET https://firebaseextensions.googleapis.com/v1beta/projects/matlam-e5288/instances pageSize=100&pageToken=
+[2026-09-17T14:14:25.502Z] <<< [apiv2][status] GET https://firebaseextensions.googleapis.com/v1beta/projects/matlam-e5288/instances 200
+[2026-09-17T14:14:25.502Z] <<< [apiv2][body] GET https://firebaseextensions.googleapis.com/v1beta/projects/matlam-e5288/instances {}
+i  functions: Loaded environment variables from functions/.env 
+[2026-09-17T14:14:25.503Z] Attempting to merge .env secret bindings {} into declared secrets...)}
+[2026-09-17T14:14:25.503Z] api declared secrets: undefined
+[2026-09-17T14:14:25.504Z] exportBackup declared secrets: undefined
+[2026-09-17T14:14:25.504Z] forgotPassword declared secrets: undefined
+[2026-09-17T14:14:25.504Z] importData declared secrets: undefined
+[2026-09-17T14:14:25.504Z] login declared secrets: undefined
+i  functions: preparing functions directory for uploading... 
+i  functions: packaged /home/runner/work/matlam/matlam/functions (114.33 KB) for uploading 
+i  functions: ensuring required API run.googleapis.com is enabled... 
+[2026-09-17T14:14:25.532Z] No OAuth tokens found
+i  functions: ensuring required API eventarc.googleapis.com is enabled... 
+[2026-09-17T14:14:25.532Z] No OAuth tokens found
+i  functions: ensuring required API pubsub.googleapis.com is enabled... 
+[2026-09-17T14:14:25.532Z] No OAuth tokens found
+i  functions: ensuring required API storage.googleapis.com is enabled... 
+[2026-09-17T14:14:25.533Z] No OAuth tokens found
+[2026-09-17T14:14:25.533Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/752992069219/services/run.googleapis.com [none]
+[2026-09-17T14:14:25.533Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/752992069219/services/run.googleapis.com  x-goog-user-project=752992069219
+[2026-09-17T14:14:25.533Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/752992069219/services/eventarc.googleapis.com [none]
+[2026-09-17T14:14:25.533Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/752992069219/services/eventarc.googleapis.com  x-goog-user-project=752992069219
+[2026-09-17T14:14:25.534Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/752992069219/services/pubsub.googleapis.com [none]
+[2026-09-17T14:14:25.534Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/752992069219/services/pubsub.googleapis.com  x-goog-user-project=752992069219
+[2026-09-17T14:14:25.535Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/752992069219/services/storage.googleapis.com [none]
+[2026-09-17T14:14:25.535Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/752992069219/services/storage.googleapis.com  x-goog-user-project=752992069219
+[2026-09-17T14:14:25.863Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/752992069219/services/eventarc.googleapis.com 200
+[2026-09-17T14:14:25.863Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/752992069219/services/eventarc.googleapis.com [omitted]
+✔  functions: required API eventarc.googleapis.com is enabled 
+[2026-09-17T14:14:25.944Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/752992069219/services/run.googleapis.com 200
+[2026-09-17T14:14:25.944Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/752992069219/services/run.googleapis.com [omitted]
+✔  functions: required API run.googleapis.com is enabled 
+[2026-09-17T14:14:25.960Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/752992069219/services/pubsub.googleapis.com 200
+[2026-09-17T14:14:25.960Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/752992069219/services/pubsub.googleapis.com [omitted]
+✔  functions: required API pubsub.googleapis.com is enabled 
+[2026-09-17T14:14:25.962Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/752992069219/services/storage.googleapis.com 200
+[2026-09-17T14:14:25.962Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/752992069219/services/storage.googleapis.com [omitted]
+✔  functions: required API storage.googleapis.com is enabled 
+i  functions: generating the service identity for pubsub.googleapis.com... 
+[2026-09-17T14:14:25.963Z] No OAuth tokens found
+i  functions: generating the service identity for eventarc.googleapis.com... 
+[2026-09-17T14:14:25.963Z] No OAuth tokens found
+[2026-09-17T14:14:25.963Z] >>> [apiv2][query] POST https://serviceusage.googleapis.com/v1beta1/projects/752992069219/services/pubsub.googleapis.com:generateServiceIdentity [none]
+[2026-09-17T14:14:25.963Z] >>> [apiv2][(partial)header] POST https://serviceusage.googleapis.com/v1beta1/projects/752992069219/services/pubsub.googleapis.com:generateServiceIdentity  x-goog-user-project=752992069219
+[2026-09-17T14:14:25.963Z] >>> [apiv2][body] POST https://serviceusage.googleapis.com/v1beta1/projects/752992069219/services/pubsub.googleapis.com:generateServiceIdentity {}
+[2026-09-17T14:14:25.964Z] >>> [apiv2][query] POST https://serviceusage.googleapis.com/v1beta1/projects/752992069219/services/eventarc.googleapis.com:generateServiceIdentity [none]
+[2026-09-17T14:14:25.964Z] >>> [apiv2][(partial)header] POST https://serviceusage.googleapis.com/v1beta1/projects/752992069219/services/eventarc.googleapis.com:generateServiceIdentity  x-goog-user-project=752992069219
+[2026-09-17T14:14:25.964Z] >>> [apiv2][body] POST https://serviceusage.googleapis.com/v1beta1/projects/752992069219/services/eventarc.googleapis.com:generateServiceIdentity {}
+[2026-09-17T14:14:26.242Z] <<< [apiv2][status] POST https://serviceusage.googleapis.com/v1beta1/projects/752992069219/services/pubsub.googleapis.com:generateServiceIdentity 200
+[2026-09-17T14:14:26.242Z] <<< [apiv2][body] POST https://serviceusage.googleapis.com/v1beta1/projects/752992069219/services/pubsub.googleapis.com:generateServiceIdentity {"name":"operations/finished.DONE_OPERATION","done":true,"response":{"@type":"type.googleapis.com/google.api.serviceusage.v1beta1.ServiceIdentity","email":"service-752992069219@gcp-sa-pubsub.iam.gserviceaccount.com","uniqueId":"114902141747028790805"}}
+[2026-09-17T14:14:26.426Z] <<< [apiv2][status] POST https://serviceusage.googleapis.com/v1beta1/projects/752992069219/services/eventarc.googleapis.com:generateServiceIdentity 200
+[2026-09-17T14:14:26.426Z] <<< [apiv2][body] POST https://serviceusage.googleapis.com/v1beta1/projects/752992069219/services/eventarc.googleapis.com:generateServiceIdentity {"name":"operations/finished.DONE_OPERATION","done":true,"response":{"@type":"type.googleapis.com/google.api.serviceusage.v1beta1.ServiceIdentity","email":"service-752992069219@gcp-sa-eventarc.iam.gserviceaccount.com","uniqueId":"117635807227503883319"}}
+[2026-09-17T14:14:26.427Z] No OAuth tokens found
+[2026-09-17T14:14:26.428Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/matlam-e5288/releases pageSize=10&pageToken=
+[2026-09-17T14:14:26.720Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/matlam-e5288/releases 200
+[2026-09-17T14:14:26.721Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/matlam-e5288/releases {"releases":[{"name":"projects/matlam-e5288/releases/cloud.firestore","rulesetName":"projects/matlam-e5288/rulesets/fcd4662d-1a3c-46fc-9f3d-903dba5661bb","createTime":"2026-09-16T02:21:48.514805Z","updateTime":"2026-09-17T11:37:09.276236Z"}]}
+[2026-09-17T14:14:26.721Z] No OAuth tokens found
+[2026-09-17T14:14:26.721Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/matlam-e5288/rulesets/fcd4662d-1a3c-46fc-9f3d-903dba5661bb [none]
+[2026-09-17T14:14:26.984Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/matlam-e5288/rulesets/fcd4662d-1a3c-46fc-9f3d-903dba5661bb 200
+[2026-09-17T14:14:26.984Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/matlam-e5288/rulesets/fcd4662d-1a3c-46fc-9f3d-903dba5661bb [omitted]
+i  firestore: latest version of firestore.rules already up to date, skipping upload... 
+[2026-09-17T14:14:26.985Z] No OAuth tokens found
+[2026-09-17T14:14:26.985Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/cloudbilling.googleapis.com [none]
+[2026-09-17T14:14:26.985Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/cloudbilling.googleapis.com  x-goog-user-project=matlam-e5288
+[2026-09-17T14:14:27.144Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/cloudbilling.googleapis.com 200
+[2026-09-17T14:14:27.144Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/matlam-e5288/services/cloudbilling.googleapis.com [omitted]
+[2026-09-17T14:14:27.178Z] No OAuth tokens found
+[2026-09-17T14:14:27.179Z] >>> [apiv2][query] GET https://cloudbilling.googleapis.com/v1/projects/matlam-e5288/billingInfo [none]
+[2026-09-17T14:14:27.179Z] >>> [apiv2][(partial)header] GET https://cloudbilling.googleapis.com/v1/projects/matlam-e5288/billingInfo  x-goog-user-project=matlam-e5288
+[2026-09-17T14:14:27.307Z] <<< [apiv2][status] GET https://cloudbilling.googleapis.com/v1/projects/matlam-e5288/billingInfo 200
+[2026-09-17T14:14:27.308Z] <<< [apiv2][body] GET https://cloudbilling.googleapis.com/v1/projects/matlam-e5288/billingInfo {"name":"projects/matlam-e5288/billingInfo","projectId":"matlam-e5288","billingAccountName":"billingAccounts/0165BA-218390-B1D016","billingEnabled":true}
+[2026-09-17T14:14:27.308Z] [rules] releasing cloud.firestore with ruleset projects/matlam-e5288/rulesets/fcd4662d-1a3c-46fc-9f3d-903dba5661bb
+[2026-09-17T14:14:27.309Z] No OAuth tokens found
+[2026-09-17T14:14:27.309Z] >>> [apiv2][query] PATCH https://firebaserules.googleapis.com/v1/projects/matlam-e5288/releases/cloud.firestore [none]
+[2026-09-17T14:14:27.309Z] >>> [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/matlam-e5288/releases/cloud.firestore {"release":{"name":"projects/matlam-e5288/releases/cloud.firestore","rulesetName":"projects/matlam-e5288/rulesets/fcd4662d-1a3c-46fc-9f3d-903dba5661bb"}}
+[2026-09-17T14:14:27.482Z] <<< [apiv2][status] PATCH https://firebaserules.googleapis.com/v1/projects/matlam-e5288/releases/cloud.firestore 200
+[2026-09-17T14:14:27.482Z] <<< [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/matlam-e5288/releases/cloud.firestore {"name":"projects/matlam-e5288/releases/cloud.firestore","rulesetName":"projects/matlam-e5288/rulesets/fcd4662d-1a3c-46fc-9f3d-903dba5661bb","createTime":"2026-09-16T02:21:48.514805Z","updateTime":"2026-09-17T14:14:27.439702Z"}
+[2026-09-17T14:14:27.482Z] [rules] updated release projects/matlam-e5288/releases/cloud.firestore
+✔  firestore: released rules firestore.rules to cloud.firestore 
+i  functions: Skipping the deploy of unchanged functions. 
+✔  functions[api(me-west1)] Skipped (No changes detected) 
+✔  functions[forgotPassword(me-west1)] Skipped (No changes detected) 
+✔  functions[login(me-west1)] Skipped (No changes detected) 
+✔  functions[exportBackup(me-west1)] Skipped (No changes detected) 
+✔  functions[importData(me-west1)] Skipped (No changes detected) 
+[2026-09-17T14:14:27.485Z] Total Function Deployment time: 0
+[2026-09-17T14:14:27.485Z] 0 Functions Deployed
+[2026-09-17T14:14:27.485Z] 0 Functions Errored
+[2026-09-17T14:14:27.485Z] 0 Function Deployments Aborted
+[2026-09-17T14:14:27.485Z] Average Function Deployment time: NaN
+[2026-09-17T14:14:27.486Z] No OAuth tokens found
+[2026-09-17T14:14:27.486Z] >>> [apiv2][query] GET https://artifactregistry.googleapis.com/v1/projects/matlam-e5288/locations/me-west1/repositories/gcf-artifacts [none]
+[2026-09-17T14:14:28.689Z] <<< [apiv2][status] GET https://artifactregistry.googleapis.com/v1/projects/matlam-e5288/locations/me-west1/repositories/gcf-artifacts 200
+[2026-09-17T14:14:28.689Z] <<< [apiv2][body] GET https://artifactregistry.googleapis.com/v1/projects/matlam-e5288/locations/me-west1/repositories/gcf-artifacts {"name":"projects/matlam-e5288/locations/me-west1/repositories/gcf-artifacts","format":"DOCKER","description":"This repository is created and used by Cloud Functions for storing function docker images.","labels":{"goog-managed-by":"cloudfunctions"},"createTime":"2026-09-16T04:29:32.050907Z","updateTime":"2026-09-17T13:44:09.092263Z","mode":"STANDARD_REPOSITORY","cleanupPolicies":{"firebase-functions-cleanup":{"id":"firebase-functions-cleanup","action":"DELETE","condition":{"tagState":"ANY","olderThan":"86400s"}}},"sizeBytes":"346569843","satisfiesPzs":true,"vulnerabilityScanningConfig":{"lastEnableTime":"2026-09-16T04:29:20.200162230Z","enablementState":"SCANNING_DISABLED","enablementStateReason":"API containerscanning.googleapis.com is not enabled."},"satisfiesPzi":true,"registryUri":"me-west1-docker.pkg.dev/matlam-e5288/gcf-artifacts"}
+
+✔  Deploy complete! 
+
+Project Console: https://console.firebase.google.com/project/matlam-e5288/overview
