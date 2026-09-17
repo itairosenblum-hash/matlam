@@ -181,7 +181,7 @@ async function apiImpl(req) {
     if (resetsPassword && PROTECTED_USERS.includes(target))
       return { success: false, error: "לא ניתן לאפס את סיסמת חשבון זה דרך האתר" };
   }
-  let result, mailQueue = [];
+  let result, mailQueue = [], written = {};
   await db.runTransaction(async tx => {
     const [snap, pwSnap] = await Promise.all([tx.get(db.collection("sheets")), tx.get(PW)]);
     const docs = new Map();
@@ -214,7 +214,9 @@ async function apiImpl(req) {
     result = runRoute(factory, ss, params, current, { mail, adminEmail: ADMIN_EMAIL });
 
     const { sheets, audit } = changesOf(ss);
+    written = {};
     for (const c of sheets) {
+      written[c.name] = c.del ? null : (c.baseRev || 0) + 1;
       const ref = db.collection("sheets").doc(c.name);
       if (c.del) { tx.delete(ref); continue; }
       let rows = c.rows;
@@ -233,6 +235,8 @@ async function apiImpl(req) {
     audit.forEach(a => tx.set(db.collection("audit").doc(), { ...a, by: key }));
   });
   if (result && result.success) await sendQueued(mailQueue);
+  // lets the browser wait until its live copy has these revisions before re-reading
+  if (result && typeof result === "object" && Object.keys(written).length) result._writes = written;
   return result;
 }
 
