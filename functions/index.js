@@ -142,6 +142,29 @@ export const forgotPassword = onCall({ invoker: "public" }, async req => {
   return { success: true, message: "הסיסמה אופסה ל-" + DEFAULT_PASSWORD + ". היכנס ושנה אותה בעמוד הפרופיל." };
 });
 
+// ---------- backup: every sheet (+ password hashes + audit log) for an .xlsx download ----------
+export const exportBackup = onCall({ invoker: "public", timeoutSeconds: 120, memory: "1GiB" }, async req => {
+  if (!req.auth || !req.auth.token.email || !req.auth.token.managed) throw new HttpsError("unauthenticated", "אין הרשאה");
+  const key = req.auth.token.email.split("@")[0];
+  const [snap, pw, au] = await Promise.all([db.collection("sheets").get(), PW.get(), db.collection("audit").orderBy("ts").get()]);
+  const out = {};
+  snap.forEach(d => { out[d.id] = d.data().rows || []; });
+  const users = deRows(out.Users || []);
+  const u = findUser(users, key);
+  if (!u || !u.active || u.role !== "admin") throw new HttpsError("permission-denied", "רק מנהל יכול להוריד גיבוי");
+  const hashes = (pw.exists && pw.data().h) || {};
+  out.Users = serRows(users.map((r, i) => {
+    if (i === 0) return r;
+    const c = r.slice(); while (c.length < 6) c.push("");
+    c[3] = hashes[String(c[2] || "").trim().toLowerCase()] || "";
+    return c;
+  }));
+  const audit = [["תאריך", "משתמש", "פעולה", "פרטים"]];
+  au.forEach(d => { const x = d.data(); audit.push([x.ts || "", x.who || "", x.action || "", x.details || ""]); });
+  out.AuditLog = serRows(audit);
+  return { sheets: out, at: new Date().toISOString() };
+});
+
 // ---------- api ----------
 export const api = onCall({ invoker: "public" }, req => apiImpl(req).catch(wrapErr));
 async function apiImpl(req) {
