@@ -573,6 +573,8 @@ function actionUpdatePerson(req) {
 // Dec 2026 edits and Jan 2027 generation then land in different sheets and never
 // collide, so there is no rollover moment and no danger window.
 
+var EXEMPT_24H = 'פטור 24 שעות';          // v2 category: weekday/Thursday shifts only
+var NON24_CATS = ['חול', 'חמישי'];
 var SCORE_ADJ_COL = 29; // AC — manual bonus/penalty total for the year
 
 // ===== v2: cross-year score helpers =====
@@ -4087,6 +4089,8 @@ function actionGenerateScheduleV2(req) {
     if (p.activity === '0') return false;
     if (p.dutyCategory === 'פטור' || p.dutyCategory === 'לא מוסמך' || p.dutyCategory === 'טרם הוסמך') return false;
     if (p.activity === '0.5' && cat !== 'חמישי' && cat !== 'ערב חג') return false;
+    // v2: "פטור 24 שעות" — only plain weekday / Thursday shifts (no weekends, holidays or 24h days)
+    if (p.dutyCategory === EXEMPT_24H && NON24_CATS.indexOf(cat) === -1) return false;
     if (p.endDateObj && new Date(year, mon-1, day) > p.endDateObj) return false;
     // מלא gets FULL weekend pair or holiday pair (both days together)
     // נפרד can do any single day including weekend/holiday - no restrictions here
@@ -4207,6 +4211,41 @@ function actionGenerateScheduleV2(req) {
   for (var d3=1;d3<=daysInMonth2;d3++){
     if (DAY_CAT[d3]==='חמישי'||DAY_CAT[d3]==='ערב חג') thuDays.push(d3);
   }
+  // v2: tornim exempt from 24-hour duties go to a Thursday when it is their turn
+  // (turn = their score ranks within the number of duty slots this month; fairness is kept)
+  (function(){
+    var ex = activeNames.filter(function(n){ return people[n].dutyCategory === EXEMPT_24H && people[n].activity !== '0.5'; });
+    if (!ex.length) return;
+    var pool = activeNames.filter(function(n){
+      var c = people[n].dutyCategory;
+      return people[n].activity !== '0.5' && c !== 'פטור' && c !== 'לא מוסמך' && c !== 'טרם הוסמך';
+    }).sort(function(a,b){ return scores[a] - scores[b]; });
+    var slots = 0;
+    for (var dd = 1; dd <= daysInMonth2; dd++) if (DAY_CAT[dd] !== undefined) slots++;
+    slots -= WEEKEND_PAIRS.length + HAG_PAIRS.length;   // a pair is one duty
+    ex.sort(function(a,b){ return scores[a] - scores[b]; }).forEach(function(n){
+      if (usedV[n]) return;
+      if (pool.indexOf(n) >= slots) return;   // not their turn this month
+      var thursdays = [];
+      for (var td = 1; td <= daysInMonth2; td++) if (DAY_CAT[td] === 'חמישי' && !dayToV[td]) thursdays.push(td);
+      thursdays = sortVFirst(thursdays.filter(function(td){ return (calInfo[n]||{}).forced_v && calInfo[n].forced_v[td]; }))
+        .concat(thursdays.filter(function(td){ return !((calInfo[n]||{}).forced_v && calInfo[n].forced_v[td]); }));
+      var rests = [MIN_REST_DAYS, 10, 7];
+      for (var ri = 0; ri < rests.length; ri++) {
+        for (var ti2 = 0; ti2 < thursdays.length; ti2++) {
+          var th = thursdays[ti2];
+          if (!canDoDay(n, th, false) || !restGapOk(n, [th], rests[ri])) continue;
+          usedV[n] = true; dayToV[th] = n;
+          slotPrimary[th] = [n, 'חמישי', DUTY_SCORES_MAP['חמישי'] || 12];
+          scores[n] += DUTY_SCORES_MAP['חמישי'] || 12;
+          pinnedNotes.push('יום ' + th + ': ' + n + ' (פטור 24 שעות) שובץ ליום חמישי');
+          return;
+        }
+      }
+      // no suitable Thursday: stays in the regular pool (weekday only)
+    });
+  })();
+
   var paternityPeople = activeNames.filter(function(n){return people[n].activity==='0.5';});
   paternityPeople.sort(function(a,b){ return scores[a]-scores[b]; });
   paternityPeople.forEach(function(pat){
@@ -4483,6 +4522,7 @@ function actionGenerateScheduleV2(req) {
       if(vGroup[n]==='weekend'&&!vIsFW.has(n)) return false;
       if((calInfo[n]||{}).constraints&&(calInfo[n].constraints[fri]||calInfo[n].constraints[sat])) return false;
       if(people[n].activity==='0'||people[n].activity==='0.5') return false;
+      if(people[n].dutyCategory===EXEMPT_24H) return false;
       var maxRes = vIsFW.has(n) ? MAX_RES*2 : MAX_RES;
       if(resTotal[n]>=maxRes) return false;
       var rds=resDays[n];
@@ -4503,6 +4543,7 @@ function actionGenerateScheduleV2(req) {
       if(fwPeople.has(n)&&(cat==='סוף שבוע'||cat==='חג')) return false;
       if(vGroup[n]==='weekday'&&cat==='סוף שבוע'&&!allowFW) return false;
       if((calInfo[n]||{}).constraints&&calInfo[n].constraints[day]) return false;
+      if(people[n].dutyCategory===EXEMPT_24H && NON24_CATS.indexOf(cat)===-1) return false;
       if(people[n].activity==='0.5'&&cat!=='חמישי'&&cat!=='ערב חג') return false;
       if(resTotal[n]>=maxResOvr) return false;
       if(requireGrp&&vGroup[n]!==cat.indexOf('סוף שבוע')!==-1?'weekend':cat==='חמישי'||cat==='ערב חג'?'thursday':'weekday') {
