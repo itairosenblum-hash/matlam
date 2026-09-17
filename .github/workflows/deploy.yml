@@ -59,7 +59,7 @@ jobs:
           echo "mail vars: $(cut -d= -f1 functions/.env 2>/dev/null | tr '\n' ' ')"
           gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS" 2>&1
           gcloud config set project matlam-e5288 2>&1
-          for svc in api login importdata forgotpassword; do
+          for svc in api login importdata forgotpassword exportbackup; do
             echo "== $svc"
             gcloud run services add-iam-policy-binding "$svc" --region=me-west1 --member=allUsers --role=roles/run.invoker --quiet 2>&1 | tail -3
             gcloud run services get-iam-policy "$svc" --region=me-west1 --format=json 2>&1 | tr -d '\n '
