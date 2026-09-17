@@ -165,12 +165,52 @@ export const exportBackup = onCall({ invoker: "public", timeoutSeconds: 120, mem
   return { sheets: out, at: new Date().toISOString() };
 });
 
+// ---------- one-time data migrations ----------
+// holidayScores25: holiday days are 25 each (ערב חג + חג by the same torani = 50).
+// Older generated rows carried 30, and a pair's second day carried 0.
+let migrationsDone = null;
+function runMigrations() {
+  if (migrationsDone) return migrationsDone;
+  migrationsDone = (async () => {
+    const ref = db.doc("meta/migrations");
+    const done = ((await ref.get()).data() || {});
+    if (done.holidayScores25) return;
+    const HOL = ["חג", "ערב חג"];
+    const snap = await db.collection("sheets").get();
+    const report = [];
+    for (const d of snap.docs) {
+      if (!/^Schedule_\d{6}$/.test(d.id)) continue;
+      await db.runTransaction(async tx => {
+        const cur = await tx.get(d.ref);
+        const x = cur.data() || {};
+        const rows = deRows(x.rows || []);
+        let changed = 0;
+        for (let i = 1; i < rows.length; i++) {
+          const r = rows[i];
+          const type = String(r[7] || "").trim();
+          if (!HOL.includes(type)) continue;
+          const sc = Number(r[8]) || 0;
+          const v = String(r[3] || "").trim();
+          const prev = rows[i - 1] || [];
+          const pairSecond = sc === 0 && v && String(prev[3] || "").trim() === v && HOL.includes(String(prev[7] || "").trim());
+          if (sc === 30 || pairSecond) { r[8] = 25; changed++; report.push(d.id + " row " + i); }
+        }
+        if (changed) tx.set(d.ref, { ...x, rows: serRows(rows), rev: (x.rev || 0) + 1, by: "migration", at: FieldValue.serverTimestamp() });
+      });
+    }
+    await ref.set({ holidayScores25: { at: FieldValue.serverTimestamp(), rows: report.slice(0, 200) } }, { merge: true });
+    await db.collection("audit").doc().set({ ts: new Date().toISOString(), who: "מערכת", action: "תיקון ניקוד חגים", details: "חג/ערב חג = 25 לכל יום (" + report.length + " שורות)", by: "migration" });
+  })().catch(e => { console.error("migration failed", e); migrationsDone = null; });
+  return migrationsDone;
+}
+
 // ---------- api ----------
 export const api = onCall({ invoker: "public" }, req => apiImpl(req).catch(wrapErr));
 async function apiImpl(req) {
   if (!req.auth || !req.auth.token.email) throw new HttpsError("unauthenticated", "אין הרשאה");
   if (!req.auth.token.managed) throw new HttpsError("unauthenticated", "יש להתחבר מחדש");
   const params = req.data || {};
+  await runMigrations();
   if (params.action === "__warm") return { success: true };
   if (MAIL_ACTIONS_BLOCKED.includes(params.action)) return { success: false, error: "שליחת מיילים כללית אינה בשימוש" };
   const key = req.auth.token.email.split("@")[0];
