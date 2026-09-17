@@ -986,7 +986,7 @@ function migrateScoresToPerYear() {
 function actionGetConstraints(req, user) {
   const month = String(req.month || '');
   // viewAs: admin can view another user's constraints
-  const viewAs = req.viewAs;
+  const viewAs = (user && user.role === 'admin') ? req.viewAs : null;  // v2: only admins may act as someone else
   const lookupName = viewAs ? getNameByUsername(viewAs) : user.name;
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -1029,7 +1029,7 @@ function actionSaveConstraints(req, user) {
   if (req.targetName && user.role === 'admin') {
     saveName = String(req.targetName).trim();
   } else {
-    saveName = req.viewAs ? getNameByUsername(req.viewAs) : user.name;
+    saveName = (req.viewAs && user.role === 'admin') ? getNameByUsername(req.viewAs) : user.name;
   }
   if (!saveName) return {success: false, error: 'לא נמצא שם לשמירת האילוצים'};
   
