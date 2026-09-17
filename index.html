@@ -783,6 +783,24 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 }
   @media (max-width: 600px){ html, body { overflow-x: clip; } }
 
+
+/* short labels only in the tablet range */
+.tab-short{display:none}
+@media (min-width:601px) and (max-width:1100px){ .tab-long{display:none} .tab-short{display:inline} }
+/* Tablets / unfolded foldables: two tidy rows — brand + controls, then one row of tabs */
+@media (min-width:601px) and (max-width:1100px){
+  .navbar{padding:6px 14px 0;gap:0;row-gap:4px;flex-wrap:wrap}
+  .navbar .nav-brand{order:1}
+  .navbar .nav-brand span{font-size:15px}
+  .navbar .nav-user{order:2;gap:6px;margin-inline-start:auto}
+  .navbar #nav-user-name{display:none}
+  .navbar #impersonate-container > span{display:none}
+  .navbar #impersonate-select{max-width:150px;padding:3px 6px}
+  .navbar .nav-tabs{order:3;width:100%;flex-wrap:nowrap;justify-content:space-between;gap:2px;
+    overflow-x:auto;scrollbar-width:none;border-top:1px solid var(--border);padding:2px 0}
+  .navbar .nav-tabs::-webkit-scrollbar{display:none}
+  .navbar .nav-tab{flex:1 1 0;min-width:0;padding:5px 2px;font-size:11.5px;white-space:nowrap;text-align:center;line-height:1.25}
+}
 </style>
 </head>
 <body>
@@ -1731,7 +1749,7 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">v2 16/09/2026 20:52</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">v2 17/09/2026 06:41</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1744,8 +1762,8 @@ thead tr th.c-hl-col { background-color: rgba(56,139,253,0.22) !important; }
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = 'v2 16/09/2026 20:52';
-const BUILD_EPOCH = 1789581216560; // ms — when this exact file was pushed
+const BUILD_STAMP = 'v2 17/09/2026 06:41';
+const BUILD_EPOCH = 1789616543508; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -2457,7 +2475,7 @@ function buildNavTabs() {
     `<button class="nav-tab" id="navtab-${id}" onclick="switchTabAndClose('${id}')">${icon} ${label}<span class="notif-badge" id="badge-${id}" style="display:none"></span></button>`
   ).join('') + `
     <div style="border-top:1px solid var(--border);margin:6px 0"></div>
-    <button class="nav-tab" id="theme-btn-menu" onclick="toggleTheme()" style="color:var(--text2)">🌙 כהה / בהיר</button>
+    <button class="nav-tab" id="theme-btn-menu" onclick="toggleTheme()" style="color:var(--text2)" title="כהה / בהיר">🌙 <span class="tab-long">כהה / בהיר</span><span class="tab-short">תצוגה</span></button>
     <button class="nav-tab" id="pwa-menu-btn" onclick="showInstallInstructions()" style="color:var(--accent);display:none">📲 הוסף למסך הבית</button>
     <button class="nav-tab" onclick="doLogout();closeMobileMenu()" style="color:var(--danger)">🚪 יציאה</button>
   `;
