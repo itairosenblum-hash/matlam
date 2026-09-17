@@ -9,6 +9,7 @@ on:
       - "js/server.js"
       - "firestore.rules"
       - "firebase.json"
+      - "tools/diag.mjs"
       - ".github/workflows/deploy.yml"
   workflow_dispatch:
 concurrency: deploy
@@ -69,6 +70,8 @@ jobs:
           curl -s -i -X POST https://me-west1-matlam-e5288.cloudfunctions.net/login -H 'Content-Type: application/json' -d '{"data":{}}' | head -20
           echo "== probe preflight"
           curl -s -i -X OPTIONS https://me-west1-matlam-e5288.cloudfunctions.net/importData -H 'Origin: https://itairosenblum-hash.github.io' -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: content-type,authorization' | head -20
+          echo "== data diag"
+          (cd functions && cp ../tools/diag.mjs ./diag.mjs && GOOGLE_CLOUD_PROJECT=matlam-e5288 node diag.mjs 2>&1 | tail -20; rm -f diag.mjs)
           echo "== recent errors"
           gcloud logging read 'resource.type="cloud_run_revision" AND (severity>=WARNING OR httpRequest.status>=400)' --limit=25 --freshness=6h --format='value(timestamp,resource.labels.service_name,textPayload,jsonPayload.message,httpRequest.status)' 2>&1 | cut -c1-400
           } > "$RUNNER_TEMP/diag.txt" 2>&1 || true
