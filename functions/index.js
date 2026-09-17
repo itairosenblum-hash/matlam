@@ -34,7 +34,7 @@ function wrapErr(e) {
 // ---------- mail (only swap notifications are allowed) ----------
 const MAIL_USER = process.env.MAIL_USER || "", MAIL_PASS = process.env.MAIL_PASS || "";
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || MAIL_USER;
-const APP_URL = "https://itairosenblum-hash.github.io/matlam-v2/";
+const APP_URL = "https://itairosenblum-hash.github.io/matlam/";
 let transport = null;
 function mailer() {
   if (!MAIL_USER || !MAIL_PASS) return null;
