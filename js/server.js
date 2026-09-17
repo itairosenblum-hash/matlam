@@ -4013,6 +4013,50 @@ function actionGenerateScheduleV2(req) {
   // Find weekend pairs (consecutive סוף שבוע days that are Fri+Sat)
   // Also find holiday pairs (consecutive חג days) - treated same as full weekends
   var daysInMonth2 = new Date(year, mon, 0).getDate();
+
+  // ── Rest between duties across month boundaries (v2) ─────────────
+  // Distance, in days, from a day of this month to each torani's nearest main duty
+  // (V / V2) in the previous and next month. The scheduler tries to keep at least
+  // MIN_REST_DAYS between duties and relaxes that only when nobody else is available.
+  var MIN_REST_DAYS = 14;
+  var neighborDuty = {}; // name -> {prevDaysBack: n (days before the 1st), nextDaysAfter: n (days after month end)}
+  (function(){
+    function scan(y, m, isPrev) {
+      var sh = ss.getSheetByName('Schedule_' + y + (m < 10 ? '0' + m : m));
+      if (!sh) return;
+      var dim = new Date(y, m, 0).getDate();
+      var rows = sh.getDataRange().getValues();
+      for (var r = 1; r < rows.length; r++) {
+        var c = rows[r][0];
+        var dnum = c instanceof Date ? c.getDate() : parseInt(String(c).split('/')[0], 10);
+        if (!dnum) continue;
+        [String(rows[r][3] || '').trim(), String(rows[r][9] || '').trim()].forEach(function(nm){
+          if (!nm) return;
+          var nd = neighborDuty[nm] || (neighborDuty[nm] = {});
+          if (isPrev) {
+            var back = dim - dnum + 1;              // day 30 of a 30-day month -> 1 day before the 1st
+            if (nd.prev === undefined || back < nd.prev) nd.prev = back;
+          } else {
+            if (nd.next === undefined || dnum < nd.next) nd.next = dnum;
+          }
+        });
+      }
+    }
+    var py = mon === 1 ? year - 1 : year, pm = mon === 1 ? 12 : mon - 1;
+    var ny = mon === 12 ? year + 1 : year, nm2 = mon === 12 ? 1 : mon + 1;
+    scan(py, pm, true);
+    scan(ny, nm2, false);
+  })();
+  function restGapOk(name, days, minGap) {
+    if (!minGap) return true;
+    var nd = neighborDuty[name];
+    if (!nd) return true;
+    for (var i = 0; i < days.length; i++) {
+      if (nd.prev !== undefined && (days[i] - 1 + nd.prev) < minGap) return false;          // days since previous duty
+      if (nd.next !== undefined && (daysInMonth2 - days[i] + nd.next) < minGap) return false; // days until next duty
+    }
+    return true;
+  }
   var HAG_PAIRS = [];
   for (var d2 = 1; d2 < daysInMonth2; d2++) {
     if (DAY_CAT[d2] === 'סוף שבוע' && DAY_CAT[d2+1] === 'סוף שבוע') {
@@ -4196,7 +4240,7 @@ function actionGenerateScheduleV2(req) {
     var isHagSlot = slotType === 'חג' || slotType === 'ערב חג' || slotType === 'חג + סוף שבוע';
     var isWeekendSlot = !isHagSlot && String(slotType).indexOf('סוף שבוע') !== -1;
 
-    function collect(allowPrevHag, allowMalaSingle) {
+    function collect(allowPrevHag, allowMalaSingle, minRest) {
       var candidates = [];
       var isPairSlot = isWeekendSlot || isHagSlot;
       for (var ni=0; ni<activeNames.length; ni++) {
@@ -4225,6 +4269,7 @@ function actionGenerateScheduleV2(req) {
         }
         var ok = days.every(function(day){return canDoDay(n, day, days.length>1);});
         if (!ok) continue;
+        if (!restGapOk(n, days, minRest)) continue;
         var noSkipFlag = p.no_skip ? 0 : 1;
         var vFlag = days.some(function(day){
           return (calInfo[n]||{}).forced_v && calInfo[n].forced_v[day];
@@ -4238,18 +4283,25 @@ function actionGenerateScheduleV2(req) {
       return candidates;
     }
 
-    var candidates = collect(false, false);
-    if (!candidates.length && isWeekendSlot) {
-      candidates = collect(true, false);
-      if (candidates.length) {
-        relaxNotes.push('יום ' + days[0] + ': שובץ תורן שעשה חג בחודש הקודם (לא היה מועמד אחר)');
+    var candidates = [], restSteps = [MIN_REST_DAYS, 10, 7, 0];
+    for (var rs = 0; rs < restSteps.length && !candidates.length; rs++) {
+      var minRest = restSteps[rs];
+      candidates = collect(false, false, minRest);
+      if (!candidates.length && isWeekendSlot) {
+        candidates = collect(true, false, minRest);
+        if (candidates.length) {
+          relaxNotes.push('יום ' + days[0] + ': שובץ תורן שעשה חג בחודש הקודם (לא היה מועמד אחר)');
+        }
       }
-    }
-    if (!candidates.length && (isWeekendSlot || isHagSlot) && days.length === 1) {
-      candidates = collect(true, true);
-      if (candidates.length) {
-        var slotLabel = isHagSlot ? 'יום חג בודד' : 'סוף שבוע בודד';
-        relaxNotes.push('יום ' + days[0] + ': שובץ תורן מסוג "מלא" ל' + slotLabel + ' (לא היה תורן "נפרד" זמין)');
+      if (!candidates.length && (isWeekendSlot || isHagSlot) && days.length === 1) {
+        candidates = collect(true, true, minRest);
+        if (candidates.length) {
+          var slotLabel = isHagSlot ? 'יום חג בודד' : 'סוף שבוע בודד';
+          relaxNotes.push('יום ' + days[0] + ': שובץ תורן מסוג "מלא" ל' + slotLabel + ' (לא היה תורן "נפרד" זמין)');
+        }
+      }
+      if (candidates.length && rs > 0) {
+        relaxNotes.push('יום ' + days[0] + ': לא היה מועמד עם ' + MIN_REST_DAYS + ' ימי מנוחה מהחודש הסמוך — המרווח הוקטן ל-' + (minRest || 'פחות מ-7') + ' ימים');
       }
     }
     if (!candidates.length) return null;
