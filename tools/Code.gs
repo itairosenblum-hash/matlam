@@ -3793,8 +3793,8 @@ function resetAdminPassword() {
 
 var DUTY_SCORES_MAP = {
   'חול':10, 'חמישי':12, 'סוף שבוע':20,
-  'סוף שבוע מלא':40, 'ערב חג':30, 'חג':30,
-  'חג + סוף שבוע':50, 'דולג':0, 'פטור':10,
+  'סוף שבוע מלא':40, 'ערב חג':25, 'חג':25,
+  'חג + סוף שבוע':45, 'דולג':0, 'פטור':10,
   'חול 24 שעות':15, 'חמישי 24 שעות':16, 'הדממה':18
 };
 
@@ -3812,6 +3812,14 @@ function actionGenerateScheduleV2(req) {
 
   var ss  = SpreadsheetApp.getActiveSpreadsheet();
   var TZ  = ss.getSpreadsheetTimeZone();
+
+  // v2: one score table for the scheduler and for manual edits — the DutyTypes sheet
+  try {
+    if (ss.getSheetByName(SH.DUTY_TYPES)) {
+      var dtMap = getDutyTypesMap();
+      Object.keys(dtMap).forEach(function(k){ DUTY_SCORES_MAP[k] = dtMap[k]; });
+    }
+  } catch(e) { Logger.log('duty types load: ' + e); }
 
   // ── 1. Load People & Scores ─────────────────────────────────────
   var peopleRows = ss.getSheetByName('People').getDataRange().getValues();
@@ -4151,22 +4159,26 @@ function actionGenerateScheduleV2(req) {
       var otherDay = (day===d1) ? d2 : d1;
       if (p.weekendType === 'מלא' && !PINNED_V[otherDay] && canDoDay(name, otherDay, true)) {
         // מלא: בדיוק כמו בהפקה רגילה — מכסה את שני הימים בציון אחד
-        var pairScore = pairIsHag
-          ? Math.max(DUTY_SCORES_MAP[DAY_CAT[d1]]||30, DUTY_SCORES_MAP[DAY_CAT[d2]]||30)
-          : DUTY_SCORES_MAP['סוף שבוע מלא'];
-        var typeLabel = pairIsHag ? 'חג' : 'סוף שבוע מלא';
         dayToV[d1] = dayToV[d2] = name;
-        slotPrimary[d1] = [name, typeLabel, day===d1 ? pairScore : 0];
-        slotPrimary[d2] = [name, typeLabel, day===d2 ? pairScore : 0];
+        if (pairIsHag) {
+          var hs1 = DUTY_SCORES_MAP[DAY_CAT[d1]] || 25, hs2 = DUTY_SCORES_MAP[DAY_CAT[d2]] || 25;
+          slotPrimary[d1] = [name, DAY_CAT[d1] || 'חג', hs1];
+          slotPrimary[d2] = [name, DAY_CAT[d2] || 'חג', hs2];
+          scores[name] += hs1 + hs2;
+        } else {
+          var pairScore = DUTY_SCORES_MAP['סוף שבוע מלא'];
+          slotPrimary[d1] = [name, 'סוף שבוע מלא', day===d1 ? pairScore : 0];
+          slotPrimary[d2] = [name, 'סוף שבוע מלא', day===d2 ? pairScore : 0];
+          scores[name] += pairScore;
+        }
         fwCovered[d1] = true; fwCovered[d2] = true;
-        scores[name] += pairScore;
         people[name].last_weekend = mon;
         if (!pairIsHag) people[name].last_fw = mon;
         pinnedNotes.push('יום ' + day + ': ' + name + ' (מלא) קובע ידנית — הושלם אוטומטית גם ליום ' + otherDay);
       } else {
         // נפרד, או שהיום הצמוד כבר מקובע בנפרד בעצמו — מכסים רק את היום המקובע;
         // היום השני יטופל בנפרד ע"י האלגוריתם הרגיל (חג בודד / סופ"ש בודד)
-        var singleScore = DUTY_SCORES_MAP[cat] || (pairIsHag ? 30 : 20);
+        var singleScore = DUTY_SCORES_MAP[cat] || (pairIsHag ? 25 : 20);
         dayToV[day] = name;
         slotPrimary[day] = [name, cat, singleScore];
         fwCovered[day] = true;
@@ -4345,7 +4357,7 @@ function actionGenerateScheduleV2(req) {
   HAG_PAIRS.forEach(function(pair){
     var d1=pair[0], d2=pair[1];
     if (fwCovered[d1]||fwCovered[d2]) return;
-    var hagScore = Math.max(DUTY_SCORES_MAP[DAY_CAT[d1]]||30, DUTY_SCORES_MAP[DAY_CAT[d2]]||30);
+    var hagScore1 = DUTY_SCORES_MAP[DAY_CAT[d1]]||25, hagScore2 = DUTY_SCORES_MAP[DAY_CAT[d2]]||25;
 
     // Try the full pair first — a מלא torani doesn't travel through Yom Tov, so
     // if one is available they cover both days together (same as a full weekend).
@@ -4354,10 +4366,11 @@ function actionGenerateScheduleV2(req) {
     if (chosenPair) {
       usedV[chosenPair]=true;
       dayToV[d1]=dayToV[d2]=chosenPair;
-      slotPrimary[d1]=[chosenPair,'חג',hagScore];
-      slotPrimary[d2]=[chosenPair,'חג',0];
+      // each holiday day carries its own score (ערב חג 25 + חג 25 = 50)
+      slotPrimary[d1]=[chosenPair,DAY_CAT[d1]||'חג',hagScore1];
+      slotPrimary[d2]=[chosenPair,DAY_CAT[d2]||'חג',hagScore2];
       fwCovered[d1]=true; fwCovered[d2]=true;
-      scores[chosenPair]+=hagScore;
+      scores[chosenPair]+=hagScore1+hagScore2;
       people[chosenPair].last_weekend=mon;
       return;
     }
@@ -4368,7 +4381,7 @@ function actionGenerateScheduleV2(req) {
     if (chosen) {
       usedV[chosen]=true;
       dayToV[d1]=chosen;
-      var sc1 = DUTY_SCORES_MAP[DAY_CAT[d1]]||30;
+      var sc1 = DUTY_SCORES_MAP[DAY_CAT[d1]]||25;
       slotPrimary[d1]=[chosen, DAY_CAT[d1]||'חג', sc1];
       fwCovered[d1]=true;
       scores[chosen]+=sc1;
@@ -4379,7 +4392,7 @@ function actionGenerateScheduleV2(req) {
       var chosen2 = pickLowest([d2], 'חג', null);
       if (chosen2) {
         usedV[chosen2]=true; dayToV[d2]=chosen2;
-        var sc2 = DUTY_SCORES_MAP[DAY_CAT[d2]]||30;
+        var sc2 = DUTY_SCORES_MAP[DAY_CAT[d2]]||25;
         slotPrimary[d2]=[chosen2,'חג',sc2];
         scores[chosen2]+=sc2; fwCovered[d2]=true;
         people[chosen2].last_weekend=mon;
@@ -4401,7 +4414,7 @@ function actionGenerateScheduleV2(req) {
     var hchosen=pickLowest([hd2],'חג',null);
     if (hchosen){
       usedV[hchosen]=true; dayToV[hd2]=hchosen;
-      var hsc=DUTY_SCORES_MAP[hcat]||30;
+      var hsc=DUTY_SCORES_MAP[hcat]||25;
       slotPrimary[hd2]=[hchosen,hcat,hsc];
       scores[hchosen]+=hsc; fwCovered[hd2]=true;
     }
@@ -4671,11 +4684,14 @@ function actionGenerateScheduleV2(req) {
       continue; // admin / non-torani rows untouched
     }
     // What did this person get THIS month?
-    var ag2=null;
-    Object.keys(result).forEach(function(d){if(result[d].V===sn&&result[d].score>0)ag2=result[d];});
+    var ag2=null, agSum=0, agTypes=[];
+    Object.keys(result).forEach(function(d){
+      if(result[d].V===sn&&result[d].score>0){ ag2=result[d]; agSum+=result[d].score; if(agTypes.indexOf(result[d].type)===-1) agTypes.push(result[d].type); }
+    });
     var mType='', mScore='';
     if(ag2){
-      mType=ag2.type||''; mScore=ag2.score;
+      mType=agTypes.length===2 && agTypes.indexOf('ערב חג')!==-1 && agTypes.indexOf('חג')!==-1 ? 'יומיים חג' : agTypes.join(' + ');
+      mScore=agSum;
     } else if(people[sn]&&people[sn].activity==='0'){
       mType='פטור'; mScore=10; scores[sn]+=10;
     }
