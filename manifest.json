@@ -1,10 +1,10 @@
 {
-  "id": "/matlam-v2/",
+  "id": "./",
   "name": "מטלʺמ",
   "short_name": "מטלʺמ",
   "description": "מערכת ניהול תורנויות מטל\"מ",
-  "start_url": "/matlam-v2/",
-  "scope": "/matlam-v2/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "dir": "rtl",
   "lang": "he",
@@ -12,7 +12,17 @@
   "theme_color": "#2d4a3e",
   "orientation": "any",
   "icons": [
-    { "src": "Mazad.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "Mazad.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+    {
+      "src": "Mazad.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "Mazad.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
   ]
 }
