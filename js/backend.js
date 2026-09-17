@@ -20,6 +20,7 @@ const store = {
           else { const d = ch.doc.data(); this.docs.set(ch.doc.id, { rows: d.rows || [], rev: d.rev || 0, sid: d.sid || 0 }); }
         });
         if (first) { first = false; resolve(); }
+        this._notify();
       }, err => {
         console.error("sheets listener", err);
         this.unsub = null;
@@ -27,6 +28,20 @@ const store = {
       });
     });
     return this.ready;
+  },
+  _waiters: [],
+  _notify() { this._waiters = this._waiters.filter(w => !w()); },
+  // resolve once the live mirror contains the given revisions (null = deleted), or after a timeout
+  waitFor(writes, ms = 5000) {
+    const ok = () => Object.entries(writes || {}).every(([n, rev]) => {
+      const d = this.docs.get(n);
+      return rev === null ? !d : !!(d && d.rev >= rev);
+    });
+    if (ok()) return Promise.resolve();
+    return new Promise(res => {
+      const t = setTimeout(res, ms);
+      this._waiters.push(() => { if (ok()) { clearTimeout(t); res(); return true; } return false; });
+    });
   },
   stop() { this.unsub && this.unsub(); this.unsub = null; this.docs.clear(); this.cache.clear(); this.audit = null; this.auditAt = 0; this.ready = null; },
   rows(name) {
@@ -90,7 +105,9 @@ async function doLogin(p) {
 async function remote(params) {
   try {
     const r = await fnApi(params);
-    return r.data;
+    const data = r.data;
+    if (data && data._writes) { await store.waitFor(data._writes); delete data._writes; }
+    return data;
   } catch (e) {
     console.error(e);
     if (e.code === "functions/unauthenticated") return { success: false, error: "אין הרשאה", code: 401 };
@@ -123,6 +140,9 @@ export async function call(params) {
 
 window.__fbCallImpl = call;
 window.__fbSignOut = () => signOut(auth).catch(() => {});
+// wake the server before a heavy action (generate / reset) — at most every 4 minutes
+let lastWarm = 0;
+window.__fbWarm = () => { if (Date.now() - lastWarm > 240000 && auth.currentUser) { lastWarm = Date.now(); fnApi({ action: "__warm" }).catch(() => {}); } };
 // full backup as { sheetName: rows[][] } (dates as Date objects)
 window.__fbExportBackup = async () => {
   const r = (await fnExport({})).data;
