@@ -4565,9 +4565,8 @@ function actionGenerateScheduleV2(req) {
       if(vGroup[n]==='weekday'&&cat==='סוף שבוע'&&!allowFW) return false;
       if((calInfo[n]||{}).constraints&&calInfo[n].constraints[day]) return false;
       if(people[n].dutyCategory===EXEMPT_24H && NON24_CATS.indexOf(cat)===-1) return false;
-      // משרת אב: מה שתקף בתורנות תקף גם בעתודה — תורנות אחת בחודשיים בלבד.
-      // התורנות (מבצע) החודשית שלו כבר היא ה"תורנות" של החודשיים, לכן לעולם לא עתודה.
-      if(people[n].activity==='0.5') return false;
+      // משרת אב: עתודה רק בחמישי או בחול רגיל. ערב חג דינו כשישי — אסור, וכך גם סופ"ש/חג/24 שעות.
+      if(people[n].activity==='0.5'&&cat!=='חמישי'&&cat!=='חול') return false;
       if(resTotal[n]>=maxResOvr) return false;
       if(requireGrp&&vGroup[n]!==cat.indexOf('סוף שבוע')!==-1?'weekend':cat==='חמישי'||cat==='ערב חג'?'thursday':'weekday') {
         // simplified group check
