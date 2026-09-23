@@ -4103,7 +4103,8 @@ function actionGenerateScheduleV2(req) {
     if ((calInfo[name]||{}).constraints && calInfo[name].constraints[day]) return false;
     if (p.activity === '0') return false;
     if (p.dutyCategory === 'פטור' || p.dutyCategory === 'לא מוסמך' || p.dutyCategory === 'טרם הוסמך') return false;
-    if (p.activity === '0.5' && cat !== 'חמישי' && cat !== 'ערב חג') return false;
+    // משרת אב: חמישי בלבד. ערב חג דינו כשישי — אסור.
+    if (p.activity === '0.5' && cat !== 'חמישי') return false;
     // v2: "פטור 24 שעות" — only plain weekday / Thursday shifts (no weekends, holidays or 24h days)
     if (p.dutyCategory === EXEMPT_24H && NON24_CATS.indexOf(cat) === -1) return false;
     if (p.endDateObj && new Date(year, mon-1, day) > p.endDateObj) return false;
@@ -4228,7 +4229,7 @@ function actionGenerateScheduleV2(req) {
   // Paternity (0.5) always gets Thursday first
   var thuDays = [];
   for (var d3=1;d3<=daysInMonth2;d3++){
-    if (DAY_CAT[d3]==='חמישי'||DAY_CAT[d3]==='ערב חג') thuDays.push(d3);
+    if (DAY_CAT[d3]==='חמישי') thuDays.push(d3);   // ערב חג דינו כשישי — לא למשרת אב
   }
   // v2: tornim exempt from 24-hour duties go to a Thursday when it is their turn
   // (turn = their score ranks within the number of duty slots this month; fairness is kept)
@@ -4564,7 +4565,9 @@ function actionGenerateScheduleV2(req) {
       if(vGroup[n]==='weekday'&&cat==='סוף שבוע'&&!allowFW) return false;
       if((calInfo[n]||{}).constraints&&calInfo[n].constraints[day]) return false;
       if(people[n].dutyCategory===EXEMPT_24H && NON24_CATS.indexOf(cat)===-1) return false;
-      if(people[n].activity==='0.5'&&cat!=='חמישי'&&cat!=='ערב חג') return false;
+      // משרת אב: מה שתקף בתורנות תקף גם בעתודה — תורנות אחת בחודשיים בלבד.
+      // התורנות (מבצע) החודשית שלו כבר היא ה"תורנות" של החודשיים, לכן לעולם לא עתודה.
+      if(people[n].activity==='0.5') return false;
       if(resTotal[n]>=maxResOvr) return false;
       if(requireGrp&&vGroup[n]!==cat.indexOf('סוף שבוע')!==-1?'weekend':cat==='חמישי'||cat==='ערב חג'?'thursday':'weekday') {
         // simplified group check
