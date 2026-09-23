@@ -583,9 +583,9 @@ function actionUpdatePerson(req) {
 var EXEMPT_24H = 'פטור 24 שעות';          // v2 category: weekday/Thursday shifts only
 var NON24_CATS = ['חול', 'חמישי'];
 // משרת אב — סוגי ימים מותרים (מבצע ועתודה), לפי סדר עדיפות למבצע:
-// 24 שעות (חול/חמישי) → חמישי → חול. ערב חג דינו כשישי — אסור.
-var PATERNITY_TIERS = [['חול 24 שעות', 'חמישי 24 שעות'], ['חמישי'], ['חול']];
-var PATERNITY_CATS = ['חול 24 שעות', 'חמישי 24 שעות', 'חמישי', 'חול'];
+// 24 שעות (חול/חמישי) או הדממה → חמישי → חול. ערב חג דינו כשישי — אסור.
+var PATERNITY_TIERS = [['חול 24 שעות', 'חמישי 24 שעות', 'הדממה'], ['חמישי'], ['חול']];
+var PATERNITY_CATS = ['חול 24 שעות', 'חמישי 24 שעות', 'הדממה', 'חמישי', 'חול'];
 var SCORE_ADJ_COL = 29; // AC — manual bonus/penalty total for the year
 
 // ===== v2: cross-year score helpers =====
@@ -4107,7 +4107,7 @@ function actionGenerateScheduleV2(req) {
     if ((calInfo[name]||{}).constraints && calInfo[name].constraints[day]) return false;
     if (p.activity === '0') return false;
     if (p.dutyCategory === 'פטור' || p.dutyCategory === 'לא מוסמך' || p.dutyCategory === 'טרם הוסמך') return false;
-    // משרת אב: 24 שעות (חול/חמישי), חמישי או חול. ערב חג דינו כשישי — אסור.
+    // משרת אב: 24 שעות (חול/חמישי), הדממה, חמישי או חול. ערב חג דינו כשישי — אסור.
     if (p.activity === '0.5' && PATERNITY_CATS.indexOf(cat) === -1) return false;
     // v2: "פטור 24 שעות" — only plain weekday / Thursday shifts (no weekends, holidays or 24h days)
     if (p.dutyCategory === EXEMPT_24H && NON24_CATS.indexOf(cat) === -1) return false;
@@ -4236,7 +4236,7 @@ function actionGenerateScheduleV2(req) {
     if (DAY_CAT[d3]==='חמישי') thuDays.push(d3);   // ערב חג דינו כשישי — לא למשרת אב
   }
 
-  // משרת אב — תורנות אחת בחודשיים. עדיפות: 24 שעות (חול/חמישי) → חמישי → חול (רק אם אין ברירה).
+  // משרת אב — תורנות אחת בחודשיים. עדיפות: 24 שעות (חול/חמישי) או הדממה → חמישי → חול (רק אם אין ברירה).
   // רץ לפני שיבוץ "פטור 24 שעות" כדי שמשרת אב (המוגבל יותר) יבחר ראשון.
   var paternityPeople = activeNames.filter(function(n){return people[n].activity==='0.5';});
   paternityPeople.sort(function(a,b){ return scores[a]-scores[b]; });
@@ -4259,7 +4259,7 @@ function actionGenerateScheduleV2(req) {
       usedV[pat] = true; dayToV[pday] = pat;
       slotPrimary[pday] = [pat, pcat, psc];
       scores[pat] += psc;
-      if (tier === 2) relaxNotes.push('יום ' + pday + ': ' + pat + ' (משרת אב) שובץ ביום חול — לא נמצא יום 24 שעות או חמישי פנוי');
+      if (tier === 2) relaxNotes.push('יום ' + pday + ': ' + pat + ' (משרת אב) שובץ ביום חול — לא נמצא יום 24 שעות/הדממה או חמישי פנוי');
       return;
     }
   });
@@ -4579,7 +4579,7 @@ function actionGenerateScheduleV2(req) {
       if(vGroup[n]==='weekday'&&cat==='סוף שבוע'&&!allowFW) return false;
       if((calInfo[n]||{}).constraints&&calInfo[n].constraints[day]) return false;
       if(people[n].dutyCategory===EXEMPT_24H && NON24_CATS.indexOf(cat)===-1) return false;
-      // משרת אב: עתודה באותם ימים שהוא יכול לבצע (24 שעות חול/חמישי, חמישי, חול). לא ערב חג/סופ"ש/חג.
+      // משרת אב: עתודה באותם ימים שהוא יכול לבצע (24 שעות חול/חמישי, הדממה, חמישי, חול). לא ערב חג/סופ"ש/חג.
       if(people[n].activity==='0.5'&&PATERNITY_CATS.indexOf(cat)===-1) return false;
       if(resTotal[n]>=maxResOvr) return false;
       if(requireGrp&&vGroup[n]!==cat.indexOf('סוף שבוע')!==-1?'weekend':cat==='חמישי'||cat==='ערב חג'?'thursday':'weekday') {
