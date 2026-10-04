@@ -1645,6 +1645,16 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
   </div>
 </div>
 
+<div id="modal-remove-torani" class="modal-overlay">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div class="modal-title" id="remove-torani-title">🗄️ ארכיון / מחיקה</div>
+      <button class="modal-close" onclick="closeModal('modal-remove-torani')">✕</button>
+    </div>
+    <div id="remove-torani-body"></div>
+  </div>
+</div>
+
 <div id="modal-history" class="modal-overlay">
   <div class="modal">
     <div class="modal-header">
@@ -1762,7 +1772,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">v2 24/09/2026 00:12</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">v2 04/10/2026 11:15</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1775,8 +1785,8 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = 'v2 24/09/2026 00:12';
-const BUILD_EPOCH = 1790197960625; // ms — when this exact file was pushed
+const BUILD_STAMP = 'v2 04/10/2026 11:15';
+const BUILD_EPOCH = 1791101701946; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -3104,7 +3114,8 @@ async function loadUsers() { // keep name for tab switching
 
   const container = document.getElementById('tornim-content');
 
-  const sorted = res.tornim.slice().sort((a,b) => {
+  const archivedList = res.tornim.filter(t => t.archived).sort((a,b) => a.name.localeCompare(b.name, 'he'));
+  const sorted = res.tornim.filter(t => !t.archived).sort((a,b) => {
     const groupOf = t => {
       if (t.role === 'admin') return 3;
       if (!t.active) return 2;
@@ -3174,6 +3185,7 @@ async function loadUsers() { // keep name for tab switching
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="resetPassword('${t.username}','${t.name}','${t.phone}')" title="איפוס סיסמה" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">🔑</button>` : ''}
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="sendLoginDetails('${t.username}','${t.name}','${t.phone}')" title="שלח פרטי כניסה בוואטסאפ" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">📧</button>` : ''}
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="toggleTorani('${t.username}')" title="${isActive ? 'השבת' : 'הפעל'}" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">${isActive ? '🔒' : '🔓'}</button>` : ''}
+        ${currentUser.role === 'admin' && t.role !== 'admin' ? `<button class="btn btn-secondary btn-sm" onclick="openRemoveTorani('${t.username}')" title="ארכיון / מחיקה" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">🗄️</button>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -3212,7 +3224,111 @@ async function loadUsers() { // keep name for tab switching
 
   window._allTornimData = sorted;
   window._tornimCardFn = cards;
-  container.innerHTML = `<div id="tornim-cards-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">${cards}</div>`;
+  container.innerHTML = `<div id="tornim-cards-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">${cards}</div>` + renderArchiveSection(archivedList);
+}
+
+// =====================================================
+// ARCHIVE / PERMANENT DELETE
+// =====================================================
+function renderArchiveSection(list) {
+  if (!list.length || currentUser.role !== 'admin') return '';
+  const rows = list.map(t => `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-top:1px solid var(--border)">
+      <div style="min-width:0">
+        <div style="font-weight:600;font-size:14px">${escapeHtml(t.name)}</div>
+        <div style="font-size:11px;color:var(--text3)">${escapeHtml(t.username)}${t.endDate ? ' · סיום ' + formatEndDateDisplay(t.endDate) : ''}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="btn btn-secondary btn-sm" data-name="${escapeHtml(t.name)}" onclick="openToraniHistory(this.dataset.name)" title="היסטוריית תורנויות">📖</button>
+        <button class="btn btn-secondary btn-sm" onclick="restoreTorani('${t.username}')">♻️ שחזר</button>
+        <button class="btn btn-secondary btn-sm" onclick="openRemoveTorani('${t.username}')" title="מחיקה לצמיתות">🗑️</button>
+      </div>
+    </div>`).join('');
+  return `<details style="margin-top:18px;background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden">
+    <summary style="cursor:pointer;padding:12px 16px;font-weight:700;font-size:14px;color:var(--text2);list-style:none">🗄️ ארכיון (${list.length})</summary>
+    ${rows}
+  </details>`;
+}
+
+function fmtIsoDate(d) { const p = String(d || '').split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : d; }
+
+async function openRemoveTorani(username) {
+  const body = document.getElementById('remove-torani-body');
+  const title = document.getElementById('remove-torani-title');
+  title.textContent = '🗄️ ארכיון / מחיקה';
+  body.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text2)">⏳ בודק השפעה...</div>';
+  openModal('modal-remove-torani');
+  const r = await api({action:'getToraniImpact', username});
+  if (!r.success) { body.innerHTML = `<div class="alert alert-error">${escapeHtml(r.error || 'שגיאה')}</div>`; return; }
+  title.textContent = '🗄️ ' + r.name;
+  const li = (icon, text) => `<div style="display:flex;gap:8px;padding:4px 0;font-size:13px"><span>${icon}</span><span>${text}</span></div>`;
+  const future = r.futureDuties || [];
+  const impact =
+    li('📋', r.pastDuties ? `${r.pastDuties} תורנויות בהיסטוריה (אחרונה ${fmtIsoDate(r.lastPast)})` : 'אין תורנויות בהיסטוריה') +
+    li(future.length ? '⚠️' : '📅', future.length ? `<b style="color:var(--warn)">${future.length} תורנויות עתידיות: ${future.map(fmtIsoDate).join(', ')}</b>` : 'אין תורנויות עתידיות') +
+    li('🔁', r.openSwaps ? `${r.openSwaps} בקשות החלפה פתוחות` : 'אין בקשות החלפה פתוחות') +
+    li('🚫', r.constraintMonths ? `אילוצים ב-${r.constraintMonths} חודשים` : 'אין אילוצים') +
+    li('🎯', r.scoreYears.length ? `ניקוד בשנים: ${r.scoreYears.join(', ')}` : 'אין ניקוד');
+
+  const archiveBlock = r.archived ? `
+    <div style="background:var(--surface2);border-radius:12px;padding:12px 14px;margin-bottom:12px">
+      <div style="font-weight:700;margin-bottom:6px">♻️ התורן נמצא בארכיון</div>
+      <button class="btn btn-secondary" style="width:100%" onclick="restoreTorani('${r.username}', true)">♻️ שחזר לפעילות</button>
+    </div>` : r.canArchive ? `
+    <div style="background:var(--surface2);border-radius:12px;padding:12px 14px;margin-bottom:12px">
+      <div style="font-weight:700;margin-bottom:4px">🗄️ העברה לארכיון <span style="font-weight:400;font-size:11px;color:var(--text3)">(מומלץ)</span></div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px;line-height:1.6">חוסם כניסה, מוציא מהשיבוץ ומרשימת התורנים${r.openSwaps ? ' ומבטל ' + r.openSwaps + ' בקשות החלפה פתוחות' : ''}. ההיסטוריה והניקוד נשמרים וניתן לשחזר בכל רגע.${future.length ? '<br><b style="color:var(--warn)">התורנויות העתידיות נשארות בלוח — צריך לשבץ להן מחליף.</b>' : ''}</div>
+      <button class="btn btn-primary" style="width:100%" onclick="archiveTorani('${r.username}')">🗄️ העבר לארכיון</button>
+    </div>` : '';
+
+  const deleteBlock = r.canDelete ? `
+    <div style="border:1px solid var(--danger);border-radius:12px;padding:12px 14px">
+      <div style="font-weight:700;color:var(--danger);margin-bottom:4px">🗑️ מחיקה לצמיתות</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:8px;line-height:1.6">מוחק את החשבון, פרטי התורן, הניקוד והאילוצים. <b>לא ניתן לשחזר.</b><br>לאישור הקלד את שם המשתמש: <b dir="ltr">${escapeHtml(r.username)}</b></div>
+      <input id="remove-torani-confirm" dir="ltr" autocomplete="off" autocapitalize="off" placeholder="${escapeHtml(r.username)}"
+        oninput="document.getElementById('btn-purge-torani').disabled = this.value.trim().toLowerCase() !== '${r.username.toLowerCase()}'" style="width:100%;margin-bottom:8px">
+      <button id="btn-purge-torani" class="btn btn-danger" style="width:100%" disabled onclick="purgeTorani('${r.username}')">🗑️ מחק לצמיתות</button>
+    </div>` : `<div style="font-size:12px;color:var(--text3);text-align:center;padding:6px">🗑️ מחיקה לצמיתות לא זמינה: ${escapeHtml(r.blockReason || '')}</div>`;
+
+  body.innerHTML = `
+    <div style="background:var(--surface2);border-radius:12px;padding:10px 14px;margin-bottom:12px">
+      <div style="font-size:12px;color:var(--text3);margin-bottom:4px">מה קיים במערכת עבור ${escapeHtml(r.name)}:</div>${impact}
+    </div>
+    <div id="remove-torani-alert"></div>
+    ${archiveBlock}${deleteBlock}`;
+}
+
+async function archiveTorani(username) {
+  showLoading(true);
+  const r = await api({action:'archiveTorani', username});
+  showLoading(false);
+  if (!r.success) { showAlert('remove-torani-alert', r.error || 'שגיאה', 'error'); return; }
+  closeModal('modal-remove-torani');
+  let msg = r.name + ' הועבר לארכיון.';
+  if (r.cancelledSwaps) msg += '\nבוטלו ' + r.cancelledSwaps + ' בקשות החלפה פתוחות.';
+  if (r.futureDuties && r.futureDuties.length) msg += '\n\n⚠️ יש לשבץ מחליף לתורנויות: ' + r.futureDuties.map(fmtIsoDate).join(', ');
+  alert(msg);
+  loadUsers();
+}
+
+async function restoreTorani(username, fromModal) {
+  showLoading(true);
+  const r = await api({action:'restoreTorani', username});
+  showLoading(false);
+  if (!r.success) { alert(r.error || 'שגיאה'); return; }
+  if (fromModal) closeModal('modal-remove-torani');
+  loadUsers();
+}
+
+async function purgeTorani(username) {
+  const confirmVal = (document.getElementById('remove-torani-confirm') || {}).value || '';
+  showLoading(true);
+  const r = await api({action:'purgeTorani', username, confirm: confirmVal.trim()});
+  showLoading(false);
+  if (!r.success) { showAlert('remove-torani-alert', r.error || 'שגיאה', 'error'); return; }
+  closeModal('modal-remove-torani');
+  alert(r.name + ' נמחק לצמיתות.');
+  loadUsers();
 }
 
 // =====================================================
@@ -3515,6 +3631,7 @@ function filterTornim(query) {
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="resetPassword('${t.username}','${t.name}','${t.phone}')" title="איפוס סיסמה" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">🔑</button>` : ''}
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="sendLoginDetails('${t.username}','${t.name}','${t.phone}')" title="שלח פרטי כניסה בוואטסאפ" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">📧</button>` : ''}
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="toggleTorani('${t.username}')" title="${isActive ? 'השבת' : 'הפעל'}" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">${isActive ? '🔒' : '🔓'}</button>` : ''}
+        ${currentUser.role === 'admin' && t.role !== 'admin' ? `<button class="btn btn-secondary btn-sm" onclick="openRemoveTorani('${t.username}')" title="ארכיון / מחיקה" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">🗄️</button>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -3609,6 +3726,7 @@ function filterTornimByCategory(kind) {
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="resetPassword('${t.username}','${t.name}','${t.phone}')" title="איפוס סיסמה" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">🔑</button>` : ''}
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="sendLoginDetails('${t.username}','${t.name}','${t.phone}')" title="שלח פרטי כניסה בוואטסאפ" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">📧</button>` : ''}
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="toggleTorani('${t.username}')" title="${isActive ? 'השבת' : 'הפעל'}" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">${isActive ? '🔒' : '🔓'}</button>` : ''}
+        ${currentUser.role === 'admin' && t.role !== 'admin' ? `<button class="btn btn-secondary btn-sm" onclick="openRemoveTorani('${t.username}')" title="ארכיון / מחיקה" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">🗄️</button>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -3679,6 +3797,7 @@ function filterTornimEndingSoon() {
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="resetPassword('${t.username}','${t.name}','${t.phone}')" title="איפוס סיסמה" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">🔑</button>` : ''}
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="sendLoginDetails('${t.username}','${t.name}','${t.phone}')" title="שלח פרטי כניסה בוואטסאפ" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">📧</button>` : ''}
         ${currentUser.role !== 'viewer' ? `<button class="btn btn-secondary btn-sm" onclick="toggleTorani('${t.username}')" title="${isActive ? 'השבת' : 'הפעל'}" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">${isActive ? '🔒' : '🔓'}</button>` : ''}
+        ${currentUser.role === 'admin' && t.role !== 'admin' ? `<button class="btn btn-secondary btn-sm" onclick="openRemoveTorani('${t.username}')" title="ארכיון / מחיקה" style="flex:1;min-width:40px;display:flex;align-items:center;justify-content:center">🗄️</button>` : ''}
       </div>
     </div>`;
   }).join('');

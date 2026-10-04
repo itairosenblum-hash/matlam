@@ -221,7 +221,7 @@ async function apiImpl(req) {
     if (resetsPassword && PROTECTED_USERS.includes(target))
       return { success: false, error: "לא ניתן לאפס את סיסמת חשבון זה דרך האתר" };
   }
-  let result, mailQueue = [], written = {};
+  let result, mailQueue = [], written = {}, removedKeys = [];
   await db.runTransaction(async tx => {
     const [snap, pwSnap] = await Promise.all([tx.get(db.collection("sheets")), tx.get(PW)]);
     const docs = new Map();
@@ -250,6 +250,7 @@ async function apiImpl(req) {
     };
     const ss = new Spreadsheet(src);
     mailQueue = [];   // transaction may retry: start clean each attempt
+    removedKeys = [];
     const mail = MAIL_ALLOWED_ACTIONS.includes(params.action) ? (m => mailQueue.push(m)) : null;
     result = runRoute(factory, ss, params, current, { mail, adminEmail: ADMIN_EMAIL });
 
@@ -263,8 +264,17 @@ async function apiImpl(req) {
       if (c.name === "Users") {
         const h = {};
         rows.slice(1).forEach(r => { if (r[2] !== "" && r[2] != null && r[3]) h[String(r[2]).trim().toLowerCase()] = String(r[3]); });
-        tx.set(PW, { h: { ...hashes, ...h } });
         const roles = rolesFromUsers(rows);
+        // users removed from the sheet (permanent delete): drop their password, role and login
+        const before = rolesFromUsers(rowsOf("Users") || []);
+        const keptHashes = { ...hashes };
+        (rowsOf("Users") || []).slice(1).forEach(r => {
+          const un = String(r[2] || "").trim();
+          if (un && !roles[userKey(un)]) { delete keptHashes[un.toLowerCase()]; }
+        });
+        removedKeys = Object.keys(before).filter(k => !roles[k]);
+        tx.set(PW, { h: { ...keptHashes, ...h } });
+        removedKeys.forEach(k => tx.delete(db.collection("roles").doc(k)));
         Object.entries(roles).forEach(([k, v]) => tx.set(db.collection("roles").doc(k), v));
         rows = stripUsers(rows);
       }
@@ -275,6 +285,10 @@ async function apiImpl(req) {
     audit.forEach(a => tx.set(db.collection("audit").doc(), { ...a, by: key }));
   });
   if (result && result.success) await sendQueued(mailQueue);
+  for (const k of removedKeys) {
+    try { await adminAuth.deleteUser("u_" + k); } catch (e) { if (e.code !== "auth/user-not-found") console.error("delete auth", k, e.message); }
+    try { await SYNCED.update({ [k]: FieldValue.delete() }); } catch (_) {}
+  }
   // lets the browser wait until its live copy has these revisions before re-reading
   if (result && typeof result === "object" && Object.keys(written).length) result._writes = written;
   return result;

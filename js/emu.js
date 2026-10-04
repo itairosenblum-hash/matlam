@@ -13,7 +13,7 @@ export const fbPass = p => String(p) + "::mtl2";
 export const hashHex = pw => sha256Bytes(String(pw)).map(x => ("0" + (x & 0xff).toString(16)).slice(-2)).join("");
 export const SERVER_READ_ACTIONS = ["ping", "login", "bootstrap", "getLockStatus", "getProfile", "getConstraints",
   "getSchedule", "getPeople", "getSwaps", "getScores", "getToraniHistory", "getNotifications",
-  "getUsers", "getAuditLog", "getAdminDashboard", "getAllConstraints", "debugSwap", "getAllTornim", "getDutyTypes", "logClientTiming"];
+  "getUsers", "getAuditLog", "getAdminDashboard", "getAllConstraints", "debugSwap", "getAllTornim", "getDutyTypes", "logClientTiming", "getToraniImpact"];
 
 // What Google Sheets does to a value typed into a cell
 function sheetConv(v) {

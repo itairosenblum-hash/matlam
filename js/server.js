@@ -239,6 +239,10 @@ function routeInner(req) {
   if (action === 'updateTorani') return withAudit(user, 'עריכת תורן', String(req.username||'') + (auditFields({'שם חדש':req.name, 'תפקיד':req.role, 'פעילות':req.activity, 'קטגוריה':req.dutyCategory, 'סופ"ש':req.weekendType, 'טלפון':req.phone, 'אימייל':req.email, 'סיום שירות':req.endDate, 'פעיל':req.active!==undefined?(req.active?'כן':'לא'):undefined, 'סיסמה':req.newPassword?'שונתה':undefined, 'רכב צבאי':req.isMilitaryVehicle, 'לוחית זיהוי':req.isMilitaryVehicle==='כן'?req.vehiclePlate:undefined}) ? ' | ' + auditFields({'שם חדש':req.name, 'תפקיד':req.role, 'פעילות':req.activity, 'קטגוריה':req.dutyCategory, 'סופ"ש':req.weekendType, 'טלפון':req.phone, 'אימייל':req.email, 'סיום שירות':req.endDate, 'פעיל':req.active!==undefined?(req.active?'כן':'לא'):undefined, 'סיסמה':req.newPassword?'שונתה':undefined, 'רכב צבאי':req.isMilitaryVehicle, 'לוחית זיהוי':req.isMilitaryVehicle==='כן'?req.vehiclePlate:undefined}) : ''), actionUpdateTorani(req));
   if (action === 'toggleTorani') return withAudit(user, 'הפעלה/השבתה של תורן', String(req.username||''), actionToggleTorani(req));
   if (action === 'deleteTorani') return withAudit(user, 'מחיקת תורן', String(req.username||''), actionDeleteTorani(req));
+  if (action === 'getToraniImpact') return actionGetToraniImpact(req, user);
+  if (action === 'archiveTorani') { var _ar = actionArchiveTorani(req, user); return withAudit(user, '🗄️ העברה לארכיון', String(req.username||'') + (_ar && _ar.name ? ' | ' + _ar.name : '') + (_ar && _ar.cancelledSwaps ? ' | בוטלו ' + _ar.cancelledSwaps + ' בקשות החלפה' : ''), _ar); }
+  if (action === 'restoreTorani') { var _rs = actionRestoreTorani(req, user); return withAudit(user, '♻️ שחזור מארכיון', String(req.username||'') + (_rs && _rs.name ? ' | ' + _rs.name : ''), _rs); }
+  if (action === 'purgeTorani') { var _pg = actionPurgeTorani(req, user); return withAudit(user, '🗑️ מחיקת תורן לצמיתות', String(req.username||'') + (_pg && _pg.name ? ' | ' + _pg.name : '') + (_pg && _pg.removed ? ' | ' + Object.keys(_pg.removed).map(function(k){ return k + ': ' + _pg.removed[k]; }).join(', ') : ''), _pg); }
   if (action === 'updateScheduleEntry') return withAudit(user, 'עריכת לוח ידנית', String(req.month||'') + ' ' + String(req.date||'') + (auditFields({'מבצע':req.v!==undefined?(req.v||'-'):undefined, 'עתודה א':req.a!==undefined?(req.a||'-'):undefined, 'עתודה ב':req.b!==undefined?(req.b||'-'):undefined, 'סוג תורנות':req.dutyType, 'חניך':req.trainee!==undefined?(req.trainee||'-'):undefined, 'הערה':req.notes}) ? ' | ' + auditFields({'מבצע':req.v!==undefined?(req.v||'-'):undefined, 'עתודה א':req.a!==undefined?(req.a||'-'):undefined, 'עתודה ב':req.b!==undefined?(req.b||'-'):undefined, 'סוג תורנות':req.dutyType, 'חניך':req.trainee!==undefined?(req.trainee||'-'):undefined, 'הערה':req.notes}) : ''), actionUpdateScheduleEntry(req));
   if (action === 'initSheets') return withAudit(user, 'אתחול גיליונות', '', actionInitSheets());
   if (action === 'publishSchedule') return withAudit(user, 'סטטוס לוח: ' + (req.status === 'draft' ? 'טיוטה' : 'פורסם'), String(req.month||''), actionPublishSchedule(req, user));
@@ -260,7 +264,7 @@ var READ_CACHE_TTL = 300;
 var READ_CACHE_CHUNK = 40000;   // chars; Hebrew is 2 bytes each in UTF-8
 var SERVER_READ_ACTIONS = ['ping','login','bootstrap','getLockStatus','getProfile','getConstraints',
   'getSchedule','getPeople','getSwaps','getScores','getToraniHistory','getNotifications',
-  'getUsers','getAuditLog','getAdminDashboard','getAllConstraints','debugSwap','getAllTornim','getDutyTypes','logClientTiming'];
+  'getUsers','getAuditLog','getAdminDashboard','getAllConstraints','debugSwap','getAllTornim','getDutyTypes','logClientTiming','getToraniImpact'];
 
 function roleClass(user) { return (user && user.role === 'admin') ? 'a' : 'u'; }
 
@@ -1824,7 +1828,7 @@ function actionGetAllTornim() {
     const p = peopleMap[String(name)] || {};
     tornim.push({
       id, name: String(name), username: String(username),
-      role: String(role || 'user'), active: !!active,
+      role: String(role || 'user'), active: !!active, archived: !!usersRows[i][6],
       activity: p.activity || '1',
       dutyCategory: p.dutyCategory || '',
       phone: p.phone || '',
@@ -2103,6 +2107,177 @@ function actionToggleTorani(req) {
 function actionDeleteTorani(req) {
   // Only deactivate, never delete data
   return actionToggleTorani({...req});
+}
+
+// ===== ארכיון ומחיקה לצמיתות של תורן =====
+// ארכיון: חסימת כניסה + הוצאה מהשיבוץ (Users.active=false) + סימון בארכיון (Users col G)
+//          + ביטול בקשות החלפה פתוחות. כל ההיסטוריה נשמרת וניתן לשחזר.
+// מחיקה לצמיתות: רק לתורן שאין לו אף שיבוץ בלוחות (נוצר בטעות). מוחקת את שורותיו
+//          מ-Users, People, Scores_*, Constraints_*, SwapRequests, Notifications.
+var USERS_ARCHIVE_COL = 7;   // עמודה G
+var PROTECTED_DELETE_USERS = ['admin'];
+
+function findUserRow_(username) {
+  var rows = getSheet(SH.USERS).getDataRange().getValues();
+  var want = String(username || '').trim().toLowerCase();
+  if (!want) return null;
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][2] || '').trim().toLowerCase() === want) {
+      return {row: i + 1, id: rows[i][0], name: String(rows[i][1] || '').trim(), username: String(rows[i][2] || '').trim(),
+              role: String(rows[i][4] || 'user').trim(), active: !!rows[i][5], archived: !!rows[i][6]};
+    }
+  }
+  return null;
+}
+
+function protectedTargetError_(u, user) {
+  if (!u) return 'תורן לא נמצא';
+  if (PROTECTED_DELETE_USERS.indexOf(u.username.toLowerCase()) !== -1 || u.role === 'admin') return 'לא ניתן להעביר לארכיון או למחוק חשבון מנהל';
+  if (user && String(user.username || '').trim().toLowerCase() === u.username.toLowerCase()) return 'לא ניתן לבצע פעולה זו על החשבון שלך';
+  return '';
+}
+
+function schedDateStr_(cell, sheetName) {
+  if (cell instanceof Date && !isNaN(cell)) return Utilities.formatDate(cell, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  var s = String(cell || '').trim(), m;
+  if ((m = s.match(/^(\d{4})-(\d{2})-(\d{2})/))) return m[1] + '-' + m[2] + '-' + m[3];
+  if ((m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/))) return m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
+  if ((m = s.match(/^(\d{1,2})$/)) && /^Schedule_\d{6}$/.test(sheetName)) {
+    var ym = sheetName.substring(9);
+    return ym.substring(0, 4) + '-' + ym.substring(4) + '-' + ('0' + m[1]).slice(-2);
+  }
+  return '';
+}
+
+// Every schedule cell holding this name (notes column excluded)
+function toraniDuties_(name) {
+  var out = {past: [], future: []};
+  if (!name) return out;
+  var today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  SpreadsheetApp.getActiveSpreadsheet().getSheets().forEach(function(sh) {
+    var sn = sh.getName();
+    if (!/^Schedule_\d{6}$/.test(sn)) return;
+    var rows = sh.getDataRange().getValues();
+    for (var i = 1; i < rows.length; i++) {
+      var hit = false;
+      for (var j = 1; j < rows[i].length; j++) {
+        if (j === 6) continue;   // הערות
+        if (String(rows[i][j] == null ? '' : rows[i][j]).trim() === name) { hit = true; break; }
+      }
+      if (!hit) continue;
+      var d = schedDateStr_(rows[i][0], sn);
+      if (!d) continue;
+      (d >= today ? out.future : out.past).push(d);
+    }
+  });
+  out.past.sort(); out.future.sort();
+  return out;
+}
+
+function isOpenSwap_(st) { return st === 'pending_target' || st === 'pending_admin' || st === 'target_approved'; }
+
+function actionGetToraniImpact(req, user) {
+  var u = findUserRow_(req.username);
+  if (!u) return {success: false, error: 'תורן לא נמצא'};
+  var duties = toraniDuties_(u.name);
+  var lname = u.username.toLowerCase();
+  var openSwaps = 0, constraintMonths = 0, scoreYears = [];
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  ss.getSheets().forEach(function(sh) {
+    var sn = sh.getName(), rows;
+    if (sn === 'SwapRequests') {
+      rows = sh.getDataRange().getValues();
+      for (var i = 1; i < rows.length; i++) {
+        var who = [String(rows[i][3] || '').trim(), String(rows[i][4] || '').trim()];
+        if (who.indexOf(u.name) !== -1 && isOpenSwap_(String(rows[i][7] || '').trim())) openSwaps++;
+      }
+    } else if (/^Constraints_\d{6}$/.test(sn)) {
+      rows = sh.getDataRange().getValues();
+      for (var c = 1; c < rows.length; c++) {
+        var k = String(rows[c][0] || '').trim();
+        if (k === u.name || k.toLowerCase() === lname) { constraintMonths++; break; }
+      }
+    } else if (/^Scores_\d{4}$/.test(sn) || sn === SH.SCORES) {
+      rows = sh.getDataRange().getValues();
+      for (var r = 1; r < rows.length; r++) if (String(rows[r][0] || '').trim() === u.name) { scoreYears.push(sn.replace('Scores_', '')); break; }
+    }
+  });
+  var block = protectedTargetError_(u, user);
+  var hasDuties = duties.past.length + duties.future.length > 0;
+  return {success: true, name: u.name, username: u.username, active: u.active, archived: u.archived,
+          pastDuties: duties.past.length, lastPast: duties.past.length ? duties.past[duties.past.length - 1] : '',
+          futureDuties: duties.future, openSwaps: openSwaps, constraintMonths: constraintMonths, scoreYears: scoreYears,
+          canArchive: !block && !u.archived,
+          canDelete: !block && !hasDuties,
+          blockReason: block || (hasDuties ? 'לתורן יש שיבוצים בלוחות — ניתן רק להעביר לארכיון' : '')};
+}
+
+function actionArchiveTorani(req, user) {
+  var u = findUserRow_(req.username);
+  var err = protectedTargetError_(u, user);
+  if (err) return {success: false, error: err};
+  var sh = getSheet(SH.USERS);
+  sh.getRange(u.row, 6).setValue(false);
+  sh.getRange(u.row, USERS_ARCHIVE_COL).setValue(true);
+  if (!String(sh.getRange(1, USERS_ARCHIVE_COL).getValue() || '').trim()) sh.getRange(1, USERS_ARCHIVE_COL).setValue('ארכיון');
+  // cancel open swap requests involving him
+  var cancelled = 0;
+  var sw = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('SwapRequests');
+  if (sw) {
+    var rows = sw.getDataRange().getValues();
+    for (var i = 1; i < rows.length; i++) {
+      var who = [String(rows[i][3] || '').trim(), String(rows[i][4] || '').trim()];
+      if (who.indexOf(u.name) === -1 || !isOpenSwap_(String(rows[i][7] || '').trim())) continue;
+      sw.getRange(i + 1, 8).setValue('rejected');
+      var note = String(rows[i][6] || '').trim();
+      sw.getRange(i + 1, 7).setValue((note ? note + ' | ' : '') + 'בוטל — ' + u.name + ' הועבר לארכיון');
+      cancelled++;
+    }
+  }
+  var duties = toraniDuties_(u.name);
+  return {success: true, name: u.name, cancelledSwaps: cancelled, futureDuties: duties.future};
+}
+
+function actionRestoreTorani(req, user) {
+  var u = findUserRow_(req.username);
+  if (!u) return {success: false, error: 'תורן לא נמצא'};
+  var sh = getSheet(SH.USERS);
+  sh.getRange(u.row, USERS_ARCHIVE_COL).setValue(false);
+  sh.getRange(u.row, 6).setValue(true);
+  return {success: true, name: u.name};
+}
+
+function actionPurgeTorani(req, user) {
+  var u = findUserRow_(req.username);
+  var err = protectedTargetError_(u, user);
+  if (err) return {success: false, error: err};
+  if (String(req.confirm || '').trim().toLowerCase() !== u.username.toLowerCase())
+    return {success: false, error: 'יש להקליד את שם המשתמש בדיוק כדי לאשר מחיקה'};
+  var duties = toraniDuties_(u.name);
+  if (duties.past.length + duties.future.length > 0)
+    return {success: false, error: 'לתורן יש ' + (duties.past.length + duties.future.length) + ' שיבוצים בלוחות — לא ניתן למחוק. העבר לארכיון במקום.'};
+
+  var lname = u.username.toLowerCase();
+  var removed = {};
+  var drop = function(sh, label, match) {
+    var rows = sh.getDataRange().getValues(), n = 0;
+    for (var i = rows.length - 1; i >= 1; i--) if (match(rows[i])) { sh.deleteRow(i + 1); n++; }
+    if (n) removed[label] = (removed[label] || 0) + n;
+  };
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  drop(getSheet(SH.USERS), 'Users', function(r) { return String(r[2] || '').trim().toLowerCase() === lname; });
+  // People has no header row — row 1 is data too
+  var ps = getSheet(SH.PEOPLE), prow = ps.getDataRange().getValues(), pn = 0;
+  for (var p = prow.length - 1; p >= 0; p--) if (String(prow[p][0] || '').trim() === u.name) { ps.deleteRow(p + 1); pn++; }
+  if (pn) removed.People = pn;
+  ss.getSheets().forEach(function(sh) {
+    var sn = sh.getName();
+    if (/^Scores_\d{4}$/.test(sn) || sn === SH.SCORES) drop(sh, 'Scores', function(r) { return String(r[0] || '').trim() === u.name; });
+    else if (/^Constraints_\d{6}$/.test(sn)) drop(sh, 'Constraints', function(r) { var k = String(r[0] || '').trim(); return k === u.name || k.toLowerCase() === lname; });
+    else if (sn === 'SwapRequests') drop(sh, 'SwapRequests', function(r) { return String(r[3] || '').trim() === u.name || String(r[4] || '').trim() === u.name; });
+    else if (sn === 'Notifications') drop(sh, 'Notifications', function(r) { return String(r[1] || '').trim() === u.name; });
+  });
+  return {success: true, name: u.name, username: u.username, removed: removed};
 }
 
 // ===== אתחול כל התורנים - הרץ פעם אחת מעורך Apps Script =====
