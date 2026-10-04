@@ -1772,7 +1772,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">v2 04/10/2026 11:29</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">v2 04/10/2026 14:17</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1785,8 +1785,8 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = 'v2 04/10/2026 11:29';
-const BUILD_EPOCH = 1791102572136; // ms — when this exact file was pushed
+const BUILD_STAMP = 'v2 04/10/2026 14:17';
+const BUILD_EPOCH = 1791112653928; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -5428,7 +5428,6 @@ async function loadAdminConstraints() {
             </th>`;
           }).join('')}
           <th style="position:static;border:1px solid var(--border2);min-width:220px">הערות</th>
-          <th style="position:static;border:1px solid var(--border2);min-width:70px">שמור</th>
         </tr>
       </thead>
       <tbody id="admin-constraints-tbody">`;
@@ -5439,8 +5438,9 @@ async function loadAdminConstraints() {
     const vCount = c.constraints.filter(v => v === 'V').length;
     const safeName = name.replace(/"/g, '&quot;');
     html += `<tr id="crow-${CSS.escape(name)}" data-name="${safeName}">
-      <td style="white-space:nowrap;font-weight:600;position:sticky;right:0;background:var(--surface);z-index:1;padding:8px 12px;border:1px solid var(--border2)">
-        ${name}
+      <td style="white-space:nowrap;font-weight:600;position:sticky;right:0;background:var(--surface);z-index:1;padding:8px 10px;border:1px solid var(--border2)">
+        <button id="save-btn-${safeName}" onclick="adminSaveConstraintRow('${safeName}')" title="שמור את השורה"
+          style="margin-inline-end:6px;min-width:34px;background:var(--surface3);border:1px solid var(--border);border-radius:6px;padding:3px 7px;font-size:13px;font-weight:600;cursor:pointer;color:var(--text2);font-family:inherit;opacity:0.4;pointer-events:none;transition:all .2s;vertical-align:middle">💾</button>${name}
         <span class="x-count-badge" style="color:var(--danger);font-size:11px"> ✕<span class="xc">${xCount}</span></span>
         <span class="v-count-badge" style="color:var(--accent);font-size:11px"> ✓<span class="vc">${vCount}</span></span>
         ${(!vCount && !xCount && String(c.notes||'').includes('[ללא אילוצים החודש]')) ? '<span style="color:var(--accent);font-size:10px;background:rgba(46,160,67,0.12);border:1px solid rgba(46,160,67,0.3);border-radius:8px;padding:1px 6px">✋ ללא אילוצים</span>' : ''}
@@ -5469,12 +5469,6 @@ async function loadAdminConstraints() {
           onchange="adminUpdateConstraintNotes(this,'${safeName}')"
           oninput="adminMarkDirty('${safeName}')"
           style="width:100%;min-width:200px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:3px 6px;color:var(--text);font-family:inherit;font-size:12px;outline:none"/>
-      </td>
-      <td style="border:1px solid var(--border2);padding:4px 6px;text-align:center">
-        <button id="save-btn-${safeName}" onclick="adminSaveConstraintRow('${safeName}')"
-          style="background:var(--surface3);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;color:var(--text2);font-family:inherit;opacity:0.4;pointer-events:none;transition:all .2s">
-          💾 שמור
-        </button>
       </td>
     </tr>`;
   });
@@ -5569,7 +5563,7 @@ async function adminSaveConstraintRow(name) {
   if (!state) return;
   const month = window._constraintMonth;
   const btn = document.getElementById('save-btn-' + name);
-  if (btn) { btn.textContent = '⏳ שומר...'; btn.style.pointerEvents = 'none'; }
+  if (btn) { btn.textContent = '⏳'; btn.style.pointerEvents = 'none'; }
 
   // Find the username for this person
   const users = window._allUsers || [];
@@ -5582,18 +5576,18 @@ async function adminSaveConstraintRow(name) {
 
   if (btn) {
     if (res.success) {
-      btn.textContent = '✓ נשמר';
+      btn.textContent = '✓';
       btn.style.background = 'var(--surface3)';
       btn.style.color = 'var(--text2)';
       btn.style.borderColor = 'var(--border)';
       btn.style.opacity = '0.4';
       state.dirty = false;
-      setTimeout(() => { if (btn) btn.textContent = '💾 שמור'; }, 2000);
+      setTimeout(() => { if (btn) btn.textContent = '💾'; }, 2000);
     } else {
-      btn.textContent = '❌ שגיאה';
+      btn.textContent = '❌'; btn.title = res.error || 'שגיאה בשמירה';
       btn.style.background = 'var(--danger)';
       btn.style.pointerEvents = 'auto';
-      setTimeout(() => { if (btn) { btn.textContent = '💾 שמור'; btn.style.background = 'var(--accent)'; btn.style.pointerEvents = 'auto'; } }, 2500);
+      setTimeout(() => { if (btn) { btn.textContent = '💾'; btn.title = 'שמור את השורה'; btn.style.background = 'var(--accent)'; btn.style.pointerEvents = 'auto'; } }, 2500);
     }
   }
 }
