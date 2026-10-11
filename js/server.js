@@ -167,7 +167,7 @@ function routeInner(req) {
   if (action === 'getProfile') return {success: true, user};
   if (action === 'logClientTiming') return actionLogClientTiming(req, user);
   if (action === 'getConstraints') return actionGetConstraints(req, user);
-  if (action === 'saveConstraints') return withAudit(user, 'הגשת אילוצים', String(req.month||'') + (req.targetName ? ' עבור ' + req.targetName : (req.viewAs ? ' עבור ' + req.viewAs : '')) + (Array.isArray(req.constraints) ? ' | X: ' + req.constraints.filter(function(c){return c==='X';}).length + ' | V: ' + req.constraints.filter(function(c){return c==='V';}).length : ''), actionSaveConstraints(req, user));
+  if (action === 'saveConstraints') return withAudit(user, 'הגשת אילוצים', String(req.month||'') + (req.targetName ? ' עבור ' + req.targetName : (req.viewAs ? ' עבור ' + req.viewAs : '')) + (Array.isArray(req.constraints) ? ' | X: ' + req.constraints.filter(function(c){return c==='X';}).length + ' | V: ' + req.constraints.filter(function(c){return c==='V';}).length + (req.constraints.some(function(c){return c==='P';}) ? ' | 📌: ' + req.constraints.filter(function(c){return c==='P';}).length : '') : ''), actionSaveConstraints(req, user));
   if (action === 'getSchedule') return cachedRead(req, ['sched', req.month, roleClass(user)], function(){ return withReadMemo(function(){ return actionGetSchedule(req, user); }); });
   if (action === 'changePassword') return withAudit(user, 'שינוי סיסמה', String(user.username||''), actionChangePassword(req, user));
 
@@ -218,6 +218,7 @@ function routeInner(req) {
   if (action === 'updateUser') return withAudit(user, 'עדכון משתמש', String(req.username||'') + (auditFields({'שם חדש':req.name, 'תפקיד':req.role, 'סיסמה':req.newPassword?'שונתה':''}) ? ' | ' + auditFields({'שם חדש':req.name, 'תפקיד':req.role, 'סיסמה':req.newPassword?'שונתה':''}) : ''), actionUpdateUser(req));
   if (action === 'toggleUser') return withAudit(user, 'הפעלה/השבתה של משתמש', String(req.username||''), actionToggleUser(req));
   if (action === 'getAllConstraints') return actionGetAllConstraints(req);
+  if (action === 'checkPin') return actionCheckPin(req);
   if (action === 'generateSchedule') return withAudit(user, 'הפקת שיבוץ', String(req.month||'') + (req.dayCategories && auditDayCatCount(req.dayCategories) ? ' | ' + auditDayCatCount(req.dayCategories) : ''), actionGenerateScheduleV2(req));  // uses duty_agent logic
   if (action === 'generateScheduleLegacy') return withAudit(user, 'הפקת שיבוץ (ישן)', String(req.month||''), actionGenerateSchedule(req));
   if (action === 'initMonth') return withAudit(user, 'יצירת לוח חודש', String(req.month||'') || (String(req.year||'')+'-'+String(req.mon||'')), actionInitMonth(req));
@@ -264,7 +265,7 @@ var READ_CACHE_TTL = 300;
 var READ_CACHE_CHUNK = 40000;   // chars; Hebrew is 2 bytes each in UTF-8
 var SERVER_READ_ACTIONS = ['ping','login','bootstrap','getLockStatus','getProfile','getConstraints',
   'getSchedule','getPeople','getSwaps','getScores','getToraniHistory','getNotifications',
-  'getUsers','getAuditLog','getAdminDashboard','getAllConstraints','debugSwap','getAllTornim','getDutyTypes','logClientTiming','getToraniImpact'];
+  'getUsers','getAuditLog','getAdminDashboard','getAllConstraints','debugSwap','getAllTornim','getDutyTypes','logClientTiming','getToraniImpact','checkPin'];
 
 function roleClass(user) { return (user && user.role === 'admin') ? 'a' : 'u'; }
 
@@ -1014,11 +1015,7 @@ function actionGetConstraints(req, user) {
     if (rows[i][0] === lookupName) {
       return {
         success: true,
-        constraints: rows[i].slice(1, 32).map(c => {
-          if (c === 'V' || c === 'v') return 'V';
-          if (c === 'X' || c === 'x' || c === true) return 'X';
-          return '';
-        }),
+        constraints: rows[i].slice(1, 32).map(normConstraintCell),
         notes: rows[i][32] || ''
       };
     }
@@ -1033,6 +1030,37 @@ function getNameByUsername(username) {
   }
   return username;
 }
+
+// 📌 נעץ (P): קיבוע תורן כמבצע ביום מסוים — רק מנהל שם/מסיר נעץ.
+// תורן רואה את הנעץ; הוא לא יכול לשים נעץ לעצמו, אבל רשאי לסמן X על יום נעוץ —
+// אז הנעץ מוסר והמנהלים מקבלים התראה.
+function normConstraintCell(c) {
+  if (c === 'V' || c === 'v') return 'V';
+  if (c === 'X' || c === 'x' || c === true) return 'X';
+  if (c === 'P' || c === 'p') return 'P';
+  return '';
+}
+
+// הלוח "הופק" = קיים Schedule_ לחודש ויש בו לפחות מבצע אחד (שלד ריק לא נחשב)
+function isMonthGenerated(month) {
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Schedule_' + month);
+  if (!sh || sh.getLastRow() < 2) return false;
+  var rows = sh.getDataRange().getValues();
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][3] || '').trim() || String(rows[i][9] || '').trim()) return true;
+  }
+  return false;
+}
+
+function adminNames() {
+  var rows = sheetValues(getSheet(SH.USERS)), out = [];
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][4] || '') === 'admin' && rows[i][5] && String(rows[i][1] || '').trim()) out.push(String(rows[i][1]).trim());
+  }
+  return out;
+}
+
+function monthLabel(month) { return String(month).substring(4, 6) + '/' + String(month).substring(0, 4); }
 
 function actionSaveConstraints(req, user) {
   const month = String(req.month || '');
@@ -1049,9 +1077,10 @@ function actionSaveConstraints(req, user) {
     saveName = (req.viewAs && user.role === 'admin') ? getNameByUsername(req.viewAs) : user.name;
   }
   if (!saveName) return {success: false, error: 'לא נמצא שם לשמירת האילוצים'};
-  
+  const isAdmin = user.role === 'admin';
+
   // Check lock status (admin can always save)
-  if (user.role !== 'admin') {
+  if (!isAdmin) {
     const lockRes = actionGetLockStatus({month});
     if (lockRes.locked) {
       return {success: false, error: 'הגשת אילוצים לחודש זה נעולה. פנה למנהל.'};
@@ -1061,21 +1090,186 @@ function actionSaveConstraints(req, user) {
   let sheet = ss.getSheetByName('Constraints_' + month);
   if (!sheet) sheet = createConstraintSheet(month, ss);
   const rows = sheet.getDataRange().getValues();
-  const rowData = [saveName, ...constraints.map(c => {
-    if (c === 'V' || c === 'v') return 'V';
-    if (c === 'X' || c === 'x' || c === true) return 'X';
-    return '';
-  }), notes || ''];
-  let found = false;
+  let rowIdx = -1;
   for (let i = 1; i < rows.length; i++) {
-    if (rows[i][0] === saveName) {
-      sheet.getRange(i + 1, 1, 1, rowData.length).setValues([rowData]);
-      found = true;
-      break;
+    if (rows[i][0] === saveName) { rowIdx = i; break; }
+  }
+  const oldCells = [];
+  for (let d = 0; d < 31; d++) oldCells.push(rowIdx > 0 ? normConstraintCell(rows[rowIdx][d + 1]) : '');
+
+  const incoming = Array.isArray(constraints) ? constraints : [];
+  const cells = [], newPins = [], removedPins = [], xOverPin = [], rejectedPins = [];
+  for (let d = 0; d < 31; d++) {
+    const nc = normConstraintCell(incoming[d]);
+    const oc = oldCells[d];
+    let out = nc;
+    if (!isAdmin) {
+      if (oc === 'P') {
+        if (nc === 'X') xOverPin.push(d + 1);   // X על נעץ — הנעץ מוסר, המנהל מקבל התראה
+        else out = 'P';                          // כל שינוי אחר לא נוגע בנעץ
+      } else if (nc === 'P') {
+        out = '';                                // תורן לא יכול לנעוץ את עצמו
+      }
+    } else {
+      if (nc === 'P' && oc !== 'P') {
+        if (oc === 'X') { out = 'X'; rejectedPins.push(d + 1); }  // לא נועצים על X של התורן
+        else newPins.push(d + 1);
+      } else if (oc === 'P' && nc !== 'P') {
+        removedPins.push(d + 1);
+      }
+    }
+    cells.push(out);
+  }
+
+  if (isAdmin && (newPins.length || removedPins.length) && isMonthGenerated(month)) {
+    return {success: false, error: 'הלוח לחודש ' + monthLabel(month) + ' כבר הופק — לא ניתן להוסיף או להסיר נעצים. ערוך את הלוח ידנית.'};
+  }
+
+  const rowData = [saveName].concat(cells, [notes || '']);
+  if (rowIdx > 0) sheet.getRange(rowIdx + 1, 1, 1, rowData.length).setValues([rowData]);
+  else sheet.appendRow(rowData);
+
+  // נעץ אחד ביום: נעץ חדש מסיר נעץ קיים של תורן אחר באותו יום
+  const replaced = [];
+  if (newPins.length) {
+    for (let i = 1; i < rows.length; i++) {
+      if (i === rowIdx || !rows[i][0]) continue;
+      newPins.forEach(function(day) {
+        if (normConstraintCell(rows[i][day]) === 'P') {
+          sheet.getRange(i + 1, day + 1).setValue('');
+          replaced.push({day: day, name: String(rows[i][0])});
+        }
+      });
     }
   }
-  if (!found) sheet.appendRow(rowData);
-  return {success: true};
+
+  if (xOverPin.length) {
+    const msg = '📌 ' + saveName + ' סימן/ה X ביום ' + xOverPin.join(', ') + ' (' + monthLabel(month) + ') שבו נעצת אותו/ה — הנעץ הוסר';
+    adminNames().forEach(function(n) { addSwapNotification(n, msg); });
+  }
+
+  return {success: true, newPins: newPins, removedPins: removedPins, rejectedPins: rejectedPins, replaced: replaced, xOverPin: xOverPin};
+}
+
+// בדיקת נעץ לפני שמירה (קריאה בלבד): אזהרות על כללי שיבוץ, X קיים, נעץ קיים של אחר
+function actionCheckPin(req) {
+  const month = String(req.month || ''), name = String(req.name || '').trim(), day = parseInt(req.day, 10);
+  const year = parseInt(month.substring(0, 4), 10), mon = parseInt(month.substring(4, 6), 10);
+  if (!name || !day || !year || !mon) return {success: false, error: 'חסרים פרטים'};
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const res = {success: true, warnings: [], blocked: '', otherPinned: ''};
+
+  if (isMonthGenerated(month)) { res.blocked = 'הלוח לחודש זה כבר הופק — לא ניתן לנעוץ.'; return res; }
+
+  const cSheet = ss.getSheetByName('Constraints_' + month);
+  const myPins = [];
+  if (cSheet) {
+    const cRows = cSheet.getDataRange().getValues();
+    for (let i = 1; i < cRows.length; i++) {
+      const rn = String(cRows[i][0] || '').trim();
+      if (!rn) continue;
+      if (rn === name) {
+        if (normConstraintCell(cRows[i][day]) === 'X') { res.blocked = name + ' סימן/ה X ביום זה — לא ניתן לנעוץ.'; return res; }
+        for (let d = 1; d <= 31; d++) if (d !== day && normConstraintCell(cRows[i][d]) === 'P') myPins.push(d);
+      } else if (normConstraintCell(cRows[i][day]) === 'P') {
+        res.otherPinned = rn;
+      }
+    }
+  }
+
+  // סוג היום: מהשלד אם קיים, אחרת לפי יום בשבוע
+  let cat = '';
+  const sSheet = ss.getSheetByName('Schedule_' + month);
+  if (sSheet) {
+    const sRows = sSheet.getDataRange().getValues();
+    for (let i = 1; i < sRows.length; i++) {
+      const dc = sRows[i][0];
+      const dn = dc instanceof Date ? dc.getDate() : parseInt(String(dc).split('/')[0], 10);
+      if (dn === day) { cat = String(sRows[i][2] || '').trim(); break; }
+    }
+  }
+  if (!cat) { const dow = new Date(year, mon - 1, day).getDay(); cat = dow === 4 ? 'חמישי' : (dow === 5 || dow === 6) ? 'סוף שבוע' : 'חול'; }
+  if (cat === 'שישי' || cat === 'שבת') cat = 'סוף שבוע';
+  res.dayType = cat;
+
+  const person = actionGetPeople().people.find(function(p) { return p.name === name; });
+  if (!person) res.warnings.push(name + ' לא נמצא/ה ברשימת התורנים');
+  else {
+    const catg = String(person.dutyCategory || '').trim();
+    if (String(person.activity) === '0') res.warnings.push(name + ' מסומן/ת כלא פעיל/ה');
+    if (['פטור', 'לא מוסמך', 'טרם הוסמך', 'מנהל מערכת'].indexOf(catg) !== -1) res.warnings.push(name + ' בקטגוריה "' + catg + '"');
+    if (String(person.activity) === '0.5' || catg === 'אב') {
+      if (PATERNITY_CATS.indexOf(cat) === -1) res.warnings.push('משרת אב — יום מסוג "' + cat + '" אינו מותר לו');
+    }
+    if (catg === EXEMPT_24H && NON24_CATS.indexOf(cat) === -1) res.warnings.push('פטור 24 שעות — יום מסוג "' + cat + '" אינו מותר לו');
+  }
+
+  // פער של שבועיים: נעצים אחרים החודש + תורנויות בחודש הקודם
+  const target = new Date(year, mon - 1, day).getTime(), DAY_MS = 86400000;
+  let closest = null;
+  myPins.forEach(function(d) {
+    const gap = Math.round(Math.abs(target - new Date(year, mon - 1, d).getTime()) / DAY_MS);
+    if (closest === null || gap < closest.gap) closest = {gap: gap, label: 'נעץ ב-' + d + '/' + mon};
+  });
+  const pm = mon === 1 ? 12 : mon - 1, py = mon === 1 ? year - 1 : year;
+  const prevKey = py + String(pm).padStart(2, '0');
+  const pSheet = ss.getSheetByName('Schedule_' + prevKey);
+  let prevDuty = false;
+  if (pSheet) {
+    const pRows = pSheet.getDataRange().getValues();
+    for (let i = 1; i < pRows.length; i++) {
+      if (String(pRows[i][3] || '').trim() !== name && String(pRows[i][9] || '').trim() !== name) continue;
+      prevDuty = true;
+      const dc = pRows[i][0];
+      const dn = dc instanceof Date ? dc.getDate() : parseInt(String(dc).split('/')[0], 10);
+      if (!dn) continue;
+      const gap = Math.round((target - new Date(py, pm - 1, dn).getTime()) / DAY_MS);
+      if (closest === null || gap < closest.gap) closest = {gap: gap, label: 'תורנות ב-' + dn + '/' + pm};
+    }
+  }
+  if (closest && closest.gap < 14) res.warnings.push('רק ' + closest.gap + ' ימים מ' + closest.label + ' (מומלץ לפחות שבועיים)');
+  if (person && (String(person.activity) === '0.5' || String(person.dutyCategory || '').trim() === 'אב')) {
+    if (prevDuty) res.warnings.push('משרת אב — ביצע תורנות בחודש הקודם (פעם בחודשיים)');
+    if (myPins.length) res.warnings.push('משרת אב — כבר נעוץ ליום אחר החודש');
+  }
+  return res;
+}
+
+// סנכרון נעצים מחלון ההפקה לגיליון האילוצים (נעץ ↔ קיבוע ידני).
+// לא דורס X של התורן — מחזיר את הימים שדולגו.
+function syncPinsToConstraints(ss, month, pinned) {
+  var skipped = [];
+  var sheet = ss.getSheetByName('Constraints_' + month);
+  if (!sheet) {
+    if (!Object.keys(pinned).length) return skipped;
+    sheet = createConstraintSheet(month, ss);
+  }
+  var rows = sheet.getDataRange().getValues();
+  var rowOf = {};
+  for (var i = 1; i < rows.length; i++) { var rn = String(rows[i][0] || '').trim(); if (rn && rowOf[rn] === undefined) rowOf[rn] = i; }
+  // הסרת נעצים שכבר לא מופיעים
+  for (var r = 1; r < rows.length; r++) {
+    var nm = String(rows[r][0] || '').trim();
+    if (!nm) continue;
+    for (var d = 1; d <= 31; d++) {
+      if (normConstraintCell(rows[r][d]) === 'P' && pinned[d] !== nm) { sheet.getRange(r + 1, d + 1).setValue(''); rows[r][d] = ''; }
+    }
+  }
+  // הוספת נעצים חדשים
+  Object.keys(pinned).forEach(function(dk) {
+    var day = parseInt(dk, 10), name = pinned[dk];
+    var ri = rowOf[name];
+    if (ri === undefined) {
+      var blank = [name]; for (var k = 0; k < 31; k++) blank.push(''); blank.push('');
+      sheet.appendRow(blank);
+      ri = sheet.getLastRow() - 1; rowOf[name] = ri;
+      rows[ri] = blank;
+    }
+    var cur = normConstraintCell(rows[ri][day]);
+    if (cur === 'X') { skipped.push(day); return; }
+    if (cur !== 'P') sheet.getRange(ri + 1, day + 1).setValue('P');
+  });
+  return skipped;
 }
 
 function actionGetAllConstraints(req) {
@@ -1088,11 +1282,7 @@ function actionGetAllConstraints(req) {
   for (let i = 1; i < rows.length; i++) {
     if (!rows[i][0]) continue;
     result[rows[i][0]] = {
-      constraints: rows[i].slice(1, 32).map(c => {
-        if (c === 'V' || c === 'v') return 'V';
-        if (c === 'X' || c === 'x' || c === true) return 'X';
-        return '';
-      }),
+      constraints: rows[i].slice(1, 32).map(normConstraintCell),
       notes: rows[i][32] || ''
     };
   }
@@ -4128,6 +4318,7 @@ function actionGenerateScheduleV2(req) {
   // ── 2. Load Constraints ──────────────────────────────────────────
   var cSheetName = 'Constraints_' + month;
   var calInfo = {}; // name → {constraints: Set, forced_v: Set, preference: str}
+  var SHEET_PINS = {}; // 📌 נעצים מלוח האילוצים: day → name
   var cSheet = ss.getSheetByName(cSheetName);
   if (cSheet) {
     var cRows = cSheet.getDataRange().getValues();
@@ -4140,6 +4331,7 @@ function actionGenerateScheduleV2(req) {
         var cv = String(cRows[ci][d]||'').trim().toUpperCase();
         if (cv === 'X') constraints[d] = true;
         if (cv === 'V') forced_v[d] = true;
+        if (cv === 'P') SHEET_PINS[d] = cname;
       }
       var pref = String(cRows[ci][daysInMonth+1]||'').trim();
       var noSkip = pref.indexOf('לא לדלג') !== -1 || pref.indexOf('ללא דילוג') !== -1;
@@ -4187,6 +4379,13 @@ function actionGenerateScheduleV2(req) {
       });
     }
   } catch(e) { Logger.log('pinnedAssignments parse error: ' + e); }
+  // 📌 נעצים: חלון ההפקה הוא המקור כשהוא נשלח (הוא נטען מראש מהנעצים בלוח האילוצים);
+  // אחרת — הנעצים מהגיליון. בשני המקרים הגיליון מסונכרן לתוצאה.
+  if (req.pinnedAssignments === undefined || req.pinnedAssignments === null) {
+    Object.keys(SHEET_PINS).forEach(function(dk){ PINNED_V[parseInt(dk)] = SHEET_PINS[dk]; });
+  }
+  var pinSyncSkipped = [];
+  try { pinSyncSkipped = syncPinsToConstraints(ss, month, PINNED_V); } catch(e) { Logger.log('syncPinsToConstraints: ' + e); }
 
   var DAY_CAT = {}, WEEKEND_PAIRS = [];
   for (var si2 = 1; si2 < schedRows.length; si2++) {
@@ -4310,6 +4509,7 @@ function actionGenerateScheduleV2(req) {
   var usedV = {}, dayToV = {}, slotPrimary = {}, fwCovered = {};
   var relaxNotes = []; // transparency: records every rule relaxation applied
   var pinnedNotes = []; // transparency: records every manual pin applied by the admin
+  pinSyncSkipped.forEach(function(d){ pinnedNotes.push('⚠️ יום ' + d + ': לא נרשם נעץ בלוח האילוצים כי התורן סימן X'); });
 
   // ── PRIORITY 0: קיבועים ידניים (נבחרו בחלון ההפקה) ──────────────
   // תורן שנבחר ידנית ליום מסוים לא ייבחר מחדש ע"י האלגוריתם, אבל כן נזקף לו

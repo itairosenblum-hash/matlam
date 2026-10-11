@@ -425,6 +425,8 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
 .constraint-blocked .cal-day-num{color:var(--danger)}
 .constraint-preferred{background:rgba(46,160,67,0.1)!important;border-color:rgba(46,160,67,0.35)!important}
 .constraint-preferred .cal-day-num{color:var(--accent)}
+.constraint-pinned{background:rgba(234,179,8,0.16)!important;border-color:rgba(234,179,8,0.5)!important}
+.constraint-pinned .cal-day-num{color:var(--warn)}
 /* ---- RESPONSIVE ---- */
 @media(max-width:600px){
   /* ── Navbar ── */
@@ -1772,7 +1774,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">v2 11/10/2026 19:29</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">v2 11/10/2026 22:16</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1785,8 +1787,8 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = 'v2 11/10/2026 19:29';
-const BUILD_EPOCH = 1791736192680; // ms — when this exact file was pushed
+const BUILD_STAMP = 'v2 11/10/2026 22:16';
+const BUILD_EPOCH = 1791746200345; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -2724,6 +2726,7 @@ function populateMonthSelects() {
 // CONSTRAINTS (User)
 // =====================================================
 let constraintData = new Array(31).fill(false);
+let constraintPinnedOrig = [];  // 📌 days the admin pinned (as last loaded)
 
 async function loadConstraints() {
   const {year, mon, days, s: month} = parseMonth(document.getElementById('constraint-month-select').value);
@@ -2735,13 +2738,18 @@ async function loadConstraints() {
     constraintData = res.constraints.slice(0, days).map(c => {
       if (c === 'V' || c === 'v') return 'V';
       if (c === 'X' || c === 'x' || c === true) return 'X';
+      if (c === 'P') return 'P';
       return '';
     });
     while (constraintData.length < days) constraintData.push('');
+    constraintPinnedOrig = constraintData.map(c => c === 'P');
+    const pinDays = constraintData.map((c, i) => c === 'P' ? i + 1 : 0).filter(Boolean);
     document.getElementById('constraint-notes').value = res.notes || '';
     if (String(res.notes || '').includes('[דילוג מנהל')) {
       const reason = (String(res.notes).match(/\[דילוג מנהל:?\s*([^\]]*)\]/) || [])[1] || '';
       showAlert('constraint-alert', 'ℹ️ המנהל סימן עבורך דילוג מלא לחודש זה' + (reason ? ' (' + escapeHtml(reason) + ')' : '') + ' — לא תשובץ. ניתן לשנות במידת הצורך.', 'info');
+    } else if (pinDays.length) {
+      showAlert('constraint-alert', '📌 המנהל נעץ אותך כמבצע ביום ' + pinDays.join(', ') + ' — תשובץ בוודאות. אם אינך יכול/ה, סמן/י X ביום והמנהל יקבל התראה.', 'info');
     }
   }
   renderConstraintGrid(year, mon, days);
@@ -2783,12 +2791,9 @@ function renderConstraintGrid(year, mon, days) {
       else if (isThu) cls += ' sl-thursday';
       if (val === 'X') cls += ' constraint-blocked';
       if (val === 'V') cls += ' constraint-preferred';
+      if (val === 'P') cls += ' constraint-pinned';
 
-      const indicatorHtml = val === 'V'
-        ? `<span style="color:var(--accent);font-size:22px;font-weight:800">✓</span>`
-        : val === 'X'
-        ? `<span style="color:var(--danger);font-size:22px;font-weight:800">✕</span>`
-        : `<span style="color:var(--text3);font-size:18px">—</span>`;
+      const indicatorHtml = constraintIndicator(val, true);
 
       let typeLabel = isWE ? 'סוף שבוע' : isThu ? 'חמישי' : 'חול';
       let typeCls = isWE ? 'badge-weekend' : isThu ? 'badge-thursday' : 'badge-weekday';
@@ -2835,6 +2840,7 @@ function renderConstraintGrid(year, mon, days) {
     if (isThursday) dayCls += ' cal-thursday';
     if (constraintData[d-1] === 'X') dayCls += ' constraint-blocked';
     if (constraintData[d-1] === 'V') dayCls += ' constraint-preferred';
+    if (constraintData[d-1] === 'P') dayCls += ' constraint-pinned';
 
     let typeLabel = isWeekend ? 'סוף שבוע' : isThursday ? 'חמישי' : 'חול';
     let typeCls = isWeekend ? 'badge-weekend' : isThursday ? 'badge-thursday' : 'badge-weekday';
@@ -2844,7 +2850,7 @@ function renderConstraintGrid(year, mon, days) {
       <div class="cal-day-num">${d}</div>
       <div class="cal-day-type ${typeCls}" style="font-size:9px;padding:1px 5px;border-radius:10px;margin-top:2px;width:fit-content">${typeLabel}</div>
       <div class="constraint-indicator" id="ci-${d}" style="margin-top:4px;font-size:16px;font-weight:700;text-align:center">
-        ${constraintData[d-1] === 'V' ? '<span style="color:var(--accent)">✓</span>' : constraintData[d-1] === 'X' ? '<span style="color:var(--danger)">✕</span>' : ''}
+        ${constraintIndicator(constraintData[d-1], false)}
       </div>
     </div>`;
   }
@@ -2861,15 +2867,34 @@ function renderConstraintGrid(year, mon, days) {
 }
 
 
+function constraintIndicator(v, mob) {
+  const big = mob ? 'font-size:22px;font-weight:800;' : '';
+  if (v === 'V') return `<span style="color:var(--accent);${big}">✓</span>`;
+  if (v === 'X') return `<span style="color:var(--danger);${big}">✕</span>`;
+  if (v === 'P') return `<span title="נעץ — המנהל שיבץ אותך כמבצע" style="${big}">📌</span>`;
+  return mob ? '<span style="color:var(--text3);font-size:18px">—</span>' : '';
+}
+
 function toggleConstraint(idx) {
-  // Cycle: '' → 'V' → 'X' → ''
   const cur = constraintData[idx] || '';
-  let next = cur === '' ? 'V' : cur === 'V' ? 'X' : '';
-  if (next === 'X') {
-    const xCount = constraintData.filter(c => c === 'X').length;
-    if (xCount >= 6) {
-      showAlert('constraint-alert', '⚠️ ניתן לסמן עד 6 ימי אילוץ (X) בחודש. הסר אילוץ אחר כדי להוסיף חדש.', 'error');
-      next = '';
+  let next;
+  if (constraintPinnedOrig[idx]) {
+    // 📌 יום נעוץ: התורן לא יכול לשנות את הנעץ — רק לסמן X (ואז הנעץ מוסר בשמירה)
+    if (cur === 'P') {
+      if (!confirm('📌 המנהל נעץ אותך כמבצע ביום ' + (idx + 1) + '.\n\nלסמן X? אחרי השמירה הנעץ יוסר והמנהל יקבל התראה.')) return;
+      next = 'X';
+    } else {
+      next = 'P';
+    }
+  } else {
+    // Cycle: '' → 'V' → 'X' → ''
+    next = cur === '' ? 'V' : cur === 'V' ? 'X' : '';
+    if (next === 'X') {
+      const xCount = constraintData.filter(c => c === 'X').length;
+      if (xCount >= 6) {
+        showAlert('constraint-alert', '⚠️ ניתן לסמן עד 6 ימי אילוץ (X) בחודש. הסר אילוץ אחר כדי להוסיף חדש.', 'error');
+        next = '';
+      }
     }
   }
   constraintData[idx] = next;
@@ -2878,23 +2903,12 @@ function toggleConstraint(idx) {
   const indicator = document.getElementById('ci-' + day);
 
   if (cell) {
-    cell.classList.remove('constraint-blocked','constraint-preferred');
+    cell.classList.remove('constraint-blocked','constraint-preferred','constraint-pinned');
     if (next === 'X') cell.classList.add('constraint-blocked');
     if (next === 'V') cell.classList.add('constraint-preferred');
+    if (next === 'P') cell.classList.add('constraint-pinned');
   }
-  if (indicator) {
-    const isMob = window.innerWidth <= 600;
-    if (isMob) {
-      indicator.innerHTML =
-        next === 'V' ? '<span style="color:var(--accent);font-size:22px;font-weight:800">✓</span>' :
-        next === 'X' ? '<span style="color:var(--danger);font-size:22px;font-weight:800">✕</span>' :
-        '<span style="color:var(--text3);font-size:18px">—</span>';
-    } else {
-      indicator.innerHTML =
-        next === 'V' ? '<span style="color:var(--accent)">✓</span>' :
-        next === 'X' ? '<span style="color:var(--danger)">✕</span>' : '';
-    }
-  }
+  if (indicator) indicator.innerHTML = constraintIndicator(next, window.innerWidth <= 600);
   const prefEl = document.getElementById('pref-count');
   const blockEl = document.getElementById('blocked-count');
   if (prefEl) prefEl.textContent = constraintData.filter(c=>c==='V').length;
@@ -2905,8 +2919,13 @@ async function saveConstraints() {
   const month = String(document.getElementById('constraint-month-select').value);
   const notes = document.getElementById('constraint-notes').value;
   showLoading(true);
-  const res = await api({action:'saveConstraints', month, constraints: constraintData, notes, viewAs: currentUser.username}); // V/X/'' array
+  const res = await api({action:'saveConstraints', month, constraints: constraintData, notes, viewAs: currentUser.username}); // V/X/P/'' array
   showLoading(false);
+  if (res.success && (res.xOverPin || []).length) {
+    constraintPinnedOrig = constraintData.map(c => c === 'P');
+    showAlert('constraint-alert', '✓ האילוצים נשמרו. 📌 הנעץ ביום ' + res.xOverPin.join(', ') + ' הוסר והמנהל קיבל התראה.', 'success');
+    return;
+  }
   showAlert('constraint-alert', res.success ? '✓ האילוצים נשמרו בהצלחה!' : res.error, res.success?'success':'error');
 }
 
@@ -4781,8 +4800,16 @@ async function openGenerateModal() {
 
   // Fetch existing schedule to read holiday types
   showLoading(true);
-  const sched = await api({action:'getSchedule', month});
+  const [sched, consRes] = await Promise.all([
+    api({action:'getSchedule', month}),
+    api({action:'getAllConstraints', month}).catch(() => null)
+  ]);
   showLoading(false);
+  // 📌 נעצים מלוח האילוצים → קיבוע ידני בחלון (מסונכרן חזרה בהפקה)
+  const boardPins = {};
+  if (consRes && consRes.success && consRes.constraints) {
+    Object.entries(consRes.constraints).forEach(([n, c]) => (c.constraints || []).forEach((v, i) => { if (v === 'P') boardPins[i + 1] = n; }));
+  }
 
   // Build a map of day → dayType from existing schedule
   const existingTypes = {};
@@ -4821,8 +4848,8 @@ async function openGenerateModal() {
       <select id="gen-day-${d}" style="flex:1;min-width:100px;background:var(--surface3);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-family:inherit;font-size:13px;outline:none;${isHoliday?'border-color:var(--warn);':''}">
         ${DAY_TYPES.map(t=>`<option value="${t}" ${t===defType?'selected':''}>${t}</option>`).join('')}
       </select>
-      <select id="gen-pin-${d}" title="קיבוע תורן ליום זה" style="flex:1;min-width:100px;background:var(--surface3);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-family:inherit;font-size:13px;outline:none;">
-        ${pinOpts}
+      <select id="gen-pin-${d}" title="קיבוע תורן ליום זה (📌 נעץ)" style="flex:1;min-width:100px;background:var(--surface3);border:1px solid ${boardPins[d] ? 'var(--warn)' : 'var(--border)'};border-radius:6px;padding:6px 8px;color:var(--text);font-family:inherit;font-size:13px;outline:none;">
+        ${boardPins[d] && !allPeople.some(p => p.name === boardPins[d] && p.activity !== '0') ? `<option value="${escapeHtml(boardPins[d])}">${escapeHtml(boardPins[d])}</option>` : ''}${pinOpts}
       </select>
     </div>`;
   }
@@ -4835,6 +4862,7 @@ async function openGenerateModal() {
        </div>` : '';
 
   document.getElementById('generate-days-list').innerHTML = warningHtml + html;
+  Object.entries(boardPins).forEach(([d, n]) => { const sel = document.getElementById('gen-pin-' + d); if (sel) sel.value = n; });
   document.getElementById('generate-alert').innerHTML = '';
   openModal('modal-generate');
 }
@@ -5334,10 +5362,15 @@ async function loadAdminConstraints() {
 
   // Only show people who actually marked something + exclude admin accounts
   const allNames = Object.keys(constraintsObj);
-  const activeNames = allNames.filter(name => {
+  // שורות שהמנהל הוסיף ידנית כדי לנעוץ תורן שלא הגיש אילוצים
+  if (!window._constraintExtraRows || window._constraintExtraRowsMonth !== month) {
+    window._constraintExtraRows = []; window._constraintExtraRowsMonth = month;
+  }
+  window._constraintExtraRows.forEach(n => { if (!constraintsObj[n]) constraintsObj[n] = {constraints: new Array(31).fill(''), notes: ''}; });
+  const activeNames = Object.keys(constraintsObj).filter(name => {
     if (name === 'מנהל מערכת' || name === 'admin') return false; // exclude admin
     const c = constraintsObj[name];
-    return c.constraints.some(v => v === 'V' || v === 'X') || (c.notes && c.notes.trim());
+    return c.constraints.some(v => v === 'V' || v === 'X' || v === 'P') || (c.notes && c.notes.trim()) || window._constraintExtraRows.includes(name);
   });
 
   // Fetch user list (username mapping for viewAs + pending-reminders row)
@@ -5349,17 +5382,45 @@ async function loadAdminConstraints() {
   // "Not yet submitted" chips row
   const pendingHtml = buildPendingConstraintsRow(activeNames, month);
 
+  // Fetch schedule early: holiday types per day + whether the month was already generated
+  const HAG_TYPES_C = new Set(['חג','ערב חג','חג + סוף שבוע']);
+  const dayTypes = {};
+  const schedRes = await api({action:'getSchedule', month});
+  let monthGenerated = false;
+  if (schedRes.success && schedRes.schedule) {
+    schedRes.schedule.forEach(e => {
+      const d = new Date(e.date.split('/').reverse().join('-')).getDate();
+      if (e.dayType) dayTypes[d] = e.dayType;
+      if (e.v || e.v2) monthGenerated = true;
+    });
+  }
+  window._constraintMonthGenerated = monthGenerated;
+
+  // "📌 נעץ לתורן נוסף" — מוסיף שורה לתורן שלא הגיש אילוצים
+  const pinAddHtml = monthGenerated ? '' : (() => {
+    const cand = (window._allUsers || [])
+      .filter(u => u.active && !u.archived && u.role !== 'admin' && String(u.activity) !== '0' && u.dutyCategory !== 'מנהל מערכת' && !activeNames.includes(u.name))
+      .map(u => u.name).sort((a,b) => a.localeCompare(b, 'he'));
+    if (!cand.length) return '';
+    return `<div style="display:flex;align-items:center;gap:8px;margin:8px 0;flex-wrap:wrap">
+      <span class="text-sm text-muted">📌 נעיצת תורן שלא הגיש אילוצים:</span>
+      <select onchange="adminAddConstraintRow(this.value)" style="background:var(--surface3);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-family:inherit;font-size:13px">
+        <option value="">בחר תורן…</option>${cand.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('')}
+      </select></div>`;
+  })();
+
   if (activeNames.length === 0) {
-    container.innerHTML = pendingHtml + '<div class="empty-state"><div class="icon">📭</div><p>אף אחד לא הגיש אילוצים לחודש זה</p></div>';
+    container.innerHTML = pendingHtml + pinAddHtml + '<div class="empty-state"><div class="icon">📭</div><p>אף אחד לא הגיש אילוצים לחודש זה</p></div>';
     return;
   }
 
-  // Store editable state per person
+  // Store editable state per person (orig = last saved state, used for the pin rules)
   const editState = {};
   activeNames.forEach(name => {
-    const c = res.constraints[name];
+    const c = constraintsObj[name];
     editState[name] = {
       constraints: [...c.constraints],
+      orig: [...c.constraints],
       notes: c.notes || '',
       dirty: false
     };
@@ -5367,16 +5428,6 @@ async function loadAdminConstraints() {
   window._constraintEditState = editState;
   window._constraintMonth = month;
 
-  // Fetch schedule to get holiday types per day
-  const HAG_TYPES_C = new Set(['חג','ערב חג','חג + סוף שבוע']);
-  const dayTypes = {};
-  const schedRes = await api({action:'getSchedule', month});
-  if (schedRes.success && schedRes.schedule) {
-    schedRes.schedule.forEach(e => {
-      const d = new Date(e.date.split('/').reverse().join('-')).getDate();
-      if (e.dayType) dayTypes[d] = e.dayType;
-    });
-  }
   // fill missing days by weekday
   for (let d = 1; d <= days; d++) {
     if (!dayTypes[d]) {
@@ -5386,11 +5437,12 @@ async function loadAdminConstraints() {
   }
 
   // Count total X and V across all people
-  let totalX = 0, totalV = 0;
+  let totalX = 0, totalV = 0, totalP = 0;
   activeNames.forEach(name => {
-    const c = res.constraints[name];
+    const c = constraintsObj[name];
     totalX += c.constraints.filter(v => v === 'X').length;
     totalV += c.constraints.filter(v => v === 'V').length;
+    totalP += c.constraints.filter(v => v === 'P').length;
   });
 
   let html = `<div class="stats-grid">
@@ -5398,13 +5450,16 @@ async function loadAdminConstraints() {
     <div class="stat-card"><div class="stat-val">${days}</div><div class="stat-label">ימים בחודש</div></div>
     <div class="stat-card"><div class="stat-val" id="total-x-count" style="color:var(--danger)">${totalX}</div><div class="stat-label">סה"כ ✕ חסומים</div></div>
     <div class="stat-card"><div class="stat-val" id="total-v-count" style="color:var(--accent)">${totalV}</div><div class="stat-label">סה"כ ✓ מועדפים</div></div>
+    <div class="stat-card"><div class="stat-val" id="total-p-count" style="color:var(--warn)">${totalP}</div><div class="stat-label">📌 נעצים</div></div>
   </div>
   <div class="ac-legend">
     <span>💡 לחץ על תא לעריכה:</span>
     <span style="display:inline-flex;align-items:center;gap:4px;background:rgba(218,54,51,0.12);border:1px solid rgba(218,54,51,0.3);border-radius:4px;padding:2px 7px;color:var(--danger);font-weight:700">✕ חסום</span>
     <span style="display:inline-flex;align-items:center;gap:4px;background:rgba(46,160,67,0.12);border:1px solid rgba(46,160,67,0.3);border-radius:4px;padding:2px 7px;color:var(--accent);font-weight:700">✓ מועדף</span>
+    <span style="display:inline-flex;align-items:center;gap:4px;background:rgba(234,179,8,0.18);border:1px solid rgba(234,179,8,0.45);border-radius:4px;padding:2px 7px;color:var(--warn);font-weight:700">📌 נעץ (מבצע)</span>
     <span style="display:inline-flex;align-items:center;gap:4px;background:var(--surface3);border:1px solid var(--border);border-radius:4px;padding:2px 7px;color:var(--text3)">— ריק</span>
-  </div>`;
+    ${monthGenerated ? '<span style="color:var(--text3)">· הלוח הופק — נעצים נעולים</span>' : ''}
+  </div>` + pinAddHtml;
 
   html += `<div class="card" style="padding:0;overflow:hidden"><div style="overflow:auto;max-height:calc(100vh - 220px)">
     <table class="calendar-table" style="border-collapse:collapse;border:1px solid var(--border2)">
@@ -5433,7 +5488,7 @@ async function loadAdminConstraints() {
       <tbody id="admin-constraints-tbody">`;
 
   activeNames.forEach(name => {
-    const c = res.constraints[name];
+    const c = constraintsObj[name];
     const xCount = c.constraints.filter(v => v === 'X').length;
     const vCount = c.constraints.filter(v => v === 'V').length;
     const safeName = name.replace(/"/g, '&quot;');
@@ -5453,15 +5508,11 @@ async function loadAdminConstraints() {
       </td>`;
     for (let d = 0; d < days; d++) {
       const v = c.constraints[d];
-      const cellStyle = v === 'V'
-        ? 'background:rgba(46,160,67,0.12);color:var(--accent)'
-        : v === 'X'
-        ? 'background:rgba(218,54,51,0.1);color:var(--danger)'
-        : '';
+      const st = constraintCellLook(v);
       html += `<td data-name="${safeName}" data-day="${d}" data-col="${d}" onclick="adminToggleConstraintCell(this)"
-        style="text-align:center;cursor:pointer;padding:4px 2px;border:1px solid var(--border2);transition:background .15s;${cellStyle}"
+        style="text-align:center;cursor:pointer;padding:4px 2px;border:1px solid var(--border2);transition:background .15s;background:${st.bg};color:${st.color}"
         title="לחץ לשינוי">
-        <span style="font-weight:700;font-size:14px">${v === 'V' ? '✓' : v === 'X' ? '✕' : ''}</span>
+        <span style="font-weight:700;font-size:14px">${st.txt}</span>
       </td>`;
     }
     html += `<td style="border:1px solid var(--border2);padding:4px 6px">
@@ -5497,46 +5548,98 @@ async function loadAdminConstraints() {
   })();
 }
 
-function adminToggleConstraintCell(td) {
+function constraintCellLook(v) {
+  if (v === 'V') return {bg:'rgba(46,160,67,0.12)', color:'var(--accent)', txt:'✓'};
+  if (v === 'X') return {bg:'rgba(218,54,51,0.1)', color:'var(--danger)', txt:'✕'};
+  if (v === 'P') return {bg:'rgba(234,179,8,0.22)', color:'var(--warn)', txt:'📌'};
+  return {bg:'', color:'', txt:''};
+}
+
+function paintAdminConstraintCell(name, day, v) {
+  const td = Array.from(document.querySelectorAll('#admin-constraints-tbody td[data-day="' + day + '"]')).find(t => t.dataset.name === name);
+  if (!td) return;
+  const st = constraintCellLook(v);
+  td.style.background = st.bg;
+  td.style.color = st.color;
+  td.querySelector('span').textContent = st.txt;
+}
+
+function refreshAdminConstraintCounters(name) {
+  const state = window._constraintEditState[name];
+  const row = Array.from(document.querySelectorAll('#admin-constraints-tbody tr')).find(r => r.dataset.name === name);
+  if (state && row) {
+    row.querySelector('.xc').textContent = state.constraints.filter(v => v === 'X').length;
+    row.querySelector('.vc').textContent = state.constraints.filter(v => v === 'V').length;
+  }
+  let totalX = 0, totalV = 0, totalP = 0;
+  Object.values(window._constraintEditState).forEach(s => {
+    totalX += s.constraints.filter(v => v === 'X').length;
+    totalV += s.constraints.filter(v => v === 'V').length;
+    totalP += s.constraints.filter(v => v === 'P').length;
+  });
+  const set = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = n; };
+  set('total-x-count', totalX); set('total-v-count', totalV); set('total-p-count', totalP);
+}
+
+let _pinBusy = false;
+// מחזור לחיצות למנהל: ריק → V → X → 📌 → ריק
+async function adminToggleConstraintCell(td) {
+  if (_pinBusy) return;
   const name = td.dataset.name;
   const day = parseInt(td.dataset.day);
   const state = window._constraintEditState[name];
   if (!state) return;
-  const cur = state.constraints[day];
-  const next = cur === 'X' ? 'V' : cur === 'V' ? '' : 'X';
-  state.constraints[day] = next;
-  // Update cell appearance
-  if (next === 'V') {
-    td.style.background = 'rgba(46,160,67,0.12)';
-    td.style.color = 'var(--accent)';
-    td.querySelector('span').textContent = '✓';
-  } else if (next === 'X') {
-    td.style.background = 'rgba(218,54,51,0.1)';
-    td.style.color = 'var(--danger)';
-    td.querySelector('span').textContent = '✕';
-  } else {
-    td.style.background = '';
-    td.style.color = '';
-    td.querySelector('span').textContent = '';
+  const cur = state.constraints[day] || '';
+  let next = cur === '' ? 'V' : cur === 'V' ? 'X' : cur === 'X' ? 'P' : '';
+
+  if (next === 'P') {
+    next = '';
+    if (window._constraintMonthGenerated) {
+      showAlert('admin-constraints-alert', '📌 הלוח לחודש זה כבר הופק — לא ניתן לנעוץ.', 'info');
+    } else if (state.orig[day] === 'X') {
+      showAlert('admin-constraints-alert', '📌 לא ניתן לנעוץ — ' + escapeHtml(name) + ' סימן/ה X ביום ' + (day + 1) + '.', 'info');
+    } else {
+      _pinBusy = true;
+      td.style.opacity = '0.5';
+      let chk = null;
+      try { chk = await api({action:'checkPin', month: window._constraintMonth, name, day: day + 1}); } catch (e) {}
+      td.style.opacity = '';
+      _pinBusy = false;
+      if (chk && chk.success && chk.blocked) {
+        showAlert('admin-constraints-alert', '📌 ' + escapeHtml(chk.blocked), 'info');
+      } else {
+        // נעץ קיים של תורן אחר באותו יום (שמור בשרת או סומן עכשיו ולא נשמר)
+        let other = (chk && chk.otherPinned) || '';
+        Object.entries(window._constraintEditState).forEach(([n, s]) => { if (n !== name && s.constraints[day] === 'P') other = n; });
+        let ok = true;
+        if (other) ok = confirm('📌 ביום ' + (day + 1) + ' כבר נעוץ/ה ' + other + '.\n\nלהחליף ל-' + name + '?');
+        const warns = (chk && chk.warnings) || [];
+        if (ok && warns.length) ok = confirm('📌 נעיצת ' + name + ' ביום ' + (day + 1) + (chk.dayType ? ' (' + chk.dayType + ')' : '') + ':\n\n⚠️ ' + warns.join('\n⚠️ ') + '\n\nלנעוץ בכל זאת?');
+        if (ok) {
+          next = 'P';
+          if (other && window._constraintEditState[other]) {
+            const os = window._constraintEditState[other];
+            os.constraints[day] = '';
+            os.orig[day] = os.orig[day] === 'P' ? '' : os.orig[day];  // השרת מסיר את הנעץ הישן בשמירה
+            paintAdminConstraintCell(other, day, '');
+            refreshAdminConstraintCounters(other);
+          }
+        }
+      }
+    }
   }
-  // Update per-row counters
-  const row = td.closest('tr');
-  const xCount = state.constraints.filter(v => v === 'X').length;
-  const vCount = state.constraints.filter(v => v === 'V').length;
-  row.querySelector('.xc').textContent = xCount;
-  row.querySelector('.vc').textContent = vCount;
-  // Update global totals
-  const allState = window._constraintEditState;
-  let totalX = 0, totalV = 0;
-  Object.values(allState).forEach(s => {
-    totalX += s.constraints.filter(v => v === 'X').length;
-    totalV += s.constraints.filter(v => v === 'V').length;
-  });
-  const txEl = document.getElementById('total-x-count');
-  const tvEl = document.getElementById('total-v-count');
-  if (txEl) txEl.textContent = totalX;
-  if (tvEl) tvEl.textContent = totalV;
+
+  state.constraints[day] = next;
+  paintAdminConstraintCell(name, day, next);
+  refreshAdminConstraintCounters(name);
   adminMarkDirty(name);
+}
+
+function adminAddConstraintRow(name) {
+  if (!name) return;
+  if (!window._constraintExtraRows) window._constraintExtraRows = [];
+  if (!window._constraintExtraRows.includes(name)) window._constraintExtraRows.push(name);
+  loadAdminConstraints();
 }
 
 function adminUpdateConstraintNotes(input, name) {
@@ -5573,6 +5676,23 @@ async function adminSaveConstraintRow(name) {
   const payload = {action:'saveConstraints', month, constraints: state.constraints, notes: state.notes};
   if (viewAs) payload.viewAs = viewAs;
   const res = await api(payload);
+  if (res.success) {
+    clearApiCache();
+    // the server is the source of truth for pins (rejected / replaced) — resync the saved state
+    (res.rejectedPins || []).forEach(d => { state.constraints[d - 1] = 'X'; paintAdminConstraintCell(name, d - 1, 'X'); });
+    state.orig = [...state.constraints];
+    (res.replaced || []).forEach(r => {
+      const os = window._constraintEditState[r.name];
+      if (os) { if (os.constraints[r.day - 1] === 'P') os.constraints[r.day - 1] = ''; os.orig[r.day - 1] = ''; paintAdminConstraintCell(r.name, r.day - 1, os.constraints[r.day - 1]); }
+    });
+    refreshAdminConstraintCounters(name);
+    const notes = [];
+    if ((res.rejectedPins || []).length) notes.push('📌 לא נעצתי ביום ' + res.rejectedPins.join(', ') + ' — התורן סימן X');
+    if ((res.replaced || []).length) notes.push('📌 הוחלף נעץ: ' + res.replaced.map(r => 'יום ' + r.day + ' (' + escapeHtml(r.name) + ')').join(', '));
+    if (notes.length) showAlert('admin-constraints-alert', notes.join('<br>'), 'info');
+  } else {
+    showAlert('admin-constraints-alert', '✗ ' + escapeHtml(res.error || 'שגיאה בשמירה'), 'error');
+  }
 
   if (btn) {
     if (res.success) {
