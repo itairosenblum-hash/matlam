@@ -265,7 +265,8 @@ export function normalizeParams(p) {
   Object.entries(p || {}).forEach(([k, v]) => {
     if (v === undefined || v === null || k === "callback") return;
     const s = typeof v === "object" ? JSON.stringify(v) : String(v);
-    if (/^\d{6}$/.test(s)) { out[k] = s; return; }
+    // ids are opaque strings: JSON.parse would turn e.g. "12e45678" into a different number
+    if (k === "id" || /^\d{6}$/.test(s)) { out[k] = s; return; }
     try { out[k] = JSON.parse(s); } catch (_) { out[k] = s; }
   });
   return out;
