@@ -1774,7 +1774,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">v2 11/10/2026 22:16</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">v2 12/10/2026 18:59</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1787,8 +1787,8 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = 'v2 11/10/2026 22:16';
-const BUILD_EPOCH = 1791746200345; // ms — when this exact file was pushed
+const BUILD_STAMP = 'v2 12/10/2026 18:59';
+const BUILD_EPOCH = 1791820762022; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -3962,8 +3962,44 @@ async function saveTorani() {
       isMilitaryVehicle, vehicleCompany, vehicleModel, vehicleColor, vehiclePlate});
   }
   showLoading(false);
-  if (res.success) { closeModal('modal-add-torani'); loadUsers(); }
+  if (res.success) {
+    closeModal('modal-add-torani'); loadUsers();
+    // New torani → offer the welcome/guide WhatsApp message
+    if (!editingTorani) {
+      if (phone) {
+        if (confirm('✅ ' + name + ' נוסף למערכת.\n\nלשלוח לו עכשיו הודעת פתיחה בוואטסאפ (פרטי כניסה + מדריך קצר)?')) {
+          openWelcomeWhatsApp(phone, name, username, password, role);
+        }
+      } else {
+        alert('✅ ' + name + ' נוסף למערכת.\n\nלא הוזן מספר טלפון, ולכן לא נשלחה הודעת פתיחה.\nאפשר לשלוח אותה בהמשך דרך כפתור 📧 בכרטיס התורן.');
+      }
+    }
+  }
   else showAlert('torani-alert', res.error||'שגיאה', 'error');
+}
+
+// Welcome / guide message a new torani gets on WhatsApp
+function buildWelcomeMsg(name, username, password, role) {
+  const siteUrl = 'https://itairosenblum-hash.github.io/matlam/';
+  const isViewer = role === 'viewer';
+  return 'שלום ' + name + ' 👋\n'
+    + 'נרשמת למערכת התורנויות מטל"מ.\n\n'
+    + '🔗 כניסה: ' + siteUrl + '\n'
+    + '👤 שם משתמש: ' + username + '\n'
+    + '🔑 סיסמה: ' + password + '\n\n'
+    + 'צעדים ראשונים:\n'
+    + '1️⃣ היכנס ושנה סיסמה בעמוד 👤 פרופיל\n'
+    + '2️⃣ הוסף את האתר למסך הבית (📲 בתפריט)\n'
+    + (isViewer ? '' : '3️⃣ הגש אילוצים בלשונית 🚫 אילוצים\n')
+    + '\n📖 הסבר מלא על המערכת בלשונית "מדריך" באתר.';
+}
+
+function openWelcomeWhatsApp(phone, name, username, password, role) {
+  const digits = String(phone).replace(/\D/g, '');
+  const intl = digits.startsWith('0') ? '972' + digits.substring(1) : digits;
+  const waUrl = 'https://wa.me/' + intl + '?text=' + encodeURIComponent(buildWelcomeMsg(name, username, password, role));
+  const w = window.open(waUrl, '_blank');
+  if (!w) location.href = waUrl; // popup blocked (mobile) → open directly
 }
 
 function sendLoginDetails(username, name, phone) {
@@ -3971,20 +4007,10 @@ function sendLoginDetails(username, name, phone) {
     alert('אין מספר טלפון רשום עבור ' + name + '.\nעדכן מספר טלפון בעריכת התורן.');
     return;
   }
-  const pass = prompt('שלח פרטי כניסה ל-' + name + ' בוואטסאפ\nהכנס את הסיסמה לשלוח (השאר ריק לברירת מחדל Aa123456):');
+  const pass = prompt('שלח הודעת פתיחה ל-' + name + ' בוואטסאפ\nהכנס את הסיסמה לשלוח (השאר ריק לברירת מחדל Aa123456):');
   if (pass === null) return;
   const password = pass.trim() || 'Aa123456';
-  const digits = String(phone).replace(/\D/g, '');
-  const intl = digits.startsWith('0') ? '972' + digits.substring(1) : digits;
-  const siteUrl = 'https://itairosenblum-hash.github.io/matlam/';
-  const msg = 'שלום ' + name + ',\n\n'
-    + 'פרטי הכניסה שלך למערכת מטל\"מ:\n'
-    + '👤 שם משתמש: ' + username + '\n'
-    + '🔑 סיסמה: ' + password + '\n'
-    + '🔗 כניסה למערכת: ' + siteUrl + '\n\n'
-    + 'מומלץ לשנות סיסמה לאחר הכניסה הראשונה.';
-  const waUrl = 'https://wa.me/' + intl + '?text=' + encodeURIComponent(msg);
-  window.open(waUrl, '_blank');
+  openWelcomeWhatsApp(phone, name, username, password);
 }
 
 async function toggleTorani(username) {
