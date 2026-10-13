@@ -992,6 +992,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
               </div>
               <span class="home-status-pill" id="home-status-pill">תורן פעיל</span>
             </div>
+            <div id="home-holiday"></div>
           </div>
 
           <div class="home-section">
@@ -1243,6 +1244,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
               </div>
               <span class="home-status-pill">מנהל</span>
             </div>
+            <div id="admin-home-holiday"></div>
           </div>
           <div class="home-section">
             <div id="admin-home-audit-card" style="display:none;margin-top:10px"></div>
@@ -1913,7 +1915,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">v2 13/10/2026 14:50</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">v2 13/10/2026 14:55</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1926,8 +1928,8 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = 'v2 13/10/2026 14:50';
-const BUILD_EPOCH = 1791892209998; // ms — when this exact file was pushed
+const BUILD_STAMP = 'v2 13/10/2026 14:55';
+const BUILD_EPOCH = 1791892555883; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -2831,6 +2833,97 @@ function showRefreshToast() {
     }, 250);
   });
 })();
+
+// =====================================================
+// HOLIDAY GREETING — home page banner from 3 days before a holiday until it ends.
+// Dates come from the same holiday table the scheduler uses (getIsraeliHolidays).
+// =====================================================
+const HOLIDAY_GREETINGS = {
+  rosh:     { match: n => n.includes('ראש השנה'), lead: 3, emoji: '🍎', title: 'שנה טובה ומתוקה', label: 'ראש השנה', during: 'שנה טובה ממטל״מ', c1: '#b45309', c2: '#f59e0b' },
+  kippur:   { match: n => n.includes('יום כיפור'), lead: 3, emoji: '🕊️', title: 'גמר חתימה טובה', label: 'יום כיפור', during: 'צום קל וגמר חתימה טובה ממטל״מ', c1: '#334155', c2: '#64748b' },
+  sukkot:   { match: n => n.includes('סוכות') || n.includes('הושענא') || n.includes('שמחת תורה'), lead: 3, emoji: '🌿', title: 'חג סוכות שמח', label: 'סוכות', during: 'מועדים לשמחה ממטל״מ', c1: '#15803d', c2: '#22c55e' },
+  hanuka:   { match: n => n.includes('חנוכה'), lead: 3, emoji: '🕎', title: 'חנוכה שמח', label: 'חנוכה', during: 'חג אורים שמח ממטל״מ', c1: '#1d4ed8', c2: '#3b82f6' },
+  purim:    { match: n => n === 'פורים', lead: 3, emoji: '🎭', title: 'פורים שמח', label: 'פורים', during: 'פורים שמח ממטל״מ', c1: '#7c3aed', c2: '#c026d3' },
+  pesach:   { match: n => n.includes('פסח'), lead: 3, emoji: '🍷', title: 'חג פסח כשר ושמח', label: 'פסח', during: 'חג שמח ממטל״מ', c1: '#9f1239', c2: '#e11d48' },
+  atzmaut:  { match: n => n.includes('עצמאות'), lead: 0, emoji: '🇮🇱', title: 'חג עצמאות שמח', label: 'יום העצמאות', during: 'חג עצמאות שמח ממטל״מ', c1: '#1e40af', c2: '#0ea5e9' },
+  shavuot:  { match: n => n.includes('שבועות'), lead: 3, emoji: '🌾', title: 'חג שבועות שמח', label: 'שבועות', during: 'חג שמח ממטל״מ', c1: '#a16207', c2: '#eab308' },
+  zikaron:  { match: n => n.includes('זיכרון'), lead: 0, quiet: true, emoji: '🕯️', title: 'יום הזיכרון לחללי מערכות ישראל ונפגעי פעולות האיבה', sub: 'יהי זכרם ברוך' },
+  esther:   { match: n => n.includes('תענית אסתר'), lead: 0, quiet: true, emoji: '✡️', title: 'צום קל', sub: 'תענית אסתר' },
+  av:       { match: n => n.includes('תשעה באב'), lead: 0, quiet: true, emoji: '✡️', title: 'צום קל', sub: 'תשעה באב' }
+};
+let _holidayEvents = null;
+function holidayEvents() {
+  if (_holidayEvents) return _holidayEvents;
+  let table = {};
+  try { table = window.__matlamServerFactory({}).holidays() || {}; } catch (e) { table = {}; }
+  const keys = Object.keys(HOLIDAY_GREETINGS);
+  const ev = [];
+  Object.keys(table).sort().forEach(date => {
+    const h = table[date];
+    const k = keys.find(x => HOLIDAY_GREETINGS[x].match(String(h.name || '')));
+    if (!k) return;
+    const last = ev[ev.length - 1];
+    const prevDay = isoAddDays(date, -1);
+    if (last && last.key === k && last.end === prevDay) { last.end = date; return; }
+    ev.push({ key: k, start: date, end: date, startIsErev: h.type === 'ערב חג' });
+  });
+  return (_holidayEvents = ev);
+}
+function isoAddDays(iso, n) {
+  const [y, m, d] = iso.split('-').map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d + n));
+  return t.toISOString().slice(0, 10);
+}
+function israelTodayIso() {
+  try { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem' }).format(new Date()); }
+  catch (e) { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`; }
+}
+function currentHolidayEvent(today) {
+  const list = holidayEvents().filter(e => {
+    const g = HOLIDAY_GREETINGS[e.key];
+    return today >= isoAddDays(e.start, -g.lead) && today <= e.end;
+  });
+  // a holiday that is already on beats one that is still coming (e.g. יום הזיכרון before יום העצמאות)
+  list.sort((a, b) => ((today >= b.start) - (today >= a.start)) || a.start.localeCompare(b.start));
+  return list[0] || null;
+}
+function dismissHolidayGreeting(id, key) {
+  try { localStorage.setItem('v2_holiday_dismissed', key); } catch (e) {}
+  const el = document.getElementById(id); if (el) el.innerHTML = '';
+}
+function renderHolidayGreeting(containerId, todayOverride) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = '';
+  const today = todayOverride || israelTodayIso();
+  const e = currentHolidayEvent(today);
+  if (!e) return;
+  const g = HOLIDAY_GREETINGS[e.key];
+  const dkey = e.key + ':' + e.start;
+  let dismissed = '';
+  try { dismissed = localStorage.getItem('v2_holiday_dismissed') || ''; } catch (_) {}
+  if (dismissed === dkey) return;
+  if (g.quiet) {
+    el.innerHTML = `<div style="margin-top:12px;border-radius:14px;padding:12px 16px;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;gap:12px">
+      <div style="font-size:28px;line-height:1">${g.emoji}</div>
+      <div style="flex:1;min-width:0"><div style="font-weight:800;font-size:15px">${g.title}</div><div style="font-size:12.5px;color:var(--text2);margin-top:2px">${g.sub}</div></div>
+    </div>`;
+    return;
+  }
+  const first = String((currentUser && currentUser.name) || '').trim().split(/\s+/)[0] || '';
+  let sub = g.during;
+  if (today < e.start) {
+    const [y, m, d] = e.start.split('-').map(Number);
+    const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+    const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+    sub = `${g.label} מתחיל ביום ${DAYS[dow]} ${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}${e.startIsErev ? ' בערב' : ''} · ${g.during}`;
+  }
+  el.innerHTML = `<div style="margin-top:12px;border-radius:14px;padding:14px 16px;background:linear-gradient(135deg,${g.c1},${g.c2});color:#fff;display:flex;align-items:center;gap:12px;box-shadow:0 4px 14px rgba(0,0,0,.15)">
+    <div style="font-size:34px;line-height:1">${g.emoji}</div>
+    <div style="flex:1;min-width:0"><div style="font-weight:900;font-size:17px">${g.title}${first ? ', ' + escapeHtml(first) : ''}!</div><div style="font-size:12.5px;opacity:.92;margin-top:2px">${sub}</div></div>
+    <button onclick="dismissHolidayGreeting('${containerId}','${dkey}')" title="סגור" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:50%;width:26px;height:26px;cursor:pointer;flex-shrink:0;font-size:12px">✕</button>
+  </div>`;
+}
 
 // Greeting with a time-of-day symbol
 function greetingText(h) {
@@ -4842,6 +4935,7 @@ async function loadAdminHome(isRefresh) {
     gs.innerHTML = tod;
     gr.textContent = nm;
   }
+  renderHolidayGreeting('admin-home-holiday');
 
   const cur = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}`;
   const next = nextMonthStr(cur, 1);
@@ -7178,6 +7272,7 @@ async function loadHomePage() {
     gs.innerHTML = tod;
     gr.textContent = nm;
   }
+  renderHolidayGreeting('home-holiday');
   const now = new Date();
   const cur = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}`;
   const next = nextMonthStr(cur, 1);

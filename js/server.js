@@ -5191,5 +5191,5 @@ function actionDebugSwap(req) { return {success: true, debug: {}}; }
   // ---- v2 overrides ----
   validateToken = function () { return __env.currentUser(); };
   logSlowRequest = function () {};
-  return { route: route };
+  return { route: route, holidays: getIsraeliHolidays };
 };
