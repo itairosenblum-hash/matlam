@@ -224,7 +224,7 @@ function routeInner(req) {
   if (action === 'initMonth') return withAudit(user, 'יצירת לוח חודש', String(req.month||'') || (String(req.year||'')+'-'+String(req.mon||'')), actionInitMonth(req));
   if (action === 'resetSchedule') return withAudit(user, 'איפוס לוח', String(req.month||''), actionResetSchedule(req));
   if (action === 'setLockStatus') return withAudit(user, 'סטטוס הגשת אילוצים', String(req.month||'') + ' → ' + String(req.locked), actionSetLockStatus(req));
-  if (action === 'updatePerson') return withAudit(user, 'עדכון פרטי תורן', String(req.name||'') + (auditFields({'פעילות':req.activity, 'קטגוריה':req.dutyCategory, 'סופ"ש':req.weekendType}) ? ' | ' + auditFields({'פעילות':req.activity, 'קטגוריה':req.dutyCategory, 'סופ"ש':req.weekendType}) : ''), actionUpdatePerson(req));
+  if (action === 'updatePerson') return withAudit(user, 'עדכון פרטי תורן', String(req.name||'') + (auditFields({'פעילות':req.activity, 'קטגוריה':req.dutyCategory, 'מחזור אב':req.avCycle, 'סופ"ש':req.weekendType}) ? ' | ' + auditFields({'פעילות':req.activity, 'קטגוריה':req.dutyCategory, 'מחזור אב':req.avCycle, 'סופ"ש':req.weekendType}) : ''), actionUpdatePerson(req));
   if (action === 'sendReminder') return withAudit(user, 'שליחת תזכורת אילוצים', String(req.month||''), actionSendReminder(req));
   if (action === 'sendScheduleEmails') return withAudit(user, 'שליחת לוח במייל', String(req.month||''), actionSendScheduleEmails(req));
 
@@ -236,8 +236,8 @@ function routeInner(req) {
   if (action === 'debugSwap') return actionDebugSwap(req);
   if (action === 'resetPassword' && user.role === 'admin') return withAudit(user, 'איפוס סיסמה', String(req.username||''), actionResetPassword(req));
   if (action === 'getAllTornim') return actionGetAllTornim();
-  if (action === 'addTorani') return withAudit(user, 'הוספת תורן', String(req.name||'') + ' | ' + auditFields({'תפקיד':req.role||'user', 'פעילות':req.activity, 'קטגוריה':req.dutyCategory, 'סופ"ש':req.weekendType, 'סיום שירות':req.endDate, 'רכב צבאי':req.isMilitaryVehicle, 'לוחית זיהוי':req.isMilitaryVehicle==='כן'?req.vehiclePlate:undefined}), actionAddTorani(req));
-  if (action === 'updateTorani') return withAudit(user, 'עריכת תורן', String(req.username||'') + (auditFields({'שם חדש':req.name, 'תפקיד':req.role, 'פעילות':req.activity, 'קטגוריה':req.dutyCategory, 'סופ"ש':req.weekendType, 'טלפון':req.phone, 'אימייל':req.email, 'סיום שירות':req.endDate, 'פעיל':req.active!==undefined?(req.active?'כן':'לא'):undefined, 'סיסמה':req.newPassword?'שונתה':undefined, 'רכב צבאי':req.isMilitaryVehicle, 'לוחית זיהוי':req.isMilitaryVehicle==='כן'?req.vehiclePlate:undefined}) ? ' | ' + auditFields({'שם חדש':req.name, 'תפקיד':req.role, 'פעילות':req.activity, 'קטגוריה':req.dutyCategory, 'סופ"ש':req.weekendType, 'טלפון':req.phone, 'אימייל':req.email, 'סיום שירות':req.endDate, 'פעיל':req.active!==undefined?(req.active?'כן':'לא'):undefined, 'סיסמה':req.newPassword?'שונתה':undefined, 'רכב צבאי':req.isMilitaryVehicle, 'לוחית זיהוי':req.isMilitaryVehicle==='כן'?req.vehiclePlate:undefined}) : ''), actionUpdateTorani(req));
+  if (action === 'addTorani') return withAudit(user, 'הוספת תורן', String(req.name||'') + ' | ' + auditFields({'תפקיד':req.role||'user', 'פעילות':req.activity, 'קטגוריה':req.dutyCategory, 'מחזור אב':req.avCycle, 'סופ"ש':req.weekendType, 'סיום שירות':req.endDate, 'רכב צבאי':req.isMilitaryVehicle, 'לוחית זיהוי':req.isMilitaryVehicle==='כן'?req.vehiclePlate:undefined}), actionAddTorani(req));
+  if (action === 'updateTorani') return withAudit(user, 'עריכת תורן', String(req.username||'') + (auditFields({'שם חדש':req.name, 'תפקיד':req.role, 'פעילות':req.activity, 'קטגוריה':req.dutyCategory, 'מחזור אב':req.avCycle, 'סופ"ש':req.weekendType, 'טלפון':req.phone, 'אימייל':req.email, 'סיום שירות':req.endDate, 'פעיל':req.active!==undefined?(req.active?'כן':'לא'):undefined, 'סיסמה':req.newPassword?'שונתה':undefined, 'רכב צבאי':req.isMilitaryVehicle, 'לוחית זיהוי':req.isMilitaryVehicle==='כן'?req.vehiclePlate:undefined}) ? ' | ' + auditFields({'שם חדש':req.name, 'תפקיד':req.role, 'פעילות':req.activity, 'קטגוריה':req.dutyCategory, 'מחזור אב':req.avCycle, 'סופ"ש':req.weekendType, 'טלפון':req.phone, 'אימייל':req.email, 'סיום שירות':req.endDate, 'פעיל':req.active!==undefined?(req.active?'כן':'לא'):undefined, 'סיסמה':req.newPassword?'שונתה':undefined, 'רכב צבאי':req.isMilitaryVehicle, 'לוחית זיהוי':req.isMilitaryVehicle==='כן'?req.vehiclePlate:undefined}) : ''), actionUpdateTorani(req));
   if (action === 'toggleTorani') return withAudit(user, 'הפעלה/השבתה של תורן', String(req.username||''), actionToggleTorani(req));
   if (action === 'deleteTorani') return withAudit(user, 'מחיקת תורן', String(req.username||''), actionDeleteTorani(req));
   if (action === 'getToraniImpact') return actionGetToraniImpact(req, user);
@@ -526,8 +526,9 @@ function actionGetPeople() {
   const people = [];
   for (let i = 1; i < rows.length; i++) {
     const [name, activity, dutyCategory, phone, weekendType, email, endDate,
-      isMilitaryVehicle, vehicleCompany, vehicleModel, vehicleColor, vehiclePlate] = rows[i];
+      isMilitaryVehicle, vehicleCompany, vehicleModel, vehicleColor, vehiclePlate, avCycle] = rows[i];
     if (name) people.push({
+      avCycle: normAvCycle(avCycle),
       name: String(name),
       activity: String(activity),
       dutyCategory: String(dutyCategory || ''),
@@ -591,6 +592,25 @@ var NON24_CATS = ['חול', 'חמישי'];
 // 24 שעות (חול/חמישי) או הדממה → חמישי → חול. ערב חג דינו כשישי — אסור.
 var PATERNITY_TIERS = [['חול 24 שעות', 'חמישי 24 שעות', 'הדממה'], ['חמישי'], ['חול']];
 var PATERNITY_CATS = ['חול 24 שעות', 'חמישי 24 שעות', 'הדממה', 'חמישי', 'חול'];
+// משרת אב — מחזור קבוע: מבצע רק בחודשים זוגיים או רק באי-זוגיים (People עמודה 13).
+// בחודש שאינו שלו = "חודש מנוחה": חסום מכל שיבוץ (מבצע ועתודה), בלי לכתוב אילוצים לגיליון.
+var AV_CYCLE_EVEN = 'זוגי', AV_CYCLE_ODD = 'אי-זוגי';
+function normAvCycle(v) {
+  v = String(v || '').trim();
+  if (v === AV_CYCLE_EVEN || v === 'even') return AV_CYCLE_EVEN;
+  if (v === AV_CYCLE_ODD || v === 'אי זוגי' || v === 'odd') return AV_CYCLE_ODD;
+  return '';
+}
+function isPaternityPerson(p) {
+  return !!p && (String(p.activity) === '0.5' || String(p.dutyCategory || '').trim() === 'אב');
+}
+// true = לפי המחזור, זה לא החודש שלו (mon = 1..12)
+function isAvRestMonth(cycle, mon) {
+  cycle = normAvCycle(cycle);
+  if (!cycle) return false;
+  var even = (Number(mon) % 2) === 0;
+  return cycle === AV_CYCLE_EVEN ? !even : even;
+}
 var SCORE_ADJ_COL = 29; // AC — manual bonus/penalty total for the year
 
 // ===== v2: cross-year score helpers =====
@@ -1007,20 +1027,28 @@ function actionGetConstraints(req, user) {
   const viewAs = (user && user.role === 'admin') ? req.viewAs : null;  // v2: only admins may act as someone else
   const lookupName = viewAs ? getNameByUsername(viewAs) : user.name;
 
+  const av = avRestInfo(lookupName, month);
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName('Constraints_' + month);
-  if (!sheet) return {success: true, constraints: new Array(31).fill(''), notes: ''};
+  if (!sheet) return Object.assign({success: true, constraints: new Array(31).fill(''), notes: ''}, av);
   const rows = sheet.getDataRange().getValues();
   for (let i = 1; i < rows.length; i++) {
     if (rows[i][0] === lookupName) {
-      return {
+      return Object.assign({
         success: true,
         constraints: rows[i].slice(1, 32).map(normConstraintCell),
         notes: rows[i][32] || ''
-      };
+      }, av);
     }
   }
-  return {success: true, constraints: new Array(31).fill(''), notes: ''};
+  return Object.assign({success: true, constraints: new Array(31).fill(''), notes: ''}, av);
+}
+
+// משרת אב: האם החודש (YYYYMM) הוא חודש המנוחה שלו לפי המחזור
+function avRestInfo(name, month) {
+  const person = actionGetPeople().people.find(function(p) { return p.name === name; });
+  if (!person || !isPaternityPerson(person) || !person.avCycle) return {};
+  return {avCycle: person.avCycle, avRest: isAvRestMonth(person.avCycle, parseInt(String(month).substring(4, 6), 10))};
 }
 
 function getNameByUsername(username) {
@@ -1078,6 +1106,10 @@ function actionSaveConstraints(req, user) {
   }
   if (!saveName) return {success: false, error: 'לא נמצא שם לשמירת האילוצים'};
   const isAdmin = user.role === 'admin';
+
+  if (!isAdmin && avRestInfo(saveName, month).avRest) {
+    return {success: false, error: 'חודש מנוחה (משרת אב) — אין צורך להגיש אילוצים לחודש זה'};
+  }
 
   // Check lock status (admin can always save)
   if (!isAdmin) {
@@ -1229,7 +1261,9 @@ function actionCheckPin(req) {
   }
   if (closest && closest.gap < 14) res.warnings.push('רק ' + closest.gap + ' ימים מ' + closest.label + ' (מומלץ לפחות שבועיים)');
   if (person && (String(person.activity) === '0.5' || String(person.dutyCategory || '').trim() === 'אב')) {
-    if (prevDuty) res.warnings.push('משרת אב — ביצע תורנות בחודש הקודם (פעם בחודשיים)');
+    if (person.avCycle) {
+      if (isAvRestMonth(person.avCycle, mon)) res.warnings.push('משרת אב — חודש מנוחה לפי המחזור (' + person.avCycle + ')');
+    } else if (prevDuty) res.warnings.push('משרת אב — ביצע תורנות בחודש הקודם (פעם בחודשיים)');
     if (myPins.length) res.warnings.push('משרת אב — כבר נעוץ ליום אחר החודש');
   }
   return res;
@@ -1994,8 +2028,9 @@ function actionGetAllTornim() {
   const peopleMap = {};
   for (let i = 1; i < peopleRows.length; i++) {
     const [name, activity, dutyCategory, phone, weekendType, email, endDate,
-      isMilitaryVehicle, vehicleCompany, vehicleModel, vehicleColor, vehiclePlate] = peopleRows[i];
+      isMilitaryVehicle, vehicleCompany, vehicleModel, vehicleColor, vehiclePlate, avCycle] = peopleRows[i];
     if (name) peopleMap[String(name)] = {
+      avCycle: normAvCycle(avCycle),
       activity: String(activity || '1'),
       dutyCategory: String(dutyCategory || ''),
       phone: String(phone || ''),
@@ -2030,6 +2065,7 @@ function actionGetAllTornim() {
       vehicleModel: p.vehicleModel || '',
       vehicleColor: p.vehicleColor || '',
       vehiclePlate: p.vehiclePlate || '',
+      avCycle: p.avCycle || '',
       hasPeopleEntry: !!peopleMap[String(name)]
     });
   }
@@ -2136,12 +2172,14 @@ function actionAddTorani(req) {
       peopleSheet.getRange(i+1,5).setValue(weekendType || 'מלא');
       if (endDate !== undefined) peopleSheet.getRange(i+1,7).setValue(endDate || '');
       peopleSheet.getRange(i+1,8,1,5).setValues([[vf.isMilitaryVehicle, vf.vehicleCompany, vf.vehicleModel, vf.vehicleColor, vf.vehiclePlate]]);
+      peopleSheet.getRange(i+1,13).setValue(dutyCategory === 'אב' ? normAvCycle(req.avCycle) : '');
       found = true; break;
     }
   }
   if (!found) {
     peopleSheet.appendRow([name, activity||'1', dutyCategory||'', phone||'', weekendType||'מלא', email||'', endDate||'',
-      vf.isMilitaryVehicle, vf.vehicleCompany, vf.vehicleModel, vf.vehicleColor, vf.vehiclePlate]);
+      vf.isMilitaryVehicle, vf.vehicleCompany, vf.vehicleModel, vf.vehicleColor, vf.vehiclePlate,
+      dutyCategory === 'אב' ? normAvCycle(req.avCycle) : '']);
   }
 
   // Set starting score = average of all active tornim (fair entry into rotation)
@@ -2269,13 +2307,17 @@ function actionUpdateTorani(req) {
         const vf = normalizeVehicleFields(req);
         peopleSheet.getRange(i+1,8,1,5).setValues([[vf.isMilitaryVehicle, vf.vehicleCompany, vf.vehicleModel, vf.vehicleColor, vf.vehiclePlate]]);
       }
+      // מחזור משרת אב — רק כשנשלח (עריכת מנהל); יציאה מקטגוריית אב מנקה אותו
+      if (req.avCycle !== undefined) peopleSheet.getRange(i+1,13).setValue(normAvCycle(req.avCycle));
+      else if (dutyCategory !== undefined && dutyCategory !== 'אב') peopleSheet.getRange(i+1,13).setValue('');
       found = true; break;
     }
   }
   if (!found && lookupName) {
     const vf = normalizeVehicleFields(req);
     peopleSheet.appendRow([name||lookupName, activity||'1', dutyCategory||'', phone||'', weekendType||'מלא', email||'', endDate||'',
-      vf.isMilitaryVehicle, vf.vehicleCompany, vf.vehicleModel, vf.vehicleColor, vf.vehiclePlate]);
+      vf.isMilitaryVehicle, vf.vehicleCompany, vf.vehicleModel, vf.vehicleColor, vf.vehiclePlate,
+      dutyCategory === 'אב' ? normAvCycle(req.avCycle) : '']);
   }
 
   return {success: true};
@@ -4211,7 +4253,8 @@ function actionGenerateScheduleV2(req) {
         activity:    String(peopleRows[i][1]||'1').trim(),
         dutyCategory:String(peopleRows[i][2]||'').trim(),
         weekendType: String(peopleRows[i][4]||'מלא').trim(),
-        endDate:     peopleRows[i][6] || null
+        endDate:     peopleRows[i][6] || null,
+        avCycle:     normAvCycle(peopleRows[i][12])
       };
       // משרת אב is identified by CATEGORY in the UI — normalize to activity 0.5
       // so every paternity protection (Thursday-only, 2-month gap) applies.
@@ -4309,6 +4352,7 @@ function actionGenerateScheduleV2(req) {
       last_weekend: lastWeekend,
       prev_hag:     prevMonDuty.indexOf('חג') !== -1,
       last_duty:    lastDuty,
+      av_rest:      pm.activity === '0.5' && isAvRestMonth(pm.avCycle, mon),
       no_skip:      false,
       duty_type:    pm.weekendType === 'מלא' ? 'סוף שבוע מלא' : null
     });
@@ -4483,6 +4527,7 @@ function actionGenerateScheduleV2(req) {
     if (p.dutyCategory === 'פטור' || p.dutyCategory === 'לא מוסמך' || p.dutyCategory === 'טרם הוסמך') return false;
     // משרת אב: 24 שעות (חול/חמישי), הדממה, חמישי או חול. ערב חג דינו כשישי — אסור.
     if (p.activity === '0.5' && PATERNITY_CATS.indexOf(cat) === -1) return false;
+    if (p.av_rest) return false;   // משרת אב — חודש מנוחה לפי המחזור
     // v2: "פטור 24 שעות" — only plain weekday / Thursday shifts (no weekends, holidays or 24h days)
     if (p.dutyCategory === EXEMPT_24H && NON24_CATS.indexOf(cat) === -1) return false;
     if (p.endDateObj && new Date(year, mon-1, day) > p.endDateObj) return false;
@@ -4617,8 +4662,10 @@ function actionGenerateScheduleV2(req) {
   paternityPeople.sort(function(a,b){ return scores[a]-scores[b]; });
   paternityPeople.forEach(function(pat){
     if (usedV[pat]) return; // כבר קובע ידנית ליום אחר — אל תוסיף עוד תורנות
+    if (people[pat].av_rest) return;              // חודש מנוחה לפי המחזור
     var ld = people[pat].last_duty;
-    if (ld !== null && (mon - ld) < 2) return;
+    // עם מחזור מוגדר — המחזור קובע (קבוע, גם אם חודש קודם לא בוצע). בלי מחזור — פער חודשיים.
+    if (!people[pat].avCycle && ld !== null && (mon - ld) < 2) return;
     var fv = (calInfo[pat]||{}).forced_v || {};
     for (var tier = 0; tier < PATERNITY_TIERS.length; tier++) {
       var days = [];
@@ -4956,6 +5003,7 @@ function actionGenerateScheduleV2(req) {
       if(people[n].dutyCategory===EXEMPT_24H && NON24_CATS.indexOf(cat)===-1) return false;
       // משרת אב: עתודה באותם ימים שהוא יכול לבצע (24 שעות חול/חמישי, הדממה, חמישי, חול). לא ערב חג/סופ"ש/חג.
       if(people[n].activity==='0.5'&&PATERNITY_CATS.indexOf(cat)===-1) return false;
+      if(people[n].av_rest) return false;
       if(resTotal[n]>=maxResOvr) return false;
       if(requireGrp&&vGroup[n]!==cat.indexOf('סוף שבוע')!==-1?'weekend':cat==='חמישי'||cat==='ערב חג'?'thursday':'weekday') {
         // simplified group check

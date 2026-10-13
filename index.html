@@ -427,6 +427,8 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
 .constraint-preferred .cal-day-num{color:var(--accent)}
 .constraint-pinned{background:rgba(234,179,8,0.16)!important;border-color:rgba(234,179,8,0.5)!important}
 .constraint-pinned .cal-day-num{color:var(--warn)}
+.constraint-rest{background:var(--surface3)!important;border-color:var(--border)!important;opacity:.55;cursor:default!important}
+.constraint-rest .cal-day-num,.constraint-rest .sl-date-num{color:var(--text3)!important}
 /* ---- RESPONSIVE ---- */
 @media(max-width:600px){
   /* ── Navbar ── */
@@ -973,8 +975,8 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
             <div class="month-picker">
               <select id="constraint-month-select" onchange="loadConstraints(); checkConstraintLock();"></select>
             </div>
-            <button class="btn btn-primary" onclick="saveConstraints()">💾 שמור אילוצים</button>
-            <button class="btn btn-secondary" onclick="saveNoConstraints()" title="סימון שאין לך אילוצים החודש">✋ אין לי אילוצים</button>
+            <button class="btn btn-primary" id="btn-save-constraints" onclick="saveConstraints()">💾 שמור אילוצים</button>
+            <button class="btn btn-secondary" id="btn-no-constraints" onclick="saveNoConstraints()" title="סימון שאין לך אילוצים החודש">✋ אין לי אילוצים</button>
             <button class="btn btn-secondary" id="btn-av-skip-month" style="display:none;border-color:rgba(218,54,51,.4);color:var(--danger)" onclick="markNotServingThisMonth()" title="למשרתי אב: אילוץ מלא על כל החודש">🚫 לא מבצע החודש</button>
           </div>
         </div>
@@ -984,7 +986,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
         </div>
         <div class="card">
           <div id="constraints-grid"></div>
-          <div class="form-group mt-16">
+          <div class="form-group mt-16" id="constraint-notes-wrap">
             <label>הערות חופשיות לחודש זה</label>
             <textarea id="constraint-notes" rows="3" placeholder="לדוגמה: לא יכול בסופי שבוע, מבחנים בשבוע השלישי..."></textarea>
           </div>
@@ -1612,12 +1614,20 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 
       <div class="form-group">
         <label>קטגוריה</label>
-        <select id="t-category">
+        <select id="t-category" onchange="toggleAvCycleField()">
           <option value="">רגיל</option>
           <option value="אב">אב</option>
           <option value="פטור">פטור</option>
           <option value="פטור 24 שעות">פטור 24 שעות (חול/חמישי בלבד)</option>
           <option value="טרם הוסמך">טרם הוסמך</option>
+        </select>
+      </div>
+      <div class="form-group" id="t-avcycle-wrap" style="display:none">
+        <label>👶 מחזור תורנות (משרת אב)</label>
+        <select id="t-avcycle">
+          <option value="">לא הוגדר (פער חודשיים מהתורנות האחרונה)</option>
+          <option value="זוגי">חודשים זוגיים (פבר׳, אפר׳, יוני…)</option>
+          <option value="אי-זוגי">חודשים אי-זוגיים (ינו׳, מרץ, מאי…)</option>
         </select>
       </div>
       <div class="form-group">
@@ -1791,7 +1801,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">v2 12/10/2026 23:02</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">v2 13/10/2026 07:34</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1804,8 +1814,8 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = 'v2 12/10/2026 23:02';
-const BUILD_EPOCH = 1791835354439; // ms — when this exact file was pushed
+const BUILD_STAMP = 'v2 13/10/2026 07:34';
+const BUILD_EPOCH = 1791866075118; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -2749,6 +2759,20 @@ function populateMonthSelects() {
 // =====================================================
 let constraintData = new Array(31).fill(false);
 let constraintPinnedOrig = [];  // 📌 days the admin pinned (as last loaded)
+let constraintAvRest = false;   // 👶 משרת אב — חודש מנוחה לפי המחזור (חסימה וירטואלית, לא נשמרת)
+
+function applyAvRestMode(cycle) {
+  const rest = constraintAvRest;
+  ['btn-save-constraints','btn-no-constraints','constraint-notes-wrap'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = rest ? 'none' : '';
+  });
+  if (rest) {
+    const avBtn = document.getElementById('btn-av-skip-month');
+    if (avBtn) avBtn.style.display = 'none';
+    showAlert('constraint-alert', '👶 חודש מנוחה — לפי המחזור שלך (חודשים ' + escapeHtml(cycle || '') + ') אינך משובץ החודש, ואין צורך להגיש אילוצים.', 'info');
+  }
+}
 
 async function loadConstraints() {
   const {year, mon, days, s: month} = parseMonth(document.getElementById('constraint-month-select').value);
@@ -2765,6 +2789,7 @@ async function loadConstraints() {
     });
     while (constraintData.length < days) constraintData.push('');
     constraintPinnedOrig = constraintData.map(c => c === 'P');
+    constraintAvRest = !!res.avRest;
     const pinDays = constraintData.map((c, i) => c === 'P' ? i + 1 : 0).filter(Boolean);
     document.getElementById('constraint-notes').value = res.notes || '';
     if (String(res.notes || '').includes('[דילוג מנהל')) {
@@ -2774,7 +2799,10 @@ async function loadConstraints() {
       showAlert('constraint-alert', '📌 המנהל נעץ אותך כמבצע ביום ' + pinDays.join(', ') + ' — תשובץ בוודאות. אם אינך יכול/ה, סמן/י X ביום והמנהל יקבל התראה.', 'info');
     }
   }
+  if (!res.success) constraintAvRest = false;
   renderConstraintGrid(year, mon, days);
+  applyAvRestMode(res.avCycle);
+  if (constraintAvRest) return;
   // "לא מבצע החודש" button — only for משרת אב (activity 0.5)
   try {
     if (!allPeople || !allPeople.length) {
@@ -2814,8 +2842,9 @@ function renderConstraintGrid(year, mon, days) {
       if (val === 'X') cls += ' constraint-blocked';
       if (val === 'V') cls += ' constraint-preferred';
       if (val === 'P') cls += ' constraint-pinned';
+      if (constraintAvRest) cls += ' constraint-rest';
 
-      const indicatorHtml = constraintIndicator(val, true);
+      const indicatorHtml = constraintAvRest ? '<span style="color:var(--text3);font-size:11px;font-weight:600">מנוחה</span>' : constraintIndicator(val, true);
 
       let typeLabel = isWE ? 'סוף שבוע' : isThu ? 'חמישי' : 'חול';
       let typeCls = isWE ? 'badge-weekend' : isThu ? 'badge-thursday' : 'badge-weekday';
@@ -2863,6 +2892,7 @@ function renderConstraintGrid(year, mon, days) {
     if (constraintData[d-1] === 'X') dayCls += ' constraint-blocked';
     if (constraintData[d-1] === 'V') dayCls += ' constraint-preferred';
     if (constraintData[d-1] === 'P') dayCls += ' constraint-pinned';
+    if (constraintAvRest) dayCls += ' constraint-rest';
 
     let typeLabel = isWeekend ? 'סוף שבוע' : isThursday ? 'חמישי' : 'חול';
     let typeCls = isWeekend ? 'badge-weekend' : isThursday ? 'badge-thursday' : 'badge-weekday';
@@ -2872,7 +2902,7 @@ function renderConstraintGrid(year, mon, days) {
       <div class="cal-day-num">${d}</div>
       <div class="cal-day-type ${typeCls}" style="font-size:9px;padding:1px 5px;border-radius:10px;margin-top:2px;width:fit-content">${typeLabel}</div>
       <div class="constraint-indicator" id="ci-${d}" style="margin-top:4px;font-size:16px;font-weight:700;text-align:center">
-        ${constraintIndicator(constraintData[d-1], false)}
+        ${constraintAvRest ? '<span style="color:var(--text3);font-size:10px;font-weight:600">מנוחה</span>' : constraintIndicator(constraintData[d-1], false)}
       </div>
     </div>`;
   }
@@ -2898,6 +2928,7 @@ function constraintIndicator(v, mob) {
 }
 
 function toggleConstraint(idx) {
+  if (constraintAvRest) return;   // חודש מנוחה — הלוח לקריאה בלבד
   const cur = constraintData[idx] || '';
   let next;
   if (constraintPinnedOrig[idx]) {
@@ -3207,7 +3238,8 @@ async function loadUsers() { // keep name for tab switching
 
       <!-- Info pills -->
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
-        <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:${catColor(cat)};font-weight:600">${cat}</span>
+        <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:${catColor(cat)};font-weight:600">${cat}${t.dutyCategory === 'אב' && t.avCycle ? ' · ' + t.avCycle : ''}</span>
+        ${t.dutyCategory === 'אב' && !t.avCycle ? '<span style="background:rgba(210,153,34,0.12);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--warn);font-weight:700" title="ערוך את התורן כדי לבחור זוגי/אי-זוגי">⚠️ מחזור לא הוגדר</span>' : ''}
         <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">${wkd}</span>
         ${t.isMilitaryVehicle === 'כן' ? `<span style="background:rgba(46,160,67,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600" title="${(t.vehicleCompany||'')} ${(t.vehicleModel||'')} ${(t.vehicleColor||'')} • ${(t.vehiclePlate||'')}">🚗 רכב צבאי</span>` : ''}
         ${t.role === 'admin' ? '<span style="background:rgba(56,139,253,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600">מנהל</span>' : ''}
@@ -3460,7 +3492,8 @@ async function exportTornimPDF() {
         match: t => !isExemptTorani(t),
         tag: t => t.dutyCategory === 'פטור 24 שעות' ? 'פטור 24ש׳' : '' },
       { icon:'👶', title:'משרת אב', color:'#b45309',
-        match: t => t.dutyCategory === 'אב' },
+        match: t => t.dutyCategory === 'אב',
+        tag: t => t.avCycle || '' },
       { icon:'🎓', title:'טרם הוסמכו', color:'#6b7280',
         match: t => t.dutyCategory === 'טרם הוסמך' || t.dutyCategory === 'לא מוסמך' },
       { icon:'🛡️', title:'פטורים', color:'#dc2626',
@@ -3679,7 +3712,8 @@ function filterTornim(query) {
         <span class="status-badge ${isActive ? 'status-active' : 'status-inactive'}">${isActive ? 'פעיל' : 'מושבת'}</span>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
-        <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:${catColor(cat)};font-weight:600">${cat}</span>
+        <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:${catColor(cat)};font-weight:600">${cat}${t.dutyCategory === 'אב' && t.avCycle ? ' · ' + t.avCycle : ''}</span>
+        ${t.dutyCategory === 'אב' && !t.avCycle ? '<span style="background:rgba(210,153,34,0.12);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--warn);font-weight:700" title="ערוך את התורן כדי לבחור זוגי/אי-זוגי">⚠️ מחזור לא הוגדר</span>' : ''}
         <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">${wkd}</span>
         ${t.isMilitaryVehicle === 'כן' ? `<span style="background:rgba(46,160,67,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600" title="${(t.vehicleCompany||'')} ${(t.vehicleModel||'')} ${(t.vehicleColor||'')} • ${(t.vehiclePlate||'')}">🚗 רכב צבאי</span>` : ''}
         ${t.role === 'admin' ? '<span style="background:rgba(56,139,253,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600">מנהל</span>' : ''}
@@ -3774,7 +3808,8 @@ function filterTornimByCategory(kind) {
         <span class="status-badge ${isActive ? 'status-active' : 'status-inactive'}">${isActive ? 'פעיל' : 'מושבת'}</span>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
-        <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:${catColor(cat)};font-weight:600">${cat}</span>
+        <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:${catColor(cat)};font-weight:600">${cat}${t.dutyCategory === 'אב' && t.avCycle ? ' · ' + t.avCycle : ''}</span>
+        ${t.dutyCategory === 'אב' && !t.avCycle ? '<span style="background:rgba(210,153,34,0.12);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--warn);font-weight:700" title="ערוך את התורן כדי לבחור זוגי/אי-זוגי">⚠️ מחזור לא הוגדר</span>' : ''}
         <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">${wkd}</span>
         ${t.isMilitaryVehicle === 'כן' ? `<span style="background:rgba(46,160,67,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600" title="${(t.vehicleCompany||'')} ${(t.vehicleModel||'')} ${(t.vehicleColor||'')} • ${(t.vehiclePlate||'')}">🚗 רכב צבאי</span>` : ''}
         ${t.role === 'admin' ? '<span style="background:rgba(56,139,253,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600">מנהל</span>' : ''}
@@ -3845,7 +3880,8 @@ function filterTornimEndingSoon() {
         <span class="status-badge ${isActive ? 'status-active' : 'status-inactive'}">${isActive ? 'פעיל' : 'מושבת'}</span>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
-        <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:${catColor(cat)};font-weight:600">${cat}</span>
+        <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:${catColor(cat)};font-weight:600">${cat}${t.dutyCategory === 'אב' && t.avCycle ? ' · ' + t.avCycle : ''}</span>
+        ${t.dutyCategory === 'אב' && !t.avCycle ? '<span style="background:rgba(210,153,34,0.12);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--warn);font-weight:700" title="ערוך את התורן כדי לבחור זוגי/אי-זוגי">⚠️ מחזור לא הוגדר</span>' : ''}
         <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">${wkd}</span>
         ${t.isMilitaryVehicle === 'כן' ? `<span style="background:rgba(46,160,67,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600" title="${(t.vehicleCompany||'')} ${(t.vehicleModel||'')} ${(t.vehicleColor||'')} • ${(t.vehiclePlate||'')}">🚗 רכב צבאי</span>` : ''}
         ${t.role === 'admin' ? '<span style="background:rgba(56,139,253,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600">מנהל</span>' : ''}
@@ -3893,6 +3929,8 @@ function openAddTorani() {
   document.getElementById('t-role').value = 'user';
   // activity not shown in UI
   document.getElementById('t-category').value = '';
+  document.getElementById('t-avcycle').value = '';
+  toggleAvCycleField();
   document.getElementById('t-weekend').value = 'מלא';
   document.getElementById('t-enddate').value = '';
   document.getElementById('t-vehicle-military').value = 'לא';
@@ -3913,6 +3951,8 @@ function openEditTorani(t) {
   document.getElementById('t-email').value = t.email||'';
   // activity not shown in UI
   document.getElementById('t-category').value = t.dutyCategory||'';
+  document.getElementById('t-avcycle').value = t.avCycle||'';
+  toggleAvCycleField();
   document.getElementById('t-weekend').value = t.weekendType||'מלא';
   document.getElementById('t-enddate').value = isoToDdmm(t.endDate||'');
   document.getElementById('t-vehicle-military').value = t.isMilitaryVehicle === 'כן' ? 'כן' : 'לא';
@@ -3923,6 +3963,18 @@ function openEditTorani(t) {
   toggleVehicleFields('t-');
   document.getElementById('torani-alert').innerHTML = '';
   openModal('modal-add-torani');
+}
+
+function toggleAvCycleField() {
+  const isAv = document.getElementById('t-category').value === 'אב';
+  document.getElementById('t-avcycle-wrap').style.display = isAv ? '' : 'none';
+}
+
+// משרת אב — חודש מנוחה לפי המחזור (זהה לשרת: isAvRestMonth). month = YYYYMM
+function isAvRestFor(t, month) {
+  if (!t || String(t.dutyCategory||'').trim() !== 'אב' || !t.avCycle) return false;
+  const even = (parseInt(String(month).substring(4, 6), 10) % 2) === 0;
+  return t.avCycle === 'זוגי' ? !even : even;
 }
 
 async function resetPassword(username, name, phone) {
@@ -3961,6 +4013,7 @@ async function saveTorani() {
   const email = document.getElementById('t-email').value.trim();
   const activity = '1'; // default, not shown in UI
   const dutyCategory = document.getElementById('t-category').value;
+  const avCycle = dutyCategory === 'אב' ? document.getElementById('t-avcycle').value : '';
   const weekendType = document.getElementById('t-weekend').value;
   const endDate = ddmmToISO(document.getElementById('t-enddate').value || '');
   const isMilitaryVehicle = document.getElementById('t-vehicle-military').value;
@@ -3975,12 +4028,12 @@ async function saveTorani() {
   let res;
   if (editingTorani) {
     res = await api({action:'updateTorani', username:editingTorani,
-      name, role, phone, email, activity, dutyCategory, weekendType, endDate,
+      name, role, phone, email, activity, dutyCategory, avCycle, weekendType, endDate,
       isMilitaryVehicle, vehicleCompany, vehicleModel, vehicleColor, vehiclePlate,
       newPassword: password||undefined});
   } else {
     if (!username||!password) { showLoading(false); return showAlert('torani-alert','חסרים שם משתמש וסיסמה','error'); }
-    res = await api({action:'addTorani', name, username, password, role, phone, activity, dutyCategory, weekendType, endDate,
+    res = await api({action:'addTorani', name, username, password, role, phone, activity, dutyCategory, avCycle, weekendType, endDate,
       isMilitaryVehicle, vehicleCompany, vehicleModel, vehicleColor, vehiclePlate});
   }
   showLoading(false);
@@ -4453,8 +4506,11 @@ function renderAdminConstraintsCard(allC, tornimRes, openMonth) {
       (String(p.activity) === '1' || String(p.activity) === '0.5') &&
       String(p.dutyCategory||'') !== 'טרם הוסמך' &&
       String(p.dutyCategory||'') !== 'לא מוסמך' &&
-      String(p.dutyCategory||'') !== 'פטור'
+      String(p.dutyCategory||'') !== 'פטור' &&
+      !isAvRestFor(p, openMonth)
     );
+  const avRestNames = (tornimRes&&tornimRes.success ? (tornimRes.tornim||[]) : [])
+    .filter(p => p.active !== false && !p.archived && isAvRestFor(p, openMonth)).map(p => p.name);
   const submitted = allC && allC.success
     ? Object.entries(allC.constraints||{})
         .filter(([, v]) => (v.constraints||[]).some(c => c==='X'||c==='V') || String(v.notes||'').trim())
@@ -4474,6 +4530,7 @@ function renderAdminConstraintsCard(allC, tornimRes, openMonth) {
     <div style="background:var(--surface2);border-radius:8px;height:8px;overflow:hidden;margin-bottom:10px">
       <div style="background:${barColor};height:100%;width:${pct}%;border-radius:8px;transition:width .4s"></div>
     </div>
+    ${avRestNames.length ? `<div style="font-size:12px;color:var(--text3);margin-bottom:6px">👶 משרתי אב בחודש מנוחה: ${avRestNames.length} (${avRestNames.map(escapeHtml).join(', ')})</div>` : ''}
     ${notSubmitted.length ? `<div style="font-size:12px;color:var(--text2);margin-bottom:6px">טרם הגישו: ${notSubmitted.map(p=>`<span style="background:var(--surface2);border-radius:6px;padding:1px 6px;margin:1px;display:inline-block">${escapeHtml(p.name)}</span>`).join('')}</div>` : `<div style="font-size:12px;color:var(--success,#2ea043);font-weight:600">✅ כולם הגישו!</div>`}
     <button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="switchTab('admin-constraints')">לניהול אילוצים</button>
   </div>`;
@@ -5269,17 +5326,20 @@ function buildPendingConstraintsRow(submittedNames, month) {
       String(t.dutyCategory || '') !== 'טרם הוסמך' &&
       String(t.dutyCategory || '') !== 'לא מוסמך' &&
       String(t.dutyCategory || '') !== 'פטור' &&
+      !isAvRestFor(t, month) &&
       !submitted.has(t.name)
     ).sort((a, b) => a.name.localeCompare(b.name, 'he'));
     window._pendingConstraints = pending;
+    const avRest = (window._allUsers || []).filter(t => t.active && !t.archived && isAvRestFor(t, month)).map(t => t.name);
+    const avRestHtml = avRest.length ? '<div style="font-size:12.5px;color:var(--text3);margin:-4px 0 12px">👶 משרתי אב בחודש מנוחה (לא נדרשים להגיש): ' + avRest.length + ' — ' + avRest.map(escapeHtml).join(', ') + '</div>' : '';
     window._pendingConstraintsMonth = month;
     if (!pending.length) {
-      return '<div style="background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.3);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:var(--accent)">✅ כל התורנים הפעילים הגישו אילוצים לחודש זה</div>';
+      return avRestHtml + '<div style="background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.3);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:var(--accent)">✅ כל התורנים הפעילים הגישו אילוצים לחודש זה</div>';
     }
     const chips = pending.map((t, i) =>
       '<button onclick="waRemindConstraints(' + i + ')" style="border:1px solid rgba(210,153,34,.5);background:rgba(210,153,34,.1);color:#d29922;border-radius:14px;padding:4px 12px;font-size:12.5px;cursor:pointer;font-family:inherit">' + escapeHtml(t.name) + ' 💬</button>'
     ).join(' ');
-    return '<div style="background:rgba(210,153,34,.06);border:1px solid rgba(210,153,34,.3);border-radius:10px;padding:10px 14px;margin-bottom:12px">' +
+    return avRestHtml + '<div style="background:rgba(210,153,34,.06);border:1px solid rgba(210,153,34,.3);border-radius:10px;padding:10px 14px;margin-bottom:12px">' +
       '<div style="font-size:13px;font-weight:600;color:#d29922;margin-bottom:8px">⏳ טרם הגישו (' + pending.length + ') — לחץ על שם לשליחת תזכורת בוואטסאפ:</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:6px">' + chips + '</div>' +
       '<button class="btn btn-secondary btn-sm" style="margin-top:10px;border-color:rgba(210,153,34,.5);color:#d29922" onclick="waRemindConstraintsGroup()">📢 הודעה קבוצתית עם כל השמות</button></div>';
