@@ -256,7 +256,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-h
 /* ---- HAMBURGER MENU ---- */
 .hamburger-btn{display:none;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:8px;border-radius:var(--radius);margin-right:0;margin-left:0}
 .hamburger-btn span{display:block;width:22px;height:2px;background:var(--text);border-radius:2px;transition:all .25s}
-.notif-badge{background:var(--danger);color:#fff;border-radius:10px;font-size:10px;font-weight:700;padding:1px 5px;margin-right:4px;vertical-align:middle;min-width:16px;display:inline-block;text-align:center}
+.notif-badge{direction:ltr;unicode-bidi:isolate;background:var(--danger);color:#fff;border-radius:10px;font-size:10px;font-weight:700;padding:1px 5px;margin-right:4px;vertical-align:middle;min-width:16px;display:inline-block;text-align:center}
 .bell-btn{transition:color .2s}
 .bell-btn:hover{color:var(--warn)!important}
 .refresh-btn{transition:color .2s}
@@ -842,6 +842,8 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
     background:var(--accent-glow);box-shadow:0 0 0 1.5px var(--accent)}
   #bottom-nav .bnav-label{font-size:9.5px}
   #bottom-nav .bnav-item.active .bnav-label{font-weight:700;font-size:10.5px}
+  #bottom-nav .bnav-bdg{top:auto;bottom:34px;right:calc(50% - 20px);width:auto;min-width:16px;height:16px;line-height:16px;padding:0 4px;border-radius:8px;font-size:10px;box-shadow:0 0 0 2px var(--surface);z-index:1;direction:ltr;unicode-bidi:isolate}
+  #bottom-nav .bnav-item.active .bnav-bdg{bottom:44px;right:calc(50% - 26px)}
   .main{padding-bottom:82px}
 }
 /* ---- DISCUSSION PREP ---- */
@@ -1929,7 +1931,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">v2 13/10/2026 19:33</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">v2 13/10/2026 19:35</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1942,8 +1944,8 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = 'v2 13/10/2026 19:33';
-const BUILD_EPOCH = 1791909209298; // ms — when this exact file was pushed
+const BUILD_STAMP = 'v2 13/10/2026 19:35';
+const BUILD_EPOCH = 1791909348462; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -2688,6 +2690,7 @@ function buildNavTabs() {
       </button>`
     ).join('');
     initBnavRing();
+    reapplyBadges();
   }
   // Show install button if on mobile and not installed
   requestAnimationFrame(() => {
@@ -2747,6 +2750,7 @@ const TAB_LOADERS = {
 // off one edge come back round from the other. The bar can also be dragged with
 // a finger and it follows like a real wheel, snapping to the nearest page.
 const _bnav = { v: new Map(), raf: 0, drag: null };
+function bnavBuzz(ms) { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
 function _bnavCtx() {
   const bar = document.getElementById('bottom-nav');
   if (!bar || !bar.offsetWidth) return null;
@@ -2806,6 +2810,7 @@ function bnavRotate(id, animate) {
     pages.forEach((el, i) => _bnav.v.set(el, t < 1 ? from[i] + d * e : +el.style.order));
     _bnavPaint(ctx);
     if (t < 1) _bnav.raf = requestAnimationFrame(tick);
+    else if (d) bnavBuzz(12);                                  // "click" as the wheel lands
   };
   _bnav.raf = requestAnimationFrame(tick);
 }
@@ -2820,7 +2825,7 @@ function initBnavRing() {
     const ctx = _bnavCtx();
     if (!ctx) return;
     cancelAnimationFrame(_bnav.raf);
-    _bnav.drag = { x0: e.touches[0].clientX, y0: e.touches[0].clientY, ctx, base: new Map(_bnav.v), on: false, off: 0 };
+    _bnav.drag = { x0: e.touches[0].clientX, y0: e.touches[0].clientY, ctx, base: new Map(_bnav.v), on: false, off: 0, notch: 0 };
   }, { passive: true });
   bar.addEventListener('touchmove', e => {
     const g = _bnav.drag;
@@ -2832,6 +2837,8 @@ function initBnavRing() {
       g.on = true;
     }
     g.off = dx / g.ctx.step;                                   // slots moved with the finger
+    const notch = Math.round(g.off);
+    if (notch !== g.notch) { if (g.notch !== undefined) bnavBuzz(6); g.notch = notch; }
     g.ctx.pages.forEach(el => _bnav.v.set(el, (g.base.has(el) ? g.base.get(el) : +el.style.order) + g.off));
     _bnavPaint(g.ctx);
   }, { passive: true });
@@ -3307,6 +3314,7 @@ async function saveConstraints() {
   showLoading(true);
   const res = await api({action:'saveConstraints', month, constraints: constraintData, notes, viewAs: currentUser.username}); // V/X/P/'' array
   showLoading(false);
+  if (res.success) clearMyConstraintBadge(month);
   if (res.success && (res.xOverPin || []).length) {
     constraintPinnedOrig = constraintData.map(c => c === 'P');
     showAlert('constraint-alert', '✓ האילוצים נשמרו. 📌 הנעץ ביום ' + res.xOverPin.join(', ') + ' הוסר והמנהל קיבל התראה.', 'success');
@@ -3329,7 +3337,7 @@ async function saveNoConstraints() {
   const res = await api({action:'saveConstraints', month, constraints: constraintData, notes, viewAs: currentUser.username});
   showLoading(false);
   showAlert('constraint-alert', res.success ? '✓ נרשם שאין לך אילוצים לחודש זה!' : res.error, res.success?'success':'error');
-  if (res.success) loadConstraints();
+  if (res.success) { clearMyConstraintBadge(month); loadConstraints(); }
 }
 
 async function markNotServingThisMonth() {
@@ -3345,7 +3353,7 @@ async function markNotServingThisMonth() {
   const res = await api({action:'saveConstraints', month, constraints: constraintData, notes, viewAs: currentUser.username});
   showLoading(false);
   showAlert('constraint-alert', res.success ? '✓ נרשם שאינך מבצע תורנות החודש — לא תשובץ.' : res.error, res.success?'success':'error');
-  if (res.success) loadConstraints();
+  if (res.success) { clearMyConstraintBadge(month); loadConstraints(); }
 }
 
 // =====================================================
@@ -5113,6 +5121,7 @@ async function loadAdminHome(isRefresh) {
 }
 
 function renderAdminNoOpenMonth() {
+  updateBadge('admin-constraints', 0);
   const card = document.getElementById('admin-home-constraints-card');
   if (card) { card.style.display='block'; card.innerHTML=`<div style="display:flex;align-items:center;gap:10px;background:var(--surface);border-radius:14px;padding:14px"><span style="font-size:20px">🔒</span><div style="font-size:13px;color:var(--text2)">אין חודש פתוח להגשה כרגע</div></div>`; }
 }
@@ -5405,6 +5414,7 @@ function renderAdminConstraintsCard(allC, tornimRes, openMonth) {
         .map(([name]) => name)
     : [];
   const notSubmitted = activePeople.filter(p => !submitted.includes(p.name));
+  updateBadge('admin-constraints', notSubmitted.length);
   const total = activePeople.length;
   const done = total - notSubmitted.length;
   const pct = total ? Math.round(done/total*100) : 0;
@@ -7192,6 +7202,7 @@ function renderHomeConstraintCard(openMonth, submitted) {
   const label = openMonth ? `${MONTHS[cmon-1]} ${cyear}` : '';
   card.style.display = 'block';
   if (openMonth) card.dataset.openMonth = openMonth;
+  updateBadge('constraints', openMonth && !submitted ? '!' : 0);
   if (!openMonth) {
     card.innerHTML = `<div style="display:flex;align-items:center;gap:10px;background:var(--surface);border-radius:14px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.07)"><span style="font-size:20px">🔒</span><div style="font-size:13px;color:var(--text2)">אין כרגע חודש פתוח להגשת אילוצים</div></div>`;
     return;
@@ -8124,16 +8135,29 @@ async function checkNotifications() {
   } catch(e) {} finally { _notifBusy = false; }
 }
 
+// count: a number (shown when > 0) or a short string such as '!' (always shown).
+// Remembered so the badges survive the nav being rebuilt (role change, impersonation).
+const _badgeCounts = {};
 function updateBadge(tabId, count) {
+  _badgeCounts[tabId] = count;
+  const show = typeof count === 'string' ? !!count : count > 0;
+  const text = typeof count === 'number' && count > 9 ? '9+' : String(count);
   const badge = document.getElementById('badge-' + tabId);
   if (badge) {
-    if (count > 0) {
-      badge.textContent = count;
-      badge.style.display = 'inline-block';
-    } else {
-      badge.style.display = 'none';
-    }
+    badge.textContent = show ? text : '';
+    badge.style.display = show ? 'inline-block' : 'none';
   }
+  const bb = document.getElementById('bnav-bdg-' + tabId);   // mobile wheel
+  if (bb) {
+    bb.textContent = show ? text : '';
+    bb.style.display = show ? 'block' : 'none';
+  }
+}
+function reapplyBadges() { Object.keys(_badgeCounts).forEach(k => updateBadge(k, _badgeCounts[k])); }
+// After the torani saves constraints for the month the home card flagged, drop the "!".
+function clearMyConstraintBadge(month) {
+  const card = document.getElementById('home-constraint-card');
+  if (!card || !card.dataset.openMonth || String(card.dataset.openMonth) === String(month)) updateBadge('constraints', 0);
 }
 
 function toggleNotifPanel() {
