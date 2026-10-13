@@ -1201,7 +1201,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn btn-secondary" onclick="switchTab('admin-users')">→ חזרה לתורנים</button>
-            <button class="btn btn-secondary" id="prep-pdf-btn" onclick="prepExportPDF()" title="דוח תורנים צפוי לחודש שנבחר + טבלה חודשית ורשימת שינויים">📄 PDF לדיון</button>
+            <button class="btn btn-secondary" id="prep-pdf-btn" onclick="prepExportPDF()" title="דוח תורנים צפוי לחודש שנבחר בטבלה">📄 דוח תורנים צפוי</button>
           </div>
         </div>
         <div class="prep-banner">🧪 תרחיש תיאורטי בלבד — לא משנה סוג תורנות, שיבוץ, ניקוד או אילוצים של אף תורן. את מה שיאושר בדיון מעדכנים ידנית בעמוד התורנים.</div>
@@ -1855,7 +1855,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">v2 13/10/2026 09:12</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">v2 13/10/2026 09:44</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1868,8 +1868,8 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = 'v2 13/10/2026 09:12';
-const BUILD_EPOCH = 1791871937492; // ms — when this exact file was pushed
+const BUILD_STAMP = 'v2 13/10/2026 09:44';
+const BUILD_EPOCH = 1791873895318; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -4175,81 +4175,22 @@ async function prepExportPDF() {
   let wrap;
   try {
     const sc = _prep.cur, d = sc.data;
-    const months = []; for (let i = 0; i < d.months; i++) months.push(prepYmAdd(d.startYm, i));
-    const today = prepStats(prepStateAt(0, d), 30);
-    const rows = months.map(ym => ({ ym, s: prepStats(prepStateAt(ym, d), prepDays(ym)) }));
-    const end = rows[rows.length - 1].s;
-    const ivCol = iv => iv < 14 ? '#dc2626' : iv < 21 ? '#b45309' : '#16a34a';
-    const td = 'padding:4px 6px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:11px';
-    const th = 'padding:4px 6px;background:#f3f4f6;font-size:10px;color:#4b5563';
-    const changes = (d.changes || []).slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
-    const decCol = { 'פתוח': '#b45309', 'מאושר': '#16a34a', 'נדחה': '#9ca3af' };
-    const box = (label, a, b) => `<div style="flex:1;border:1px solid #e5e7eb;border-radius:8px;padding:8px;text-align:center">
-      <div style="font-size:10px;color:#6b7280">${label}</div>
-      <div style="font-size:16px;font-weight:800;margin-top:2px">${a} <span style="color:#9ca3af">←</span> ${b}</div></div>`;
-    const r1 = v => Math.round(v * 10) / 10;
+    const ym = _prep.selMonth || prepYmAdd(d.startYm, d.months - 1);
+    // one page only: the expected roster report, same look as the regular tornim report
     wrap = document.createElement('div');
-    wrap.style.cssText = "position:fixed;top:-99999px;right:-99999px;background:#fff;padding:18px 22px;width:1000px;box-sizing:border-box;direction:rtl;font-family:Arial,'Segoe UI',sans-serif;color:#111827";
-    wrap.innerHTML = `
-      <div style="text-align:center;border-bottom:3px solid #16a34a;padding-bottom:8px;margin-bottom:10px">
-        <div style="font-size:18px;font-weight:900;color:#14532d">🗂️ היערכות לדיון תורנויות — ${escapeHtml(sc.name)}</div>
-        <div style="font-size:10.5px;color:#6b7280;margin-top:2px">הופק ${new Date().toLocaleDateString('he-IL')} · טווח: ${prepYmLabel(months[0])} – ${prepYmLabel(months[months.length - 1])} · ${d.includeOpen ? 'כולל שינויים פתוחים' : 'שינויים מאושרים בלבד'} · תרחיש תיאורטי</div>
-      </div>
-      <div style="display:flex;gap:8px;margin-bottom:12px">
-        ${box('תורנים בסבב', today.rot, end.rot)}
-        ${box('תורנות לכל תורן (ימים)', '~' + Math.round(today.interval), '~' + Math.round(end.interval))}
-        ${box('זכאים לסופ״ש', today.wknd, end.wknd)}
-        ${box('פטורים + טרם הוסמכו', today.counts['פטור'] + today.counts['טרם הוסמך'], end.counts['פטור'] + end.counts['טרם הוסמך'])}
-      </div>
-      <div style="font-weight:800;font-size:13px;margin-bottom:4px">📈 לפי חודשים</div>
-      <table style="width:100%;border-collapse:collapse;margin-bottom:12px">
-        <thead><tr><th style="${th}">חודש</th><th style="${th}">רגילים</th><th style="${th}">פטור 24</th><th style="${th}">אב</th><th style="${th}">פטורים</th><th style="${th}">תורנות כל</th><th style="${th}">סופ״ש</th></tr></thead>
-        <tbody><tr style="background:#f9fafb"><td style="${td};font-weight:700">היום</td><td style="${td}">${today.counts['רגיל']}</td><td style="${td}">${today.counts['פטור 24 שעות']}</td><td style="${td}">${today.counts['אב']}</td><td style="${td}">${today.counts['פטור'] + today.counts['טרם הוסמך']}</td><td style="${td};font-weight:700;color:${ivCol(today.interval)}">~${Math.round(today.interval)} ימים</td><td style="${td}">${today.wknd}</td></tr>
-        ${rows.map(({ ym, s }) => `<tr><td style="${td};font-weight:700">${prepYmLabel(ym)}</td><td style="${td}">${s.counts['רגיל']}</td><td style="${td}">${s.counts['פטור 24 שעות']}</td><td style="${td}">${s.counts['אב']}</td><td style="${td}">${s.counts['פטור'] + s.counts['טרם הוסמך']}</td><td style="${td};font-weight:700;color:${ivCol(s.interval)}">~${Math.round(s.interval)} ימים</td><td style="${td}">${s.wknd}</td></tr>`).join('')}</tbody>
-      </table>
-      <div style="font-weight:800;font-size:13px;margin-bottom:4px">🔀 שינויים מתוכננים (${changes.length})</div>
-      <table style="width:100%;border-collapse:collapse">
-        <thead><tr><th style="${th}">#</th><th style="${th};text-align:right">שם</th><th style="${th}">מ־</th><th style="${th}">אל</th><th style="${th}">תאריך</th><th style="${th}">החלטה</th><th style="${th};text-align:right">הערה</th></tr></thead>
-        <tbody>${changes.map((c, i) => `<tr style="${c.decision === 'נדחה' ? 'color:#9ca3af;text-decoration:line-through' : ''}">
-          <td style="${td};color:#9ca3af">${i + 1}</td><td style="${td};text-align:right;font-weight:700">${escapeHtml(c.name)}</td>
-          <td style="${td};color:${(PREP_META[c.from] || {}).pdf || '#374151'}">${escapeHtml(c.from)}</td><td style="${td};font-weight:700;color:${(PREP_META[c.to] || {}).pdf || '#374151'}">${escapeHtml(c.to)}</td>
-          <td style="${td}">${prepFmtDate(c.date)}</td><td style="${td};font-weight:700;color:${decCol[c.decision] || '#374151'}">${c.decision}</td>
-          <td style="${td};text-align:right">${escapeHtml(c.note || '')}</td></tr>`).join('') || `<tr><td colspan="7" style="${td};color:#9ca3af">אין שינויים</td></tr>`}</tbody>
-      </table>
-      <div style="font-size:9px;color:#9ca3af;margin-top:10px;text-align:center">"תורנות כל" = מבצע אחד ביום מחולק בין התורנים בסבב (רגיל/פטור 24 = 1, אב = 0.5) · מטל״מ</div>`;
+    wrap.style.cssText = "position:fixed;top:-99999px;right:-99999px;background:#fff;padding:16px 20px;width:1150px;box-sizing:border-box;direction:rtl;font-family:Arial,'Segoe UI',sans-serif;color:#111827";
+    wrap.innerHTML = prepRosterReportHtml(ym);
     document.body.appendChild(wrap);
     const canvas = await html2canvas(wrap, { scale: 2, backgroundColor: '#ffffff' });
     document.body.removeChild(wrap); wrap = null;
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('l', 'mm', 'a4');
-
-    // page 1 — expected roster report (same look as the regular tornim report), fit to one landscape page
-    wrap = document.createElement('div');
-    wrap.style.cssText = "position:fixed;top:-99999px;right:-99999px;background:#fff;padding:16px 20px;width:1150px;box-sizing:border-box;direction:rtl;font-family:Arial,'Segoe UI',sans-serif;color:#111827";
-    wrap.innerHTML = prepRosterReportHtml(_prep.selMonth || prepYmAdd(d.startYm, d.months - 1));
-    document.body.appendChild(wrap);
-    const c1 = await html2canvas(wrap, { scale: 2, backgroundColor: '#ffffff' });
-    document.body.removeChild(wrap); wrap = null;
-    {
-      const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight();
-      let w = pw, h = c1.height * w / c1.width;
-      if (h > ph) { h = ph; w = c1.width * h / c1.height; }
-      pdf.addImage(c1.toDataURL('image/jpeg', 0.95), 'JPEG', (pw - w) / 2, 0, w, h);
-    }
-
-    // next pages — monthly table + list of changes (portrait)
-    pdf.addPage('a4', 'p');
     const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight();
-    const pxPerPage = Math.floor(canvas.width * ph / pw);
-    for (let y = 0, page = 0; y < canvas.height; y += pxPerPage, page++) {
-      const h = Math.min(pxPerPage, canvas.height - y);
-      const part = document.createElement('canvas'); part.width = canvas.width; part.height = h;
-      part.getContext('2d').drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
-      if (page) pdf.addPage('a4', 'p');
-      pdf.addImage(part.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pw, h * pw / canvas.width);
-    }
+    let w = pw, h = canvas.height * w / canvas.width;
+    if (h > ph) { h = ph; w = canvas.width * h / canvas.height; }
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', (pw - w) / 2, 0, w, h);
     const n = new Date();
-    pdf.save(`היערכות-לדיון-${String(n.getDate()).padStart(2, '0')}-${String(n.getMonth() + 1).padStart(2, '0')}-${n.getFullYear()}.pdf`);
+    pdf.save(`דוח-תורנים-צפוי-${prepYmLabel(ym).replace(' ', '-')}-${String(n.getDate()).padStart(2, '0')}-${String(n.getMonth() + 1).padStart(2, '0')}-${n.getFullYear()}.pdf`);
   } catch (e) {
     if (wrap && wrap.parentNode) document.body.removeChild(wrap);
     alert('שגיאה בהפקת ה-PDF: ' + (e.message || e));
