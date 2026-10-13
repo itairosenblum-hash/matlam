@@ -833,6 +833,43 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
   #bottom-nav .bnav-item.active .bnav-label{font-weight:700;font-size:10.5px}
   .main{padding-bottom:82px}
 }
+/* ---- DISCUSSION PREP ---- */
+.prep-banner{background:rgba(56,139,253,.10);border:1px dashed var(--info);color:var(--text);border-radius:12px;padding:10px 14px;font-size:13px;margin-bottom:12px;line-height:1.5}
+.prep-bar{padding:12px;margin-bottom:12px}
+.prep-input{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:7px 10px;color:var(--text);font-family:inherit;font-size:13px;outline:none;box-sizing:border-box}
+.prep-input:focus{border-color:var(--accent)}
+.prep-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px}
+.prep-kpi{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 12px}
+.prep-kpi-label{font-size:11px;color:var(--text2)}
+.prep-kpi-vals{display:flex;align-items:baseline;gap:6px;margin-top:4px;flex-wrap:wrap}
+.prep-kpi-a{font-size:15px;color:var(--text2);font-weight:600}
+.prep-kpi-arrow{color:var(--text3);font-size:12px}
+.prep-kpi-b{font-size:20px;font-weight:800}
+.prep-kpi-diff{font-size:11px;margin-top:2px;font-weight:600}
+.prep-table{width:100%;border-collapse:collapse;font-size:13px;min-width:520px}
+.prep-table th{font-size:11px;color:var(--text2);font-weight:600;padding:6px;border-bottom:1px solid var(--border);text-align:center}
+.prep-table td{padding:7px 6px;border-bottom:1px solid var(--border);text-align:center;cursor:pointer}
+.prep-table tbody tr:hover td{background:var(--surface2)}
+.prep-row-sel td{background:var(--surface3)!important}
+.prep-sugg{background:rgba(210,153,34,.10);border:1px solid var(--warn);border-radius:12px;padding:10px 12px;margin-bottom:14px;font-size:13px}
+.prep-chip{display:inline-flex;align-items:center;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:3px 4px 3px 10px;font-size:12px}
+.prep-chip button{border:none;background:var(--surface2);color:var(--text);border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:12px;line-height:1}
+.prep-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+.prep-change{border:1px solid var(--border);border-radius:10px;padding:10px;background:var(--surface2)}
+.prep-rejected{opacity:.55}
+.prep-rejected .prep-dec{opacity:1}
+.prep-dec{display:flex;gap:4px;margin-top:8px}
+.prep-dec button{flex:1;border:1px solid var(--border);background:var(--surface);color:var(--text2);border-radius:8px;padding:5px 0;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+.prep-form{border:1px solid var(--accent);border-radius:10px;padding:12px;margin-bottom:10px;background:var(--surface)}
+.prep-status-pick{display:flex;flex-wrap:wrap;gap:6px}
+.prep-status-pick button{border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:20px;padding:6px 12px;font-family:inherit;font-size:12px;cursor:pointer}
+.prep-status-pick button.on{background:var(--surface3);font-weight:700;border-width:2px}
+.prep-group{margin-bottom:10px}
+.prep-group-h{font-weight:700;font-size:13px;border-bottom:2px solid;padding-bottom:3px;margin-bottom:6px}
+.prep-person{display:inline-flex;align-items:center;gap:5px;margin:0 0 5px 5px;border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:16px;padding:4px 10px;font-family:inherit;font-size:12px;cursor:pointer}
+.prep-person.moved{border-color:var(--warn);background:rgba(210,153,34,.12);font-weight:700}
+.prep-from{font-size:10px;color:var(--warn);font-weight:600}
+@media(max-width:700px){.prep-table{min-width:0;font-size:12px}.prep-table th,.prep-table td{padding:6px 3px}.prep-kpis{grid-template-columns:repeat(2,1fr)}.prep-cols{grid-template-columns:1fr}.prep-kpi-b{font-size:18px}}
 </style>
 </head>
 <body class="login-mode">
@@ -1140,6 +1177,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
             <div class="section-subtitle">כל תורן הוא גם משתמש — פרטי כניסה + פרטי תורנות</div>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button id="btn-prep" class="btn btn-secondary" onclick="switchTab('admin-prep')" style="display:none" title="תרחיש תיאורטי — לא משנה נתונים">🗂️ היערכות לדיון</button>
             <button id="backup-xlsx-btn" class="btn btn-secondary" onclick="exportBackupXlsx()" title="הורדת כל הנתונים כקובץ Excel במבנה הגיליון המקורי">📥 גיבוי לאקסל</button>
             <button class="btn btn-secondary" id="tornim-pdf-btn" onclick="exportTornimPDF()">📄 הפק דוח PDF</button>
             <button class="btn btn-secondary" id="vehicles-excel-btn" onclick="exportVehiclesExcel()">🚗 דוח רכבים (Excel)</button>
@@ -1153,6 +1191,22 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
             style="width:100%;max-width:320px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:8px 14px;color:var(--text);font-family:inherit;font-size:14px;outline:none;box-sizing:border-box">
         </div>
         <div id="tornim-content"></div>
+      </div>
+      <!-- ADMIN: DISCUSSION PREP (theoretical scenarios — never changes real data) -->
+      <div id="tab-admin-prep" class="tab-content hidden">
+        <div class="section-header">
+          <div>
+            <div class="section-title">🗂️ היערכות לדיון תורנויות</div>
+            <div class="section-subtitle">הזזת תורנים על הנייר ובדיקת ההשפעה על הסבב</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-secondary" onclick="switchTab('admin-users')">→ חזרה לתורנים</button>
+            <button class="btn btn-secondary" id="prep-pdf-btn" onclick="prepExportPDF()">📄 PDF לדיון</button>
+          </div>
+        </div>
+        <div class="prep-banner">🧪 תרחיש תיאורטי בלבד — לא משנה סוג תורנות, שיבוץ, ניקוד או אילוצים של אף תורן. את מה שיאושר בדיון מעדכנים ידנית בעמוד התורנים.</div>
+        <div id="prep-alert"></div>
+        <div id="prep-content"><div style="text-align:center;padding:40px;color:var(--text2)">⏳ טוען...</div></div>
       </div>
       <!-- ADMIN: HOME TAB -->
       <div id="tab-admin-home" class="tab-content hidden">
@@ -1801,7 +1855,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">v2 13/10/2026 07:34</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">v2 13/10/2026 08:27</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1814,8 +1868,8 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = 'v2 13/10/2026 07:34';
-const BUILD_EPOCH = 1791866075118; // ms — when this exact file was pushed
+const BUILD_STAMP = 'v2 13/10/2026 08:27';
+const BUILD_EPOCH = 1791869222709; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -1924,7 +1978,7 @@ const _SHORT_CACHE = ['getAllConstraints','getSwaps','getAuditLog'];
 // by default — the safe direction to fail in.
 const _READ_ACTIONS = ['getPeople','getScores','getAllTornim','getDutyTypes','getSchedule',
   'getConstraints','getAllConstraints','getLockStatus','getSwaps','getProfile','getUsers',
-  'getAuditLog','getToraniHistory','getNotifications','getAdminDashboard','bootstrap','ping','login','debugSwap'];
+  'getAuditLog','getToraniHistory','getNotifications','getAdminDashboard','bootstrap','ping','login','debugSwap','prepList'];
 
 function _cacheKey(params) {
   // `year` must be part of the key: getScores is cacheable, and without it a
@@ -2615,6 +2669,7 @@ const TAB_LOADERS = {
   'swap':               ()  => initSwapTab(),
   'admin-swaps':        ()  => loadAdminSwaps(),
   'admin-audit':        ()  => loadAuditLog(),
+  'admin-prep':         (r) => loadPrep(r),
   'guide':              ()  => {}
 };
 
@@ -3176,6 +3231,8 @@ async function loadUsers() { // keep name for tab switching
   // Hide add button for viewer
   const addBtn = document.getElementById('btn-add-torani');
   if (addBtn) addBtn.style.display = currentUser.role === 'viewer' ? 'none' : '';
+  const prepBtn = document.getElementById('btn-prep');
+  if (prepBtn) prepBtn.style.display = currentUser.role === 'admin' ? '' : 'none';
   showLoading(true);
   const res = await api({action:'getAllTornim'});
   showLoading(false);
@@ -3587,6 +3644,525 @@ async function exportTornimPDF() {
     alert('שגיאה בהפקת הדוח: ' + err.message);
   } finally {
     if (btn) { btn.disabled = false; btn.innerHTML = btnOrig; }
+  }
+}
+
+// =====================================================
+// DISCUSSION PREP — theoretical "what-if" scenarios for the periodic
+// duty-roster discussion. Reads the roster, never writes to it: scenarios are
+// stored server-side in their own admin-only collection (prepList/prepSave/prepDelete)
+// and have no link to scheduling, scores, constraints or a torani's category.
+// =====================================================
+const PREP_STATUSES = ['רגיל', 'פטור 24 שעות', 'אב', 'טרם הוסמך', 'פטור', 'יוצא'];
+const PREP_META = {
+  'רגיל':          { icon: '✅', color: 'var(--accent)', pdf: '#16a34a', w: 1,   wknd: true  },
+  'פטור 24 שעות':  { icon: '⏱️', color: 'var(--info)',   pdf: '#2563eb', w: 1,   wknd: false },
+  'אב':            { icon: '👶', color: '#f59e0b',       pdf: '#b45309', w: 0.5, wknd: false },
+  'טרם הוסמך':     { icon: '🎓', color: 'var(--text3)',  pdf: '#6b7280', w: 0,   wknd: false },
+  'פטור':          { icon: '🛡️', color: 'var(--danger)', pdf: '#dc2626', w: 0,   wknd: false },
+  'יוצא':          { icon: '🚪', color: 'var(--text2)',  pdf: '#374151', w: 0,   wknd: false },
+  'חדש':           { icon: '✨', color: 'var(--text2)',  pdf: '#374151', w: 0,   wknd: false }
+};
+const PREP_DECISIONS = ['פתוח', 'מאושר', 'נדחה'];
+const PREP_DEC_COLOR = { 'פתוח': 'var(--warn)', 'מאושר': 'var(--accent)', 'נדחה': 'var(--text3)' };
+const PREP_MONTHS_HE = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+
+const _prep = {
+  roster: [], scenarios: [], cur: null, selMonth: null, form: null,
+  saveTimer: null, saving: false, dirty: false, lastSavedAt: '', loaded: false
+};
+
+function prepStatusOf(t) {
+  const c = String(t.dutyCategory || '');
+  if (c === 'אב') return 'אב';
+  if (c === 'פטור 24 שעות') return 'פטור 24 שעות';
+  if (c === 'טרם הוסמך' || c === 'לא מוסמך') return 'טרם הוסמך';
+  if (c === 'פטור' || String(t.activity) === '0') return 'פטור';
+  return 'רגיל';
+}
+function prepUid() { return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function prepYm(d) { return d.getFullYear() * 100 + (d.getMonth() + 1); }
+function prepYmAdd(ym, n) { let y = Math.floor(ym / 100), m = ym % 100 - 1 + n; y += Math.floor(m / 12); m = ((m % 12) + 12) % 12; return y * 100 + m + 1; }
+function prepYmLabel(ym, short) { const m = PREP_MONTHS_HE[ym % 100 - 1]; return short ? `${m.slice(0, 3)}׳ ${String(Math.floor(ym / 100)).slice(2)}` : `${m} ${Math.floor(ym / 100)}`; }
+function prepDays(ym) { return new Date(Math.floor(ym / 100), ym % 100, 0).getDate(); }
+function prepFmtDate(s) { if (!s) return '—'; const [y, m, d] = String(s).split('-'); return `${d}/${m}/${y}`; }
+// A change counts from the month it takes effect in when it lands on or before the 15th,
+// otherwise from the following month (the torani still carries most of that month).
+function prepEffYm(dateStr) {
+  if (!dateStr) return 0;
+  const [y, m, d] = String(dateStr).split('-').map(Number);
+  const ym = y * 100 + m;
+  return d <= 15 ? ym : prepYmAdd(ym, 1);
+}
+function prepNewScenario(name) {
+  return { id: '', name: name || 'תרחיש לדיון', data: { startYm: prepYmAdd(prepYm(new Date()), 1), months: 6, includeOpen: true, changes: [], dismissed: [] } };
+}
+
+async function loadPrep(isRefresh) {
+  const el = document.getElementById('prep-content');
+  if (!el) return;
+  if (!isRefresh && !_prep.loaded) el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text2)">⏳ טוען...</div>';
+  try {
+    const [tr, sr] = await Promise.all([api({ action: 'getAllTornim' }), api({ action: 'prepList' })]);
+    if (!tr.success) throw new Error(tr.error || 'שגיאה בטעינת תורנים');
+    if (!sr.success) throw new Error(sr.error || 'שגיאה בטעינת תרחישים');
+    _prep.roster = (tr.tornim || [])
+      .filter(t => t.active && !t.archived && t.role !== 'admin' && t.role !== 'viewer' && t.dutyCategory !== 'מנהל מערכת')
+      .map(t => ({ name: t.name, status: prepStatusOf(t), endDate: t.endDate || '', avCycle: t.avCycle || '' }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'he'));
+    // keep unsaved local edits on refresh
+    if (!_prep.dirty || !_prep.cur) {
+      _prep.scenarios = (sr.scenarios || []).map(s => ({ id: s.id, name: s.name, data: Object.assign(prepNewScenario().data, s.data || {}), updatedAt: s.updatedAt }));
+      const keepId = _prep.cur && _prep.cur.id;
+      _prep.cur = _prep.scenarios.find(s => s.id === keepId) || _prep.scenarios[0] || prepNewScenario();
+      _prep.lastSavedAt = _prep.cur.updatedAt || '';
+    }
+    _prep.loaded = true;
+    renderPrep();
+  } catch (e) {
+    el.innerHTML = `<div class="alert alert-error">✗ ${escapeHtml(e.message || String(e))}</div>`;
+  }
+}
+
+// ── model ──
+function prepActiveChanges(d) {
+  return (d.changes || []).filter(c => c.decision !== 'נדחה' && (d.includeOpen || c.decision === 'מאושר'))
+    .slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
+}
+// roster state (name -> status) at the given month
+function prepStateAt(ym, d) {
+  const st = {};
+  _prep.roster.forEach(p => { st[p.name] = p.status; });
+  prepActiveChanges(d).forEach(c => { if (c.date && prepEffYm(c.date) <= ym) st[c.name] = c.to; });
+  return st;
+}
+function prepStats(st, days) {
+  const counts = {}; PREP_STATUSES.forEach(s => { counts[s] = 0; });
+  let eff = 0, wknd = 0;
+  Object.values(st).forEach(s => {
+    if (!(s in counts)) return;
+    counts[s]++;
+    eff += PREP_META[s].w;
+    if (PREP_META[s].wknd) wknd++;
+  });
+  const interval = eff;   // one מבצע a day shared by `eff` tornim → ~eff days between duties each
+  const rot = counts['רגיל'] + counts['פטור 24 שעות'] + counts['אב'];
+  return { counts, eff, wknd, interval, rot, perMonth: eff > 0 ? (days || 30) / eff : 0 };
+}
+function prepIntervalColor(iv) { return iv < 14 ? 'var(--danger)' : iv < 21 ? 'var(--warn)' : 'var(--accent)'; }
+
+function prepSuggestions(d) {
+  const end = prepYmAdd(d.startYm, d.months - 1);
+  const todayYm = prepYm(new Date());
+  const has = new Set((d.changes || []).filter(c => c.to === 'יוצא').map(c => c.name));
+  const dism = new Set(d.dismissed || []);
+  return _prep.roster.filter(p => p.endDate && !has.has(p.name) && !dism.has(p.name) && p.status !== 'יוצא')
+    .filter(p => { const ym = prepEffYm(p.endDate); return ym >= todayYm && ym <= end; });
+}
+
+// ── render ──
+function renderPrep() {
+  const el = document.getElementById('prep-content');
+  if (!el || !_prep.cur) return;
+  const sc = _prep.cur, d = sc.data;
+  const months = []; for (let i = 0; i < d.months; i++) months.push(prepYmAdd(d.startYm, i));
+  if (!_prep.selMonth || !months.includes(_prep.selMonth)) _prep.selMonth = months[months.length - 1];
+
+  const todayStats = prepStats(prepStateAt(0, d), 30);
+  const endYm = months[months.length - 1];
+  const endStats = prepStats(prepStateAt(endYm, d), prepDays(endYm));
+  const rows = months.map(ym => ({ ym, s: prepStats(prepStateAt(ym, d), prepDays(ym)) }));
+  const minRow = rows.reduce((a, b) => (b.s.interval < a.s.interval ? b : a), rows[0]);
+
+  const scOpts = _prep.scenarios.map(s => `<option value="${escapeHtml(s.id)}" ${s.id === sc.id ? 'selected' : ''}>${escapeHtml(s.name)}</option>`).join('')
+    + (!sc.id ? `<option value="" selected>${escapeHtml(sc.name)} (חדש)</option>` : '');
+  const startOpts = []; const base = prepYm(new Date());
+  for (let i = -1; i <= 12; i++) { const ym = prepYmAdd(base, i); startOpts.push(`<option value="${ym}" ${ym === d.startYm ? 'selected' : ''}>${prepYmLabel(ym)}</option>`); }
+
+  const kpi = (label, a, b, fmt, colorFn) => {
+    const fa = fmt(a), fb = fmt(b), diff = Math.round((b - a) * 10) / 10;
+    const col = colorFn ? colorFn(b) : 'var(--text)';
+    return `<div class="prep-kpi">
+      <div class="prep-kpi-label">${label}</div>
+      <div class="prep-kpi-vals"><span class="prep-kpi-a">${fa}</span><span class="prep-kpi-arrow">←</span><span class="prep-kpi-b" style="color:${col}">${fb}</span></div>
+      <div class="prep-kpi-diff" style="color:${diff < 0 ? 'var(--danger)' : diff > 0 ? 'var(--accent)' : 'var(--text3)'}">${diff === 0 ? 'ללא שינוי' : (diff > 0 ? '+' : '') + diff}</div>
+    </div>`;
+  };
+  const fmt1 = v => (Math.round(v * 10) / 10).toString();
+  const fmtIv = v => v ? `~${Math.round(v)} ימים` : '—';
+
+  const tableRows = rows.map(({ ym, s }) => `
+    <tr class="${ym === _prep.selMonth ? 'prep-row-sel' : ''}" onclick="prepSelectMonth(${ym})">
+      <td style="font-weight:700;white-space:nowrap">${prepYmLabel(ym, true)}</td>
+      <td style="font-weight:700;color:${prepIntervalColor(s.interval)};white-space:nowrap">${fmtIv(s.interval)}</td>
+      <td>${s.counts['רגיל']}</td><td>${s.counts['פטור 24 שעות']}</td><td>${s.counts['אב']}</td>
+      <td>${s.counts['פטור'] + s.counts['טרם הוסמך']}</td>
+      <td>${s.wknd}</td>
+    </tr>`).join('');
+
+  const sugg = prepSuggestions(d);
+  const suggHtml = sugg.length ? `<div class="prep-sugg">
+      <div style="font-weight:700;margin-bottom:6px">⏳ ${sugg.length} תורנים עם תאריך סיום בטווח שעוד לא בתרחיש</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${sugg.map(p => `
+        <span class="prep-chip">${escapeHtml(p.name)} · ${prepFmtDate(p.endDate)}
+          <button title="הוסף כמסיים" data-n="${escapeHtml(p.name)}" onclick="prepAddSuggestion(this.dataset.n)">＋</button>
+          <button title="התעלם" data-n="${escapeHtml(p.name)}" onclick="prepDismiss(this.dataset.n)">✕</button>
+        </span>`).join('')}</div>
+      ${sugg.length > 1 ? `<button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="prepAddAllSuggestions()">＋ הוסף את כולם כמסיימים</button>` : ''}
+    </div>` : '';
+
+  const changes = (d.changes || []).slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  const changeCards = changes.map(c => {
+    const fm = PREP_META[c.from] || PREP_META['רגיל'], tm = PREP_META[c.to] || PREP_META['רגיל'];
+    return `<div class="prep-change ${c.decision === 'נדחה' ? 'prep-rejected' : ''}">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
+        <div style="min-width:0">
+          <div style="font-weight:700">${escapeHtml(c.name)}${c.isNew ? ' <span style="font-size:11px;color:var(--text3)">(חדש)</span>' : ''}</div>
+          <div style="font-size:12px;margin-top:2px">
+            <span style="color:${fm.color}">${fm.icon} ${escapeHtml(c.from)}</span> ← <span style="color:${tm.color};font-weight:700">${tm.icon} ${escapeHtml(c.to)}</span>
+            · 📅 ${prepFmtDate(c.date)}
+          </div>
+          ${c.note ? `<div style="font-size:12px;color:var(--text2);margin-top:3px">📝 ${escapeHtml(c.note)}</div>` : ''}
+        </div>
+        <div style="display:flex;gap:4px;flex-shrink:0">
+          <button class="btn btn-secondary btn-sm" onclick="prepEditChange('${c.id}')" title="עריכה">✏️</button>
+          <button class="btn btn-secondary btn-sm" onclick="prepDeleteChange('${c.id}')" title="הסר מהתרחיש">🗑️</button>
+        </div>
+      </div>
+      <div class="prep-dec">${PREP_DECISIONS.map(x => `<button class="${c.decision === x ? 'on' : ''}" style="${c.decision === x ? `background:${PREP_DEC_COLOR[x]};border-color:${PREP_DEC_COLOR[x]};color:#fff` : ''}" onclick="prepSetDecision('${c.id}','${x}')">${x}</button>`).join('')}</div>
+    </div>`;
+  }).join('') || '<div style="color:var(--text3);text-align:center;padding:14px;font-size:13px">אין עדיין שינויים בתרחיש — הוסף שינוי או לחץ על תורן ברשימה למטה</div>';
+
+  // roster at selected month, grouped
+  const stSel = prepStateAt(_prep.selMonth, d);
+  const nowSt = prepStateAt(0, d);
+  const allNames = Object.keys(stSel);
+  const groups = PREP_STATUSES.map(s => {
+    const list = allNames.filter(n => stSel[n] === s).sort((a, b) => a.localeCompare(b, 'he'));
+    if (!list.length && s === 'יוצא') return '';
+    const m = PREP_META[s];
+    return `<div class="prep-group">
+      <div class="prep-group-h" style="border-color:${m.color};color:${m.color}">${m.icon} ${s} <span style="color:var(--text3);font-weight:400">(${list.length})</span></div>
+      ${list.map(n => {
+        const moved = nowSt[n] !== s;
+        return `<button class="prep-person ${moved ? 'moved' : ''}" data-n="${escapeHtml(n)}" onclick="prepOpenForm(this.dataset.n)">${escapeHtml(n)}${moved ? `<span class="prep-from">${nowSt[n] === 'חדש' || nowSt[n] === undefined ? 'חדש' : 'היה ' + escapeHtml(nowSt[n])}</span>` : ''}</button>`;
+      }).join('') || '<div style="font-size:12px;color:var(--text3);padding:4px">—</div>'}
+    </div>`;
+  }).join('');
+
+  const saveState = _prep.saving ? '⏳ שומר...' : _prep.dirty ? '● שינויים לא שמורים' : (_prep.lastSavedAt ? '✓ נשמר ' + new Date(_prep.lastSavedAt).toLocaleString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '');
+
+  el.innerHTML = `
+    <div class="card prep-bar">
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+        <select id="prep-sc-select" onchange="prepSwitchScenario(this.value)" class="prep-input" style="flex:1;min-width:160px">${scOpts}</select>
+        <button class="btn btn-secondary btn-sm" onclick="prepCreateScenario()" title="תרחיש חדש">＋ חדש</button>
+        <button class="btn btn-secondary btn-sm" onclick="prepDuplicateScenario()" title="שכפול התרחיש">⧉ שכפל</button>
+        <button class="btn btn-secondary btn-sm" onclick="prepRenameScenario()" title="שינוי שם">✏️ שם</button>
+        <button class="btn btn-secondary btn-sm" onclick="prepDeleteScenario()" title="מחיקת התרחיש" style="color:var(--danger)">🗑️</button>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px;font-size:13px">
+        <label>מחודש <select class="prep-input" onchange="prepSetField('startYm', +this.value)">${startOpts.join('')}</select></label>
+        <label>למשך <select class="prep-input" onchange="prepSetField('months', +this.value)">${[3, 4, 6, 9, 12].map(n => `<option value="${n}" ${n === d.months ? 'selected' : ''}>${n} חודשים</option>`).join('')}</select></label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" ${d.includeOpen ? 'checked' : ''} onchange="prepSetField('includeOpen', this.checked)"> כלול שינויים פתוחים בחישוב</label>
+        <span id="prep-save-state" style="margin-inline-start:auto;color:var(--text3);font-size:12px">${saveState}</span>
+      </div>
+    </div>
+
+    <div class="prep-kpis">
+      ${kpi('תורנים בסבב', todayStats.rot, endStats.rot, v => String(v))}
+      ${kpi('תורנות לכל תורן', todayStats.interval, endStats.interval, v => fmtIv(v).replace('~', ''), prepIntervalColor)}
+      ${kpi('זכאים לסופ״ש', todayStats.wknd, endStats.wknd, v => String(v))}
+      ${kpi('פטורים + טרם הוסמכו', todayStats.counts['פטור'] + todayStats.counts['טרם הוסמך'], endStats.counts['פטור'] + endStats.counts['טרם הוסמך'], v => String(v))}
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin:-4px 2px 12px">היום ← ${prepYmLabel(endYm)}${minRow && minRow.s.interval < 14 ? ` · <b style="color:var(--danger)">⚠️ ב${prepYmLabel(minRow.ym)} התדירות יורדת מתחת לשבועיים</b>` : ''}</div>
+
+    <div class="card" style="margin-bottom:14px;padding:12px">
+      <div style="font-weight:700;margin-bottom:8px">📈 לפי חודשים <span style="font-weight:400;font-size:12px;color:var(--text3)">· לחץ על חודש לראות את מצב התורנים בו</span></div>
+      <div style="overflow-x:auto">
+        <table class="prep-table">
+          <thead><tr><th>חודש</th><th>תורנות כל</th><th>רגילים</th><th>פטור 24</th><th>אב</th><th>פטורים</th><th>סופ״ש</th></tr></thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:6px">"תורנות כל" = מבצע אחד ביום מחולק בין התורנים בסבב (רגיל ופטור 24 = תורן שלם, משרת אב = חצי, פטור / טרם הוסמך = 0). ירוק = 3 שבועות ומעלה, כתום = 2–3 שבועות, אדום = פחות משבועיים. שינוי שחל עד ה-15 בחודש נספר מאותו חודש, אחרת מהחודש הבא.</div>
+    </div>
+
+    ${suggHtml}
+
+    <div class="prep-cols">
+      <div class="card" style="padding:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-weight:700">🔀 שינויים מתוכננים (${changes.length})</div>
+          <button class="btn btn-primary btn-sm" onclick="prepOpenForm()">＋ הוסף שינוי</button>
+        </div>
+        <div id="prep-form-slot">${_prep.form ? prepFormHtml() : ''}</div>
+        <div style="display:flex;flex-direction:column;gap:8px">${changeCards}</div>
+      </div>
+      <div class="card" style="padding:12px">
+        <div style="font-weight:700;margin-bottom:8px">👥 התורנים ב${prepYmLabel(_prep.selMonth)} <span style="font-weight:400;font-size:12px;color:var(--text3)">· לחץ על שם להוספת שינוי</span></div>
+        ${groups}
+      </div>
+    </div>`;
+}
+
+function prepFormHtml() {
+  const f = _prep.form;
+  const names = _prep.roster.map(p => p.name);
+  const nameField = f.isNew
+    ? `<input id="prep-f-name" class="prep-input" style="width:100%" placeholder="שם התורן החדש" value="${escapeHtml(f.name || '')}">`
+    : `<select id="prep-f-name" class="prep-input" style="width:100%" onchange="prepFormNameChanged(this.value)">
+        <option value="">— בחר תורן —</option>
+        ${names.map(n => `<option ${n === f.name ? 'selected' : ''}>${escapeHtml(n)}</option>`).join('')}
+      </select>`;
+  const fromLabel = f.isNew ? 'חדש' : (f.name ? prepFromStatus(f.name, f.date, f.id) : '—');
+  return `<div class="prep-form">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <b>${f.id ? 'עריכת שינוי' : 'שינוי חדש'}</b>
+      <label style="font-size:12px;display:flex;gap:4px;align-items:center;cursor:pointer"><input type="checkbox" ${f.isNew ? 'checked' : ''} onchange="prepFormToggleNew(this.checked)"> תורן חדש (מצטרף)</label>
+    </div>
+    <div class="form-group" style="margin-bottom:8px">${nameField}</div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:6px">סטטוס לפני השינוי: <b>${escapeHtml(fromLabel)}</b></div>
+    <div class="prep-status-pick">${PREP_STATUSES.filter(s => !(f.isNew && s === 'יוצא')).map(s => `<button type="button" class="${f.to === s ? 'on' : ''}" style="${f.to === s ? `border-color:${PREP_META[s].color};color:${PREP_META[s].color}` : ''}" onclick="prepFormSet('to','${s}')">${PREP_META[s].icon} ${s}</button>`).join('')}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+      <label style="font-size:12px;flex:1;min-width:140px">תאריך תחולה<input id="prep-f-date" type="date" class="prep-input" style="width:100%" value="${escapeHtml(f.date || '')}" onchange="prepFormSet('date', this.value, true)"></label>
+      <label style="font-size:12px;flex:2;min-width:180px">סיבה / הערה<input id="prep-f-note" class="prep-input" style="width:100%" value="${escapeHtml(f.note || '')}" placeholder="לדוגמה: סיום שירות, לידה, חזרה מחופשת לידה"></label>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="btn btn-primary btn-sm" onclick="prepSubmitForm()">✔ שמור בתרחיש</button>
+      <button class="btn btn-secondary btn-sm" onclick="prepCloseForm()">ביטול</button>
+    </div>
+  </div>`;
+}
+
+// status right before a change at the given date (ignoring the change being edited)
+function prepFromStatus(name, date, exceptId) {
+  const d = _prep.cur.data;
+  const p = _prep.roster.find(x => x.name === name);
+  let st = p ? p.status : 'חדש';
+  (d.changes || []).filter(c => c.name === name && c.id !== exceptId && c.decision !== 'נדחה' && (!date || String(c.date) <= String(date)))
+    .sort((a, b) => String(a.date).localeCompare(String(b.date))).forEach(c => { st = c.to; });
+  return st;
+}
+
+// ── form handlers ──
+function prepCaptureForm() {
+  const f = _prep.form; if (!f) return;
+  const n = document.getElementById('prep-f-name'), dt = document.getElementById('prep-f-date'), nt = document.getElementById('prep-f-note');
+  if (n) f.name = n.value.trim(); if (dt) f.date = dt.value; if (nt) f.note = nt.value;
+}
+function prepOpenForm(name) {
+  const p = name && _prep.roster.find(x => x.name === name);
+  const isNew = !!name && !p && (_prep.cur.data.changes || []).some(c => c.name === name && c.isNew);
+  _prep.form = { id: '', name: name || '', to: '', date: '', note: '', isNew };
+  if (p && p.endDate && !(_prep.cur.data.changes || []).some(c => c.name === name && c.to === 'יוצא')) {
+    _prep.form.to = 'יוצא'; _prep.form.date = p.endDate; _prep.form.note = 'סיום שירות';
+  }
+  renderPrep();
+  const slot = document.getElementById('prep-form-slot');
+  if (slot) slot.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function prepEditChange(id) {
+  const c = (_prep.cur.data.changes || []).find(x => x.id === id); if (!c) return;
+  _prep.form = { id: c.id, name: c.name, to: c.to, date: c.date, note: c.note || '', isNew: !!c.isNew };
+  renderPrep();
+  const slot = document.getElementById('prep-form-slot');
+  if (slot) slot.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function prepCloseForm() { _prep.form = null; renderPrep(); }
+function prepFormSet(k, v, keep) { prepCaptureForm(); _prep.form[k] = v; if (!keep || k === 'date') renderPrep(); }
+function prepFormNameChanged(v) { prepCaptureForm(); _prep.form.name = v; renderPrep(); }
+function prepFormToggleNew(on) { prepCaptureForm(); _prep.form.isNew = on; _prep.form.name = ''; if (on && _prep.form.to === 'יוצא') _prep.form.to = ''; renderPrep(); }
+function prepSubmitForm() {
+  prepCaptureForm();
+  const f = _prep.form;
+  if (!f.name) return showAlert('prep-alert', 'יש לבחור תורן', 'error');
+  if (!f.to) return showAlert('prep-alert', 'יש לבחור סטטוס יעד', 'error');
+  if (!f.date) return showAlert('prep-alert', 'יש לבחור תאריך תחולה', 'error');
+  if (f.isNew && _prep.roster.some(p => p.name === f.name)) return showAlert('prep-alert', 'כבר קיים תורן בשם הזה', 'error');
+  const from = f.isNew ? 'חדש' : prepFromStatus(f.name, f.date, f.id);
+  if (from === f.to) return showAlert('prep-alert', `${escapeHtml(f.name)} כבר בסטטוס "${escapeHtml(f.to)}" בתאריך הזה`, 'error');
+  const list = _prep.cur.data.changes || (_prep.cur.data.changes = []);
+  const existing = f.id && list.find(c => c.id === f.id);
+  if (existing) Object.assign(existing, { name: f.name, to: f.to, date: f.date, note: f.note, from, isNew: !!f.isNew });
+  else list.push({ id: prepUid(), name: f.name, from, to: f.to, date: f.date, note: f.note, decision: 'פתוח', isNew: !!f.isNew });
+  prepRecomputeFrom(f.name);
+  _prep.form = null;
+  const pa = document.getElementById('prep-alert'); if (pa) pa.innerHTML = '';
+  prepMarkDirty();
+}
+// keep each change's "from" consistent after edits to the same torani
+function prepRecomputeFrom(name) {
+  const list = (_prep.cur.data.changes || []).filter(c => c.name === name).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  const p = _prep.roster.find(x => x.name === name);
+  let st = p ? p.status : 'חדש';
+  list.forEach(c => { c.from = st; if (c.decision !== 'נדחה') st = c.to; });
+}
+function prepDeleteChange(id) {
+  const list = _prep.cur.data.changes || [];
+  const c = list.find(x => x.id === id); if (!c) return;
+  if (!confirm(`להסיר את השינוי של ${c.name} מהתרחיש?`)) return;
+  _prep.cur.data.changes = list.filter(x => x.id !== id);
+  prepRecomputeFrom(c.name);
+  prepMarkDirty();
+}
+function prepSetDecision(id, dec) {
+  const c = (_prep.cur.data.changes || []).find(x => x.id === id); if (!c) return;
+  c.decision = dec; prepRecomputeFrom(c.name); prepMarkDirty();
+}
+function prepAddSuggestion(name) {
+  const p = _prep.roster.find(x => x.name === name); if (!p) return;
+  (_prep.cur.data.changes = _prep.cur.data.changes || []).push({ id: prepUid(), name, from: p.status, to: 'יוצא', date: p.endDate, note: 'סיום שירות', decision: 'פתוח' });
+  prepRecomputeFrom(name); prepMarkDirty();
+}
+function prepAddAllSuggestions() { prepSuggestions(_prep.cur.data).forEach(p => prepAddSuggestion(p.name)); }
+function prepDismiss(name) { (_prep.cur.data.dismissed = _prep.cur.data.dismissed || []).push(name); prepMarkDirty(); }
+function prepSelectMonth(ym) { _prep.selMonth = ym; prepCaptureForm(); renderPrep(); }
+function prepSetField(k, v) { prepCaptureForm(); _prep.cur.data[k] = v; prepMarkDirty(); }
+
+// ── scenarios ──
+async function prepSwitchScenario(id) {
+  await prepFlushSave();
+  const s = _prep.scenarios.find(x => x.id === id); if (!s) return;
+  _prep.cur = s; _prep.form = null; _prep.selMonth = null; _prep.lastSavedAt = s.updatedAt || ''; renderPrep();
+}
+async function prepCreateScenario() {
+  await prepFlushSave();
+  const name = prompt('שם התרחיש:', 'דיון ' + prepYmLabel(prepYmAdd(prepYm(new Date()), 1)));
+  if (name === null) return;
+  _prep.cur = prepNewScenario(name.trim() || 'תרחיש לדיון'); _prep.form = null; _prep.selMonth = null;
+  prepMarkDirty(true);
+}
+async function prepDuplicateScenario() {
+  await prepFlushSave();
+  const name = prompt('שם לעותק:', _prep.cur.name + ' (עותק)');
+  if (name === null) return;
+  _prep.cur = { id: '', name: name.trim() || _prep.cur.name + ' (עותק)', data: JSON.parse(JSON.stringify(_prep.cur.data)) };
+  _prep.form = null;
+  prepMarkDirty(true);
+}
+function prepRenameScenario() {
+  const name = prompt('שם חדש לתרחיש:', _prep.cur.name);
+  if (name === null || !name.trim()) return;
+  _prep.cur.name = name.trim(); prepMarkDirty();
+}
+async function prepDeleteScenario() {
+  const sc = _prep.cur;
+  if (!confirm(`למחוק את התרחיש "${sc.name}"?\n(לא משפיע על התורנים או על הלוח)`)) return;
+  clearTimeout(_prep.saveTimer); _prep.dirty = false;
+  if (sc.id) {
+    const r = await api({ action: 'prepDelete', id: sc.id });
+    if (!r.success) return showAlert('prep-alert', r.error || 'שגיאה במחיקה', 'error');
+  }
+  _prep.scenarios = _prep.scenarios.filter(s => s.id !== sc.id);
+  _prep.cur = _prep.scenarios[0] || prepNewScenario();
+  _prep.lastSavedAt = _prep.cur.updatedAt || ''; _prep.form = null; _prep.selMonth = null;
+  renderPrep();
+}
+
+// ── saving (debounced) ──
+function prepMarkDirty(now) {
+  _prep.dirty = true;
+  renderPrep();
+  clearTimeout(_prep.saveTimer);
+  _prep.saveTimer = setTimeout(prepSave, now ? 50 : 1200);
+}
+async function prepFlushSave() { if (_prep.dirty) { clearTimeout(_prep.saveTimer); await prepSave(); } }
+async function prepSave() {
+  if (_prep.saving) { clearTimeout(_prep.saveTimer); _prep.saveTimer = setTimeout(prepSave, 600); return; }
+  const sc = _prep.cur; if (!sc) return;
+  _prep.saving = true; _prep.dirty = false;
+  const wasNew = !sc.id;
+  const st = document.getElementById('prep-save-state'); if (st) st.textContent = '⏳ שומר...';
+  try {
+    const r = await api({ action: 'prepSave', id: sc.id || '', name: sc.name, data: sc.data });
+    if (!r.success) throw new Error(r.error || 'שגיאה בשמירה');
+    sc.id = r.id; sc.updatedAt = r.updatedAt; _prep.lastSavedAt = r.updatedAt;
+    if (!_prep.scenarios.includes(sc)) _prep.scenarios.unshift(sc);
+  } catch (e) {
+    _prep.dirty = true;
+    showAlert('prep-alert', 'השמירה נכשלה: ' + escapeHtml(e.message || String(e)) + ' — ננסה שוב בשינוי הבא', 'error');
+  } finally {
+    _prep.saving = false;
+    const st2 = document.getElementById('prep-save-state');
+    if (st2) st2.textContent = _prep.dirty ? '● שינויים לא שמורים' : '✓ נשמר ' + new Date(_prep.lastSavedAt).toLocaleString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    if (wasNew && !_prep.form && currentTab === 'admin-prep') renderPrep();
+  }
+}
+window.addEventListener('beforeunload', e => { if (_prep.dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+// ── PDF for the discussion ──
+async function prepExportPDF() {
+  if (!_prep.cur) return;
+  if (typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined') return alert('ספריות ה-PDF עדיין נטענות, נסה שוב בעוד רגע');
+  const btn = document.getElementById('prep-pdf-btn'); const orig = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ מפיק...'; }
+  let wrap;
+  try {
+    const sc = _prep.cur, d = sc.data;
+    const months = []; for (let i = 0; i < d.months; i++) months.push(prepYmAdd(d.startYm, i));
+    const today = prepStats(prepStateAt(0, d), 30);
+    const rows = months.map(ym => ({ ym, s: prepStats(prepStateAt(ym, d), prepDays(ym)) }));
+    const end = rows[rows.length - 1].s;
+    const ivCol = iv => iv < 14 ? '#dc2626' : iv < 21 ? '#b45309' : '#16a34a';
+    const td = 'padding:4px 6px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:11px';
+    const th = 'padding:4px 6px;background:#f3f4f6;font-size:10px;color:#4b5563';
+    const changes = (d.changes || []).slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    const decCol = { 'פתוח': '#b45309', 'מאושר': '#16a34a', 'נדחה': '#9ca3af' };
+    const box = (label, a, b) => `<div style="flex:1;border:1px solid #e5e7eb;border-radius:8px;padding:8px;text-align:center">
+      <div style="font-size:10px;color:#6b7280">${label}</div>
+      <div style="font-size:16px;font-weight:800;margin-top:2px">${a} <span style="color:#9ca3af">←</span> ${b}</div></div>`;
+    const r1 = v => Math.round(v * 10) / 10;
+    wrap = document.createElement('div');
+    wrap.style.cssText = "position:fixed;top:-99999px;right:-99999px;background:#fff;padding:18px 22px;width:1000px;box-sizing:border-box;direction:rtl;font-family:Arial,'Segoe UI',sans-serif;color:#111827";
+    wrap.innerHTML = `
+      <div style="text-align:center;border-bottom:3px solid #16a34a;padding-bottom:8px;margin-bottom:10px">
+        <div style="font-size:18px;font-weight:900;color:#14532d">🗂️ היערכות לדיון תורנויות — ${escapeHtml(sc.name)}</div>
+        <div style="font-size:10.5px;color:#6b7280;margin-top:2px">הופק ${new Date().toLocaleDateString('he-IL')} · טווח: ${prepYmLabel(months[0])} – ${prepYmLabel(months[months.length - 1])} · ${d.includeOpen ? 'כולל שינויים פתוחים' : 'שינויים מאושרים בלבד'} · תרחיש תיאורטי</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        ${box('תורנים בסבב', today.rot, end.rot)}
+        ${box('תורנות לכל תורן (ימים)', '~' + Math.round(today.interval), '~' + Math.round(end.interval))}
+        ${box('זכאים לסופ״ש', today.wknd, end.wknd)}
+        ${box('פטורים + טרם הוסמכו', today.counts['פטור'] + today.counts['טרם הוסמך'], end.counts['פטור'] + end.counts['טרם הוסמך'])}
+      </div>
+      <div style="font-weight:800;font-size:13px;margin-bottom:4px">📈 לפי חודשים</div>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:12px">
+        <thead><tr><th style="${th}">חודש</th><th style="${th}">רגילים</th><th style="${th}">פטור 24</th><th style="${th}">אב</th><th style="${th}">פטורים</th><th style="${th}">תורנות כל</th><th style="${th}">סופ״ש</th></tr></thead>
+        <tbody><tr style="background:#f9fafb"><td style="${td};font-weight:700">היום</td><td style="${td}">${today.counts['רגיל']}</td><td style="${td}">${today.counts['פטור 24 שעות']}</td><td style="${td}">${today.counts['אב']}</td><td style="${td}">${today.counts['פטור'] + today.counts['טרם הוסמך']}</td><td style="${td};font-weight:700;color:${ivCol(today.interval)}">~${Math.round(today.interval)} ימים</td><td style="${td}">${today.wknd}</td></tr>
+        ${rows.map(({ ym, s }) => `<tr><td style="${td};font-weight:700">${prepYmLabel(ym)}</td><td style="${td}">${s.counts['רגיל']}</td><td style="${td}">${s.counts['פטור 24 שעות']}</td><td style="${td}">${s.counts['אב']}</td><td style="${td}">${s.counts['פטור'] + s.counts['טרם הוסמך']}</td><td style="${td};font-weight:700;color:${ivCol(s.interval)}">~${Math.round(s.interval)} ימים</td><td style="${td}">${s.wknd}</td></tr>`).join('')}</tbody>
+      </table>
+      <div style="font-weight:800;font-size:13px;margin-bottom:4px">🔀 שינויים מתוכננים (${changes.length})</div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr><th style="${th}">#</th><th style="${th};text-align:right">שם</th><th style="${th}">מ־</th><th style="${th}">אל</th><th style="${th}">תאריך</th><th style="${th}">החלטה</th><th style="${th};text-align:right">הערה</th></tr></thead>
+        <tbody>${changes.map((c, i) => `<tr style="${c.decision === 'נדחה' ? 'color:#9ca3af;text-decoration:line-through' : ''}">
+          <td style="${td};color:#9ca3af">${i + 1}</td><td style="${td};text-align:right;font-weight:700">${escapeHtml(c.name)}</td>
+          <td style="${td};color:${(PREP_META[c.from] || {}).pdf || '#374151'}">${escapeHtml(c.from)}</td><td style="${td};font-weight:700;color:${(PREP_META[c.to] || {}).pdf || '#374151'}">${escapeHtml(c.to)}</td>
+          <td style="${td}">${prepFmtDate(c.date)}</td><td style="${td};font-weight:700;color:${decCol[c.decision] || '#374151'}">${c.decision}</td>
+          <td style="${td};text-align:right">${escapeHtml(c.note || '')}</td></tr>`).join('') || `<tr><td colspan="7" style="${td};color:#9ca3af">אין שינויים</td></tr>`}</tbody>
+      </table>
+      <div style="font-size:9px;color:#9ca3af;margin-top:10px;text-align:center">"תורנות כל" = מבצע אחד ביום מחולק בין התורנים בסבב (רגיל/פטור 24 = 1, אב = 0.5) · מטל״מ</div>`;
+    document.body.appendChild(wrap);
+    const canvas = await html2canvas(wrap, { scale: 2, backgroundColor: '#ffffff' });
+    document.body.removeChild(wrap); wrap = null;
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight();
+    const pxPerPage = Math.floor(canvas.width * ph / pw);
+    for (let y = 0, page = 0; y < canvas.height; y += pxPerPage, page++) {
+      const h = Math.min(pxPerPage, canvas.height - y);
+      const part = document.createElement('canvas'); part.width = canvas.width; part.height = h;
+      part.getContext('2d').drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
+      if (page) pdf.addPage();
+      pdf.addImage(part.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pw, h * pw / canvas.width);
+    }
+    const n = new Date();
+    pdf.save(`היערכות-לדיון-${String(n.getDate()).padStart(2, '0')}-${String(n.getMonth() + 1).padStart(2, '0')}-${n.getFullYear()}.pdf`);
+  } catch (e) {
+    if (wrap && wrap.parentNode) document.body.removeChild(wrap);
+    alert('שגיאה בהפקת ה-PDF: ' + (e.message || e));
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = orig; }
   }
 }
 

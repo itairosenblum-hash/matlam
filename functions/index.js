@@ -206,10 +206,53 @@ function runMigrations() {
 
 // ---------- api ----------
 export const api = onCall({ invoker: "public" }, req => apiImpl(req).catch(wrapErr));
+// ---------- discussion prep scenarios (theoretical only) ----------
+// Admin-only drafts for the periodic duty-roster discussion. Stored in their own
+// collection, outside `sheets`, so they never touch People/Scores/Schedule/Constraints
+// and are not readable by regular members (firestore.rules deny everything not listed).
+const PREP = db.collection("prep");
+const PREP_MAX = 300000;
+async function prepAction(key, p) {
+  const r = await db.collection("roles").doc(key).get();
+  const role = r.exists ? r.data() : null;
+  if (!role || !role.active || role.role !== "admin") return { success: false, error: "אין הרשאת מנהל" };
+  const a = p.action;
+  if (a === "prepList") {
+    const snap = await PREP.get();
+    const scenarios = snap.docs.map(d => {
+      const x = d.data();
+      let data = null; try { data = JSON.parse(x.data || "null"); } catch (_) {}
+      return { id: d.id, name: x.name || "", data, updatedAt: x.updatedAt || "", by: x.by || "" };
+    }).sort((x, y) => String(y.updatedAt).localeCompare(String(x.updatedAt)));
+    return { success: true, scenarios };
+  }
+  if (a === "prepSave") {
+    const name = String(p.name || "").trim().slice(0, 80) || "תרחיש";
+    const json = JSON.stringify(p.data == null ? {} : p.data);
+    if (json.length > PREP_MAX) return { success: false, error: "התרחיש גדול מדי" };
+    const id = String(p.id || "");
+    if (id && !/^[A-Za-z0-9_-]{1,64}$/.test(id)) return { success: false, error: "מזהה לא תקין" };
+    const ref = id ? PREP.doc(id) : PREP.doc();
+    const updatedAt = new Date().toISOString();
+    await ref.set({ name, data: json, updatedAt, by: key });
+    return { success: true, id: ref.id, updatedAt };
+  }
+  if (a === "prepDelete") {
+    const id = String(p.id || "");
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(id)) return { success: false, error: "מזהה לא תקין" };
+    await PREP.doc(id).delete();
+    return { success: true };
+  }
+  return { success: false, error: "פעולה לא מוכרת" };
+}
+
 async function apiImpl(req) {
   if (!req.auth || !req.auth.token.email) throw new HttpsError("unauthenticated", "אין הרשאה");
   if (!req.auth.token.managed) throw new HttpsError("unauthenticated", "יש להתחבר מחדש");
   const params = req.data || {};
+  if (typeof params.action === "string" && params.action.startsWith("prep")) {
+    return prepAction(req.auth.token.email.split("@")[0], params);
+  }
   await runMigrations();
   if (params.action === "__warm") return { success: true };
   if (MAIL_ACTIONS_BLOCKED.includes(params.action)) return { success: false, error: "שליחת מיילים כללית אינה בשימוש" };
