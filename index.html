@@ -820,27 +820,18 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
   body.login-mode .login-logo .icon img{width:52px!important;height:52px!important}
 }
 
-/* ---- BOTTOM NAV: horizontal wheel ---- */
+/* ---- BOTTOM NAV: rotating ring, current page centred ---- */
 @media(max-width:600px){
-  #bottom-nav{height:74px;display:block;overflow:hidden}
-  #bottom-nav::before{content:"";position:absolute;top:0;left:50%;width:34px;height:3px;margin-left:-17px;
-    border-radius:0 0 3px 3px;background:var(--accent);z-index:2;pointer-events:none}
-  .bnav-wheel{display:flex;align-items:flex-end;height:100%;overflow-x:auto;overflow-y:hidden;
-    scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;
-    padding:0 calc(50% - 36px);
-    -webkit-mask-image:linear-gradient(to right,transparent 0,#000 22%,#000 78%,transparent 100%);
-            mask-image:linear-gradient(to right,transparent 0,#000 22%,#000 78%,transparent 100%)}
-  .bnav-wheel::-webkit-scrollbar{display:none}
-  #bottom-nav .bnav-item{--d:1;flex:0 0 72px;width:72px;scroll-snap-align:center;padding:0 0 8px;justify-content:flex-end;
-    transform:scale(calc(1 - .28 * var(--d)));transform-origin:50% 100%;opacity:calc(1 - .55 * var(--d));
-    will-change:transform,opacity}
-  #bottom-nav .bnav-icon{width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:50%;
-    font-size:26px;transform:none;transition:background .2s,box-shadow .2s}
-  #bottom-nav .bnav-label{font-size:11px;font-weight:600}
-  #bottom-nav .bnav-item.active .bnav-icon{background:var(--accent-glow);box-shadow:0 0 0 1.5px var(--accent)}
-  #bottom-nav .bnav-item.active .bnav-label{font-weight:700}
-  #bottom-nav .bnav-bdg{top:2px;right:calc(50% - 22px)}
-  .main{padding-bottom:86px}
+  #bottom-nav{height:70px;align-items:flex-end}
+  #bottom-nav .bnav-item{flex:1 1 0;padding:0 1px 7px;justify-content:flex-end;transition:flex-grow .25s ease}
+  #bottom-nav .bnav-icon{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:50%;
+    font-size:19px;transition:all .25s ease}
+  #bottom-nav .bnav-item.active{flex-grow:1.6}
+  #bottom-nav .bnav-item.active .bnav-icon{width:44px;height:44px;font-size:27px;transform:none;
+    background:var(--accent-glow);box-shadow:0 0 0 1.5px var(--accent)}
+  #bottom-nav .bnav-label{font-size:9.5px}
+  #bottom-nav .bnav-item.active .bnav-label{font-weight:700;font-size:10.5px}
+  .main{padding-bottom:82px}
 }
 /* ---- DISCUSSION PREP ---- */
 .prep-banner{background:rgba(56,139,253,.10);border:1px dashed var(--info);color:var(--text);border-radius:12px;padding:10px 14px;font-size:13px;margin-bottom:12px;line-height:1.5}
@@ -1924,7 +1915,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">v2 13/10/2026 19:17</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">v2 13/10/2026 19:21</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1937,8 +1928,8 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = 'v2 13/10/2026 19:17';
-const BUILD_EPOCH = 1791908250459; // ms — when this exact file was pushed
+const BUILD_STAMP = 'v2 13/10/2026 19:21';
+const BUILD_EPOCH = 1791908483288; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -2261,7 +2252,7 @@ function showImpersonateBanner(name) {
   const banner = document.createElement('div');
   banner.id = 'impersonate-banner';
   const isMob = window.innerWidth <= 600;
-  const bottomOffset = isMob ? 'calc(74px + env(safe-area-inset-bottom, 0px) + 12px)' : '16px';
+  const bottomOffset = isMob ? 'calc(60px + env(safe-area-inset-bottom, 0px) + 12px)' : '16px';
   banner.style.cssText = `position:fixed;bottom:${bottomOffset};right:16px;background:rgba(210,153,34,0.95);color:#000;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:600;z-index:9999;display:flex;align-items:center;gap:10px;box-shadow:0 4px 16px rgba(0,0,0,0.3)`;
   banner.innerHTML = `<span style="font-size:16px">👁️</span> צפייה כ: <strong>${name}</strong> <button onclick="exitImpersonate()" style="background:rgba(0,0,0,0.15);border:none;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600;margin-right:8px">חזור למנהל</button>`;
   document.body.appendChild(banner);
@@ -2675,7 +2666,7 @@ function buildNavTabs() {
   // Mobile bottom nav
   const bnav = document.getElementById('bottom-nav');
   if (bnav) {
-    bnav.innerHTML = '<div class="bnav-wheel" id="bnav-wheel">' + tabs.map(([id,icon,label]) =>
+    bnav.innerHTML = tabs.map(([id,icon,label]) =>
       `<button class="bnav-item" id="bnav-${id}" onclick="switchTab('${id}')">
         <span class="bnav-icon">${icon}</span>
         <span class="bnav-label">${label}</span>
@@ -2689,8 +2680,8 @@ function buildNavTabs() {
     `<button class="bnav-item" onclick="doLogout()" style="color:var(--danger)">
       <span class="bnav-icon">🚪</span>
       <span class="bnav-label">יציאה</span>
-    </button></div>`;
-    initBnavWheel();
+    </button>`;
+    initBnavRing();
   }
   // Show install button if on mobile and not installed
   requestAnimationFrame(() => {
@@ -2743,63 +2734,61 @@ const TAB_LOADERS = {
   'guide':              ()  => {}
 };
 
-// ---- Mobile bottom nav: horizontal wheel ----
-// Items scale/fade by distance from the centre. Swiping and letting go on a page
-// opens it; tapping an item opens it and rolls it to the centre. WhatsApp / logout
-// only act on tap, never just because the wheel stopped on them.
-let _bnavSettleTimer = null, _bnavRaf = 0;
-function bnavCenter(id, smooth) {
-  const wheel = document.getElementById('bnav-wheel');
-  const btn = document.getElementById('bnav-' + id);
-  if (!wheel || !btn || !wheel.offsetWidth) return;
-  const w = wheel.getBoundingClientRect(), b = btn.getBoundingClientRect();
-  const delta = (b.left + b.width / 2) - (w.left + w.width / 2);
-  if (Math.abs(delta) > 1) wheel.scrollBy({ left: delta, behavior: smooth ? 'smooth' : 'auto' });
-  bnavPaint();
-}
-function bnavPaint() {
-  _bnavRaf = 0;
-  const wheel = document.getElementById('bnav-wheel');
-  if (!wheel) return;
-  const w = wheel.getBoundingClientRect(), cx = w.left + w.width / 2, span = w.width / 2 || 1;
-  wheel.querySelectorAll('.bnav-item').forEach(el => {
-    const r = el.getBoundingClientRect();
-    const d = Math.min(1, Math.abs(r.left + r.width / 2 - cx) / span);
-    el.style.setProperty('--d', d.toFixed(3));
+// ---- Mobile bottom nav: rotating ring ----
+// All buttons stay visible; the page buttons rotate (wrapping around) so the
+// current page always sits in the middle. Swiping the bar left/right moves to the
+// neighbouring page. Changes are animated (FLIP) so items slide into place.
+function bnavRotate(id, animate) {
+  const bar = document.getElementById('bottom-nav');
+  if (!bar) return;
+  const items = Array.from(bar.querySelectorAll('.bnav-item'));
+  // Only page buttons rotate; WhatsApp stays at the right edge, logout at the left.
+  const pages = items.filter(el => el.id && el.id.indexOf('bnav-') === 0);
+  const extras = items.filter(el => pages.indexOf(el) < 0);
+  const a = pages.findIndex(el => el.id === 'bnav-' + id);
+  if (a < 0) return;
+  const n = pages.length, k = Math.floor((n - 1) / 2);
+  const before = animate && bar.offsetWidth ? items.map(el => el.getBoundingClientRect().left) : null;
+  pages.forEach((el, i) => { el.style.order = String(1 + ((i - a + k) % n + n) % n); });
+  extras.forEach((el, i) => { el.style.order = i === extras.length - 1 && i > 0 ? String(n + 1) : '0'; });
+  if (!before) return;
+  items.forEach((el, i) => {
+    const dx = before[i] - el.getBoundingClientRect().left;
+    if (Math.abs(dx) < 1) return;
+    el.style.transition = 'none';
+    el.style.transform = 'translateX(' + dx + 'px)';
   });
+  requestAnimationFrame(() => requestAnimationFrame(() => items.forEach(el => {
+    el.style.transition = 'transform .28s ease, flex-grow .25s ease';
+    el.style.transform = '';
+  })));
 }
-function bnavCentered() {
-  const wheel = document.getElementById('bnav-wheel');
-  if (!wheel) return null;
-  const w = wheel.getBoundingClientRect(), cx = w.left + w.width / 2;
-  let best = null, bestD = Infinity;
-  wheel.querySelectorAll('.bnav-item').forEach(el => {
-    const r = el.getBoundingClientRect();
-    const d = Math.abs(r.left + r.width / 2 - cx);
-    if (d < bestD) { bestD = d; best = el; }
-  });
-  return best;
+function bnavStep(dir) {
+  const bar = document.getElementById('bottom-nav');
+  if (!bar || !currentTab) return;
+  const tabsEls = Array.from(bar.querySelectorAll('.bnav-item[id^="bnav-"]'));
+  const i = tabsEls.findIndex(el => el.id === 'bnav-' + currentTab);
+  if (i < 0) return;
+  const next = tabsEls[(i + dir + tabsEls.length) % tabsEls.length];
+  switchTab(next.id.slice(5));
 }
-function bnavSettle() {
-  const el = bnavCentered();
-  if (!el || !el.id || el.id.indexOf('bnav-') !== 0) {
-    if (currentTab) bnavCenter(currentTab, true); // stopped on WhatsApp/logout — roll back
-    return;
-  }
-  const id = el.id.slice(5);
-  if (id !== currentTab) switchTab(id);
-}
-function initBnavWheel() {
-  const wheel = document.getElementById('bnav-wheel');
-  if (!wheel) return;
-  wheel.addEventListener('scroll', () => {
-    if (!_bnavRaf) _bnavRaf = requestAnimationFrame(bnavPaint);
-    clearTimeout(_bnavSettleTimer);
-    _bnavSettleTimer = setTimeout(bnavSettle, 180);
+function initBnavRing() {
+  const bar = document.getElementById('bottom-nav');
+  if (!bar) return;
+  if (currentTab) bnavRotate(currentTab, false);
+  if (bar._ringInit) return;
+  bar._ringInit = true;
+  let x0 = null, y0 = 0;
+  bar.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+  bar.addEventListener('touchend', e => {
+    if (x0 === null) return;
+    const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+    x0 = null;
+    if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return;
+    // finger moves left → the item to the right of centre slides in (previous in RTL order)
+    bnavStep(dx < 0 ? -1 : 1);
   }, { passive: true });
-  requestAnimationFrame(() => { if (currentTab) bnavCenter(currentTab, false); else bnavPaint(); });
 }
-window.addEventListener('resize', () => { if (currentTab) bnavCenter(currentTab, false); });
 
 function switchTab(id) {
   currentTab = id;
@@ -2812,7 +2801,7 @@ function switchTab(id) {
   if (nav) nav.classList.add('active');
   const bnavBtn = document.getElementById('bnav-'+id);
   if (bnavBtn) bnavBtn.classList.add('active');
-  bnavCenter(id, true);
+  bnavRotate(id, true);
 
   // Load data for tab
   const loader = TAB_LOADERS[id];
