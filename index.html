@@ -1201,7 +1201,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn btn-secondary" onclick="switchTab('admin-users')">→ חזרה לתורנים</button>
-            <button class="btn btn-secondary" id="prep-pdf-btn" onclick="prepExportPDF()">📄 PDF לדיון</button>
+            <button class="btn btn-secondary" id="prep-pdf-btn" onclick="prepExportPDF()" title="דוח תורנים צפוי לחודש שנבחר + טבלה חודשית ורשימת שינויים">📄 PDF לדיון</button>
           </div>
         </div>
         <div class="prep-banner">🧪 תרחיש תיאורטי בלבד — לא משנה סוג תורנות, שיבוץ, ניקוד או אילוצים של אף תורן. את מה שיאושר בדיון מעדכנים ידנית בעמוד התורנים.</div>
@@ -1855,7 +1855,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">v2 13/10/2026 08:55</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">v2 13/10/2026 09:12</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1868,8 +1868,8 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = 'v2 13/10/2026 08:55';
-const BUILD_EPOCH = 1791870937434; // ms — when this exact file was pushed
+const BUILD_STAMP = 'v2 13/10/2026 09:12';
+const BUILD_EPOCH = 1791871937492; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -3903,7 +3903,7 @@ function renderPrep() {
         <div style="display:flex;flex-direction:column;gap:8px">${changeCards}</div>
       </div>
       <div class="card" style="padding:12px">
-        <div style="font-weight:700;margin-bottom:8px">👥 התורנים ב${prepYmLabel(_prep.selMonth)} <span style="font-weight:400;font-size:12px;color:var(--text3)">· לחץ על שם להוספת שינוי</span></div>
+        <div style="font-weight:700;margin-bottom:8px">👥 התורנים ב${prepYmLabel(_prep.selMonth)} <span style="font-weight:400;font-size:12px;color:var(--text3)">· לחץ על שם להוספת שינוי · זה החודש שיודפס ב-PDF</span></div>
         ${groups}
       </div>
     </div>`;
@@ -4103,6 +4103,70 @@ async function prepSave() {
 window.addEventListener('beforeunload', e => { if (_prep.dirty) { e.preventDefault(); e.returnValue = ''; } });
 
 // ── PDF for the discussion ──
+// Page 1 of the scenario PDF: the same layout as the regular "דוח תורנים",
+// but showing the roster as it would look in the given month under the scenario.
+function prepRosterReportHtml(ym) {
+  const d = _prep.cur.data;
+  const st = prepStateAt(ym, d), now = prepStateAt(0, d);
+  const endOf = {}; _prep.roster.forEach(p => { endOf[p.name] = p.endDate; });
+  const COLS = [
+    { icon: '✅', title: 'תורנים רגילים', color: '#2563eb', match: s => s === 'רגיל' || s === 'פטור 24 שעות', tag: s => s === 'פטור 24 שעות' ? 'פטור 24ש׳' : '' },
+    { icon: '👶', title: 'משרת אב', color: '#b45309', match: s => s === 'אב' },
+    { icon: '🎓', title: 'טרם הוסמכו', color: '#6b7280', match: s => s === 'טרם הוסמך' },
+    { icon: '🛡️', title: 'פטורים', color: '#dc2626', match: s => s === 'פטור' },
+    { icon: '🚪', title: 'יוצאים', color: '#374151', match: s => s === 'יוצא' }
+  ];
+  const names = Object.keys(st);
+  const cnt = (m, map) => Object.keys(map).filter(n => m(map[n])).length;
+  const cols = COLS.filter((c, i) => i < 4 || cnt(c.match, st) > 0);
+  const columnsHtml = cols.map(col => {
+    const list = names.filter(n => col.match(st[n])).sort((a, b) => a.localeCompare(b, 'he'));
+    const rows = list.map((n, i) => {
+      const was = now[n];
+      const isNew = was === undefined;
+      const moved = !isNew && was !== st[n];
+      const tags = [col.tag ? col.tag(st[n]) : '', isNew ? 'חדש' : '', moved ? 'היה ' + was : ''].filter(Boolean);
+      const ed = endOf[n];
+      return `<tr style="${moved || isNew ? 'background:#fffbeb' : ''}">
+        <td style="padding:2px 4px;border-bottom:1px solid #eef0f2;text-align:center;color:#9ca3af;font-size:9px">${i + 1}</td>
+        <td style="padding:2px 4px;border-bottom:1px solid #eef0f2;font-weight:600;font-size:10.5px">${escapeHtml(n)}${tags.map(t => ` <span style="font-size:8.5px;font-weight:700;color:${t.startsWith('היה') || t === 'חדש' ? '#b45309' : col.color}">(${escapeHtml(t)})</span>`).join('')}</td>
+        <td style="padding:2px 4px;border-bottom:1px solid #eef0f2;font-weight:700;font-size:10px;color:#374151;white-space:nowrap;text-align:left">${isNew ? 'חדש' : ed ? prepFmtDate(ed) : '—'}</td>
+      </tr>`;
+    }).join('') || `<tr><td colspan="3" style="padding:8px;text-align:center;color:#9ca3af;font-size:10px">אין תורנים</td></tr>`;
+    const before = cnt(col.match, now), after = list.length;
+    return `<div>
+      <div style="display:flex;align-items:baseline;gap:5px;margin-bottom:4px;padding-bottom:3px;border-bottom:2px solid ${col.color}">
+        <span style="font-size:12.5px;font-weight:800;color:${col.color}">${col.icon} ${col.title}</span>
+        <span style="font-size:9.5px;color:#6b7280">(${after})</span>
+        ${before !== after && col.title !== 'יוצאים' ? `<span style="font-size:9px;color:${after < before ? '#dc2626' : '#16a34a'};font-weight:700">היום ${before}</span>` : ''}
+      </div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:#f3f4f6">
+          <th style="padding:2px 4px;font-size:8.5px;color:#6b7280;width:16px">#</th>
+          <th style="padding:2px 4px;text-align:right;font-size:8.5px;color:#6b7280">שם</th>
+          <th style="padding:2px 4px;text-align:left;font-size:8.5px;color:#6b7280">סיום תפקיד</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  }).join('');
+  const s = prepStats(st, prepDays(ym));
+  const reg = s.counts['רגיל'] + s.counts['פטור 24 שעות'];
+  const sub = `${s.rot} תורנים בסבב השיבוץ (${reg} רגילים${s.counts['פטור 24 שעות'] ? ` מתוכם ${s.counts['פטור 24 שעות']} פטור 24` : ''} · ${s.counts['אב']} אב)`
+    + (s.counts['טרם הוסמך'] ? ` · ${s.counts['טרם הוסמך']} טרם הוסמכו` : '')
+    + (s.counts['פטור'] ? ` · ${s.counts['פטור']} פטורים` : '')
+    + (s.counts['יוצא'] ? ` · ${s.counts['יוצא']} יוצאים` : '')
+    + ` · תורנות כל ~${Math.round(s.interval)} ימים`;
+  return `
+    <div style="text-align:center;border-bottom:3px solid #16a34a;padding-bottom:8px;margin-bottom:12px">
+      <div style="font-size:17px;font-weight:900;color:#14532d">📋 דוח תורנים צפוי — ${prepYmLabel(ym)}</div>
+      <div style="font-size:10.5px;color:#374151;margin-top:3px;font-weight:700">${sub}</div>
+      <div style="font-size:9.5px;color:#6b7280;margin-top:2px">תרחיש: ${escapeHtml(_prep.cur.name)} · ${d.includeOpen ? 'כולל שינויים פתוחים' : 'שינויים מאושרים בלבד'} · הופק ${new Date().toLocaleDateString('he-IL')} · תיאורטי — לא משקף את המצב בפועל</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(${cols.length},1fr);gap:14px;align-items:start">${columnsHtml}</div>
+    <div style="text-align:center;font-size:9px;color:#9ca3af;margin-top:10px">מסומן בצהוב = תורן שזז או מצטרף לפי התרחיש · מטל״מ</div>`;
+}
+
 async function prepExportPDF() {
   if (!_prep.cur) return;
   if (typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined') return alert('ספריות ה-PDF עדיין נטענות, נסה שוב בעוד רגע');
@@ -4157,14 +4221,31 @@ async function prepExportPDF() {
     const canvas = await html2canvas(wrap, { scale: 2, backgroundColor: '#ffffff' });
     document.body.removeChild(wrap); wrap = null;
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdf = new jsPDF('l', 'mm', 'a4');
+
+    // page 1 — expected roster report (same look as the regular tornim report), fit to one landscape page
+    wrap = document.createElement('div');
+    wrap.style.cssText = "position:fixed;top:-99999px;right:-99999px;background:#fff;padding:16px 20px;width:1150px;box-sizing:border-box;direction:rtl;font-family:Arial,'Segoe UI',sans-serif;color:#111827";
+    wrap.innerHTML = prepRosterReportHtml(_prep.selMonth || prepYmAdd(d.startYm, d.months - 1));
+    document.body.appendChild(wrap);
+    const c1 = await html2canvas(wrap, { scale: 2, backgroundColor: '#ffffff' });
+    document.body.removeChild(wrap); wrap = null;
+    {
+      const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight();
+      let w = pw, h = c1.height * w / c1.width;
+      if (h > ph) { h = ph; w = c1.width * h / c1.height; }
+      pdf.addImage(c1.toDataURL('image/jpeg', 0.95), 'JPEG', (pw - w) / 2, 0, w, h);
+    }
+
+    // next pages — monthly table + list of changes (portrait)
+    pdf.addPage('a4', 'p');
     const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight();
     const pxPerPage = Math.floor(canvas.width * ph / pw);
     for (let y = 0, page = 0; y < canvas.height; y += pxPerPage, page++) {
       const h = Math.min(pxPerPage, canvas.height - y);
       const part = document.createElement('canvas'); part.width = canvas.width; part.height = h;
       part.getContext('2d').drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
-      if (page) pdf.addPage();
+      if (page) pdf.addPage('a4', 'p');
       pdf.addImage(part.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pw, h * pw / canvas.width);
     }
     const n = new Date();
