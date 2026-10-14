@@ -830,13 +830,12 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
   .navbar #impersonate-container > span{display:none}
   .navbar #impersonate-select{max-width:96px;padding:3px 4px;font-size:11px;text-overflow:ellipsis}
 }
-/* ---- BOTTOM NAV: rotating ring, current page centred ---- */
+/* ---- BOTTOM NAV: active page enlarged ---- */
 @media(max-width:600px){
   #bottom-nav{height:70px;align-items:flex-end}
-  #bottom-nav .bnav-item{flex:1 1 0;padding:0 1px 7px;justify-content:flex-end;transform-origin:50% 100%;will-change:transform,opacity}
-  #bottom-nav{perspective:none;touch-action:pan-y}
+  #bottom-nav .bnav-item{flex:1 1 0;padding:0 1px 7px;justify-content:flex-end;transition:flex-grow .2s ease}
   #bottom-nav .bnav-icon{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:50%;
-    font-size:19px;transition:all .25s ease}
+    font-size:19px;transition:all .2s ease}
   #bottom-nav .bnav-item.active{flex-grow:1.6}
   #bottom-nav .bnav-item.active .bnav-icon{width:44px;height:44px;font-size:27px;transform:none;
     background:var(--accent-glow);box-shadow:0 0 0 1.5px var(--accent)}
@@ -1931,7 +1930,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">v2 13/10/2026 19:35</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">v2 14/10/2026 06:42</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1944,8 +1943,8 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = 'v2 13/10/2026 19:35';
-const BUILD_EPOCH = 1791909348462; // ms — when this exact file was pushed
+const BUILD_STAMP = 'v2 14/10/2026 06:42';
+const BUILD_EPOCH = 1791949321650; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -2689,7 +2688,6 @@ function buildNavTabs() {
         <span class="bnav-bdg" id="bnav-bdg-${id}"></span>
       </button>`
     ).join('');
-    initBnavRing();
     reapplyBadges();
   }
   // Show install button if on mobile and not installed
@@ -2743,129 +2741,6 @@ const TAB_LOADERS = {
   'guide':              ()  => {}
 };
 
-// ---- Mobile bottom nav: wheel ----
-// All page buttons stay visible, laid out on a "drum": the centre one is full
-// size and the others shrink, fade and turn away toward the edges. Changing page
-// rolls the drum so the current page lands in the middle — buttons that roll
-// off one edge come back round from the other. The bar can also be dragged with
-// a finger and it follows like a real wheel, snapping to the nearest page.
-const _bnav = { v: new Map(), raf: 0, drag: null };
-function bnavBuzz(ms) { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
-function _bnavCtx() {
-  const bar = document.getElementById('bottom-nav');
-  if (!bar || !bar.offsetWidth) return null;
-  const pages = Array.from(bar.querySelectorAll('.bnav-item[id^="bnav-"]'));
-  const n = pages.length;
-  if (!n) return null;
-  // centre x of every slot (order 1..n) in the current layout
-  const slotX = [];   // offsetLeft ignores transforms, so this is the resting layout
-  pages.forEach(el => { slotX[+el.style.order || 1] = el.offsetLeft + el.offsetWidth / 2; });
-  const step = n > 1 ? (slotX[n] - slotX[1]) / (n - 1) : 1;
-  slotX[0] = slotX[1] - step; slotX[n + 1] = slotX[n] + step;
-  return { bar, pages, n, slotX, step, c: Math.floor((n - 1) / 2) + 1 };
-}
-function _bnavX(ctx, v) {          // x for a fractional slot, linear between slots
-  const i = Math.max(0, Math.min(ctx.n, Math.floor(v))), f = v - i;
-  return ctx.slotX[i] + (ctx.slotX[i + 1] - ctx.slotX[i]) * f;
-}
-function _bnavWrap(v, n) { while (v <= 0.5) v += n; while (v > n + 0.5) v -= n; return v; }
-function _bnavPaint(ctx) {
-  ctx.pages.forEach(el => {
-    const o = +el.style.order || 1;
-    const v = _bnavWrap(_bnav.v.has(el) ? _bnav.v.get(el) : o, ctx.n);
-    const ang = (v - ctx.c) / (ctx.n / 2) * 1.35;             // radians around the drum
-    const cos = Math.cos(ang);
-    const edge = Math.min(1, Math.min(v - 0.5, ctx.n + 0.5 - v) / 0.55); // fade at the seam
-    const dx = _bnavX(ctx, v) - ctx.slotX[o];
-    const sc = 0.72 + 0.28 * Math.max(0, cos);
-    const rot = Math.sin(ang) * 55 * Math.sign(ctx.step);    // edges turn away from the viewer
-    el.style.transform = 'translateX(' + dx.toFixed(1) + 'px) perspective(240px) rotateY(' + rot.toFixed(1) + 'deg) scale(' + sc.toFixed(3) + ')';
-    el.style.opacity = ((0.5 + 0.5 * Math.max(0, cos)) * edge).toFixed(3);
-  });
-}
-function bnavRotate(id, animate) {
-  const bar = document.getElementById('bottom-nav');
-  if (!bar) return;
-  const items = Array.from(bar.querySelectorAll('.bnav-item'));
-  const pages = items.filter(el => el.id && el.id.indexOf('bnav-') === 0);
-  const extras = items.filter(el => pages.indexOf(el) < 0);
-  const a = pages.findIndex(el => el.id === 'bnav-' + id);
-  if (a < 0) return;
-  const n = pages.length, k = Math.floor((n - 1) / 2);
-  // where each button is drawn right now (fractional slot), before re-ordering
-  const cur = pages.map(el => _bnav.v.has(el) ? _bnav.v.get(el) : (+el.style.order || 1));
-  pages.forEach((el, i) => { el.style.order = String(1 + ((i - a + k) % n + n) % n); });
-  extras.forEach((el, i) => { el.style.order = i === extras.length - 1 && i > 0 ? String(n + 1) : '0'; });
-  cancelAnimationFrame(_bnav.raf);
-  const ctx = _bnavCtx();
-  if (!ctx) return;
-  if (!animate) { _bnav.v.clear(); pages.forEach(el => _bnav.v.set(el, +el.style.order)); _bnavPaint(ctx); return; }
-  // one shared roll distance, taken the short way round the drum
-  let d = (+pages[a].style.order) - cur[a];
-  d = ((d % n) + n) % n; if (d > n / 2) d -= n;
-  const from = cur.slice(), t0 = performance.now(), dur = 380 + 70 * Math.min(4, Math.abs(d));
-  const ease = t => { const c1 = 1.25, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); }; // settle with a little bounce
-  const tick = now => {
-    const t = Math.min(1, (now - t0) / dur), e = ease(t);
-    pages.forEach((el, i) => _bnav.v.set(el, t < 1 ? from[i] + d * e : +el.style.order));
-    _bnavPaint(ctx);
-    if (t < 1) _bnav.raf = requestAnimationFrame(tick);
-    else if (d) bnavBuzz(12);                                  // "click" as the wheel lands
-  };
-  _bnav.raf = requestAnimationFrame(tick);
-}
-function initBnavRing() {
-  const bar = document.getElementById('bottom-nav');
-  if (!bar) return;
-  _bnav.v.clear();
-  if (currentTab) requestAnimationFrame(() => bnavRotate(currentTab, false));
-  if (bar._ringInit) return;
-  bar._ringInit = true;
-  bar.addEventListener('touchstart', e => {
-    const ctx = _bnavCtx();
-    if (!ctx) return;
-    cancelAnimationFrame(_bnav.raf);
-    _bnav.drag = { x0: e.touches[0].clientX, y0: e.touches[0].clientY, ctx, base: new Map(_bnav.v), on: false, off: 0, notch: 0 };
-  }, { passive: true });
-  bar.addEventListener('touchmove', e => {
-    const g = _bnav.drag;
-    if (!g) return;
-    const dx = e.touches[0].clientX - g.x0, dy = e.touches[0].clientY - g.y0;
-    if (!g.on) {
-      if (Math.abs(dx) < 8) return;
-      if (Math.abs(dy) > Math.abs(dx)) { _bnav.drag = null; return; }
-      g.on = true;
-    }
-    g.off = dx / g.ctx.step;                                   // slots moved with the finger
-    const notch = Math.round(g.off);
-    if (notch !== g.notch) { if (g.notch !== undefined) bnavBuzz(6); g.notch = notch; }
-    g.ctx.pages.forEach(el => _bnav.v.set(el, (g.base.has(el) ? g.base.get(el) : +el.style.order) + g.off));
-    _bnavPaint(g.ctx);
-  }, { passive: true });
-  const end = () => {
-    const g = _bnav.drag;
-    _bnav.drag = null;
-    if (!g || !g.on) return;
-    // block the click that follows a drag
-    bar._noClickUntil = Date.now() + 350;
-    const steps = Math.round(g.off);
-    const ctx = g.ctx, n = ctx.n;
-    let target = currentTab;
-    if (steps) {
-      const want = ((ctx.c - steps - 1) % n + n) % n + 1;     // order that rolls into the centre
-      const el = ctx.pages.find(p => +p.style.order === want);
-      if (el) target = el.id.slice(5);
-    }
-    if (target !== currentTab) switchTab(target); else bnavRotate(currentTab, true);
-  };
-  bar.addEventListener('touchend', end, { passive: true });
-  bar.addEventListener('touchcancel', end, { passive: true });
-  bar.addEventListener('click', e => {
-    if (bar._noClickUntil && Date.now() < bar._noClickUntil) { e.stopPropagation(); e.preventDefault(); }
-  }, true);
-  window.addEventListener('resize', () => { if (currentTab) bnavRotate(currentTab, false); });
-}
-
 function switchTab(id) {
   currentTab = id;
   document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
@@ -2877,7 +2752,6 @@ function switchTab(id) {
   if (nav) nav.classList.add('active');
   const bnavBtn = document.getElementById('bnav-'+id);
   if (bnavBtn) bnavBtn.classList.add('active');
-  bnavRotate(id, true);
 
   // Load data for tab
   const loader = TAB_LOADERS[id];
