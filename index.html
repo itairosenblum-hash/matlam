@@ -1930,7 +1930,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">v2 15/10/2026 12:05</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">v2 15/10/2026 12:07</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1943,8 +1943,8 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = 'v2 15/10/2026 12:05';
-const BUILD_EPOCH = 1792055117883; // ms — when this exact file was pushed
+const BUILD_STAMP = 'v2 15/10/2026 12:07';
+const BUILD_EPOCH = 1792055263761; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -5694,6 +5694,8 @@ async function openGenerateModal() {
     sched.schedule.forEach(e => {
       const d = new Date(e.date.split('/').reverse().join('-')).getDate();
       if (e.dayType) existingTypes[d] = e.dayType;
+      // סוג תורנות שנקבע ידנית ליום (למשל "חול 24 שעות") גובר על סוג היום הבסיסי
+      if (e.dutyType && DAY_TYPES.includes(e.dutyType)) existingTypes[d] = e.dutyType;
     });
   }
 

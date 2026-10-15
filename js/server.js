@@ -1540,6 +1540,13 @@ function actionUpdateScheduleEntry(req) {
       }
     }
 
+    // סוג תורנות שהוא גם סוג יום (למשל "חול 24 שעות") → מעדכן גם את סוג היום (עמודה C),
+    // שממנו הפקת השיבוץ קוראת. בלי זה היום נשאר "חול" בהפקה למרות התווית בלוח.
+    var DAY_CAT_TYPES = ['חול','חמישי','חמישי 24 שעות','חול 24 שעות','הדממה','חמישי הדממה','סוף שבוע','ערב חג','חג','יומיים חג'];
+    if (dutyType && DAY_CAT_TYPES.indexOf(String(dutyType)) !== -1 && String(rows[i][2]||'').trim() !== String(dutyType)) {
+      sheet.getRange(i+1, 3).setValue(String(dutyType));
+    }
+
     // ---- ONE batched write for the whole row (cols D..M) ----
     sheet.getRange(i+1, 4, 1, 10).setValues([[
       finalV, finalA, finalB, finalNotes, finalType, finalScore,
