@@ -231,6 +231,7 @@ function routeInner(req) {
   if (action === 'reApplySwap') return withAudit(user, 'ביצוע חוזר של החלפה', String(req.id||''), actionReApplySwap(req));
   if (action === 'fixV2Score') return withAudit(user, 'תיקון ניקוד', String(req.month||'') + ' ' + String(req.name||'') + (auditFields({'ניקוד':req.score!==undefined?('+'+req.score):undefined, 'סוג':req.dutyType}) ? ' | ' + auditFields({'ניקוד':req.score!==undefined?('+'+req.score):undefined, 'סוג':req.dutyType}) : ''), actionFixV2Score(req));
   if (action === 'adjustScore') return withAudit(user, (Number(req.score) > 0 ? '➕ תגמול ניקוד' : '➖ קנס ניקוד'), String(req.personName||'') + ' | ' + auditFields({'ניקוד': req.score!==undefined?((Number(req.score)>0?'+':'')+req.score):undefined, 'סיבה': req.reason}), actionAdjustScore(req));
+  if (action === 'resetScoreToAverage') { var _rsa = actionResetScoreToAverage(req); return withAudit(user, '⚖️ איפוס ניקוד לממוצע', String(req.personName||'') + (_rsa && _rsa.success && _rsa.delta ? ' | ' + auditFields({'היה': _rsa.current, 'עכשיו': _rsa.target, 'ממוצע': _rsa.average, 'שינוי': (_rsa.delta>0?'+':'')+_rsa.delta, 'סיבה': req.reason}) : ''), _rsa); }
   if (action === 'sendSchedule') return actionSendSchedule(req);
   if (action === 'sendAdminMessage') return actionSendAdminMessage(req);
   if (action === 'debugSwap') return actionDebugSwap(req);
@@ -3762,6 +3763,71 @@ function actionAdjustScore(req) {
     }
   }
   return {success:false, error: 'לא נמצא תורן בשם: ' + personName};
+}
+
+// ===== איפוס ניקוד תורן לממוצע =====
+// Sets one torani's total to the current average of everyone else on the scores
+// page (same list and same totals the admin sees — computed via actionGetScores,
+// so the page and the reset can never disagree). The torani himself is left out
+// of the average, so after the reset he sits exactly on it. The change is stored
+// as a manual adjustment (col AC), like a bonus/penalty, so it is fully visible
+// in the "± התאמות" column and in the audit log.
+function scoreResetPreview(personName, year) {
+  var res = actionGetScores({year: year});
+  if (!res || !res.success) return {success:false, error:'שגיאה בטעינת הניקוד'};
+  var months = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+  var totalOf = function(s) {
+    var t = Number(s.carryIn !== undefined ? s.carryIn : s.acc2025) || 0;
+    months.forEach(function(m) { t += Number((s[m] || {}).score) || 0; });
+    return t;
+  };
+  var me = null, sum = 0, cnt = 0;
+  res.scores.forEach(function(s) {
+    var nm = String(s.name || '').trim();
+    if (!nm || nm === 'מנהל מערכת') return;
+    if (nm === personName) { me = s; return; }
+    sum += totalOf(s); cnt++;
+  });
+  if (!me) return {success:false, error:'התורן ' + personName + ' לא מופיע בטבלת הניקוד של ' + res.year};
+  if (!cnt) return {success:false, error:'אין תורנים אחרים לחישוב ממוצע'};
+  var current = Math.round(totalOf(me) * 10) / 10;
+  var avg = sum / cnt;
+  var target = Math.round(avg);
+  var delta = Math.round((target - current) * 10) / 10;
+  return {success:true, year: res.year, current: current, average: Math.round(avg * 10) / 10,
+          target: target, delta: delta, count: cnt};
+}
+
+function actionResetScoreToAverage(req) {
+  var personName = String(req.personName || '').trim();
+  if (!personName) return {success:false, error:'חסר שם תורן'};
+  if (String(req.confirm || '') !== 'איפוס') return {success:false, error:'נדרש אישור מפורש לאיפוס'};
+  var targetYear = /^\d{4}$/.test(String(req.year || '')) ? String(req.year) : getActiveScoreYear();
+
+  var pv = scoreResetPreview(personName, targetYear);
+  if (!pv.success) return pv;
+  // The admin confirmed specific numbers; if the scores moved since, stop rather
+  // than silently applying a different change than the one he approved.
+  if (req.expectedTarget !== undefined && req.expectedTarget !== '' && Number(req.expectedTarget) !== pv.target) {
+    return {success:false, error:'הממוצע השתנה מאז שנפתח החלון (עכשיו ' + pv.target + '). רענן ונסה שוב.'};
+  }
+  if (!pv.delta) return {success:true, message: personName + ' כבר בממוצע (' + pv.target + ') — לא בוצע שינוי', delta: 0};
+
+  var scoreSheet = getScoresSheet(targetYear);
+  var rows = scoreSheet.getDataRange().getValues();
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][0] || '').trim() === personName) {
+      var cur = Number(rows[i][3]) || 0;
+      scoreSheet.getRange(i+1, 4).setValue(Math.round((cur + pv.delta) * 10) / 10);
+      var curAdj = Number(rows[i][SCORE_ADJ_COL - 1]) || 0;
+      scoreSheet.getRange(1, SCORE_ADJ_COL).setValue('התאמות ידניות');
+      scoreSheet.getRange(i+1, SCORE_ADJ_COL).setValue(Math.round((curAdj + pv.delta) * 10) / 10);
+      var sign = pv.delta > 0 ? '+' : '';
+      return {success:true, delta: pv.delta, current: pv.current, target: pv.target, average: pv.average,
+              message: personName + ' אופס לממוצע: ' + pv.current + ' ← ' + pv.target + ' (' + sign + pv.delta + ')'};
+    }
+  }
+  return {success:false, error:'לא נמצאה שורת ניקוד לתורן ' + personName + ' בשנת ' + targetYear};
 }
 
 // ===== סנכרון ניקוד - מחשב מחדש מכל הלוחות ומעדכן גיליון Scores =====
