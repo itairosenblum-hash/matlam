@@ -1931,7 +1931,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">v2 15/10/2026 18:22</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">v2 09/11/2026 20:25</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1944,8 +1944,8 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = 'v2 15/10/2026 18:22';
-const BUILD_EPOCH = 1792077772539; // ms — when this exact file was pushed
+const BUILD_STAMP = 'v2 09/11/2026 20:25';
+const BUILD_EPOCH = 1794248738137; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -4741,6 +4741,15 @@ function toggleAvCycleField() {
 }
 
 // משרת אב — חודש מנוחה לפי המחזור (זהה לשרת: isAvRestMonth). month = YYYYMM
+// תורן שסיים שירות לפני תחילת החודש (תאריך סיום < היום הראשון בחודש) — לא נדרש להגיש אילוצים
+function endedServiceBefore(t, month) {
+  const iso = normalizeEndDate(t && t.endDate);
+  if (!iso) return false;
+  const m = String(month || '').replace(/\D/g, '');
+  if (m.length < 6) return false;
+  return iso < m.substring(0, 4) + '-' + m.substring(4, 6) + '-01';
+}
+
 function isAvRestFor(t, month) {
   if (!t || String(t.dutyCategory||'').trim() !== 'אב' || !t.avCycle) return false;
   const even = (parseInt(String(month).substring(4, 6), 10) % 2) === 0;
@@ -5273,7 +5282,8 @@ function renderAdminConstraintsCard(allC, tornimRes, openMonth) {
   const label = `${MONTHS[mon-1]} ${year}`;
   const activePeople = (tornimRes&&tornimRes.success ? (tornimRes.tornim||[]) : [])
     .filter(p =>
-      p.active !== false &&
+      p.active !== false && !p.archived &&
+      !endedServiceBefore(p, openMonth) &&
       p.role !== 'admin' && p.role !== 'viewer' &&
       (String(p.activity) === '1' || String(p.activity) === '0.5') &&
       String(p.dutyCategory||'') !== 'טרם הוסמך' &&
@@ -6095,7 +6105,8 @@ function buildPendingConstraintsRow(submittedNames, month) {
   try {
     const submitted = new Set(submittedNames);
     const pending = (window._allUsers || []).filter(t =>
-      t.active &&
+      t.active && !t.archived &&
+      !endedServiceBefore(t, month) &&
       t.role !== 'admin' && t.role !== 'viewer' &&
       (String(t.activity) === '1' || String(t.activity) === '0.5') &&
       String(t.dutyCategory || '') !== 'טרם הוסמך' &&
@@ -6282,7 +6293,7 @@ async function loadAdminConstraints() {
   // "➕ הוספת אילוץ" — מוסיף שורה לתורן שלא הגיש אילוצים (X / V / 📌, לא בהכרח לכל החודש)
   const pinAddHtml = (() => {
     const cand = (window._allUsers || [])
-      .filter(u => u.active && !u.archived && u.role !== 'admin' && String(u.activity) !== '0' && u.dutyCategory !== 'מנהל מערכת' && !activeNames.includes(u.name))
+      .filter(u => u.active && !u.archived && !endedServiceBefore(u, month) && u.role !== 'admin' && String(u.activity) !== '0' && u.dutyCategory !== 'מנהל מערכת' && !activeNames.includes(u.name))
       .map(u => u.name).sort((a,b) => a.localeCompare(b, 'he'));
     if (!cand.length) return '';
     return `<div style="display:flex;align-items:center;gap:8px;margin:8px 0;flex-wrap:wrap">
