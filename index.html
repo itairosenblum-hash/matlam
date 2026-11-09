@@ -904,6 +904,16 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
   #nav-overlay{display:block;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:300;opacity:0;pointer-events:none;transition:opacity .25s}
   #nav-overlay.open{opacity:1;pointer-events:auto}
 }
+/* ---- WIDE SCREENS: side menu pinned open on the right, never hides ---- */
+@media(min-width:901px){
+  body:not(.login-mode) #main-page{padding-right:230px}
+  .navbar .hamburger-btn{display:none!important}
+  #nav-overlay,#nav-overlay.open{display:none!important}
+  #nav-tabs-container,#nav-tabs-container.open{width:230px;max-width:none;transform:none!important;visibility:visible!important;transition:none!important;
+    box-shadow:none!important;padding:56px 10px 16px!important;z-index:150}
+  #nav-tabs-container::before{right:24px;top:18px}
+  #nav-tabs-container .nav-tab.active{background:var(--accent-glow);color:var(--accent);font-weight:700}
+}
 </style>
 </head>
 <body class="login-mode">
@@ -1931,7 +1941,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">v2 09/11/2026 20:25</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">v2 09/11/2026 20:34</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1944,8 +1954,8 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = 'v2 09/11/2026 20:25';
-const BUILD_EPOCH = 1794248738137; // ms — when this exact file was pushed
+const BUILD_STAMP = 'v2 09/11/2026 20:34';
+const BUILD_EPOCH = 1794249294667; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
