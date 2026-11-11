@@ -1961,7 +1961,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 // =====================================================
 // Build stamp — updated automatically on every push
 const BUILD_STAMP = 'v2 11/11/2026 11:21';
-const BUILD_EPOCH = 1794388867830; // ms — when this exact file was pushed
+const BUILD_EPOCH = 1794388917889; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -3537,7 +3537,7 @@ async function loadUsers() { // keep name for tab switching
   const countNo24    = activeOnly.filter(t => t.dutyCategory === 'פטור 24 שעות').length;
   const countInact   = activeOnly.filter(t => String(t.activity) === '0' && !['אב','פטור','טרם הוסמך','לא מוסמך'].includes(t.dutyCategory)).length;
   const countExempt  = activeOnly.filter(isExemptTorani).length;
-  const countEndingSoon = activeOnly.filter(t => getEndDateStatus(t.endDate) === 'soon').length;
+  const countEndingSoon = activeOnly.filter(t => leavingSoon(t)).length;
   const statsEl = document.getElementById('tornim-stats');
   if (statsEl) {
     const pill = (icon, label, count, color, onClick) =>
@@ -3556,7 +3556,7 @@ async function loadUsers() { // keep name for tab switching
       pill('🛡️', 'פטור', countPatur, 'var(--danger)', "filterTornimByCategory('patur')") +
       (countNo24 ? pill('⏱️', 'פטור 24 שעות', countNo24, 'var(--info)', "filterTornimByCategory('no24')") : '') +
       (countInact ? pill('⏸️', 'לא פעילים בסבב', countInact, 'var(--text2)', "filterTornimByCategory('inactive')") : '') +
-      pill('⏳', 'מסיימים תפקיד ב-3 חודשים', countEndingSoon, 'var(--warn)', 'filterTornimEndingSoon()');
+      pill('⏳', 'יוצאים מהלוח ב-3 חודשים', countEndingSoon, 'var(--warn)', 'filterTornimEndingSoon()');
   }
 
   window._allTornimData = sorted;
@@ -4665,16 +4665,16 @@ function filterTornimEndingSoon() {
     return 'var(--text2)';
   };
   const list = window._allTornimData.filter(t =>
-    t.active && t.role !== 'admin' && getEndDateStatus(t.endDate) === 'soon'
-  );
+    t.active && t.role !== 'admin' && leavingSoon(t)
+  ).sort((a, b) => leavingSoon(a).diff - leavingSoon(b).diff);
 
   const banner = `<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px">
-    <span>⏳ מציג ${list.length} תורנים שמסיימים תפקיד ב-3 החודשים הקרובים</span>
+    <span>⏳ מציג ${list.length} תורנים שיוצאים מהלוח ב-3 החודשים הקרובים (סיום שירות או סיום תורנות)</span>
     <button class="btn btn-secondary btn-sm" onclick="loadUsers()">נקה סינון ✕</button>
   </div>`;
 
   if (!list.length) {
-    container.innerHTML = banner + '<div style="padding:30px;text-align:center;color:var(--text2)">אין תורנים שמסיימים תפקיד בטווח הזה</div>';
+    container.innerHTML = banner + '<div style="padding:30px;text-align:center;color:var(--text2)">אין תורנים שיוצאים מהלוח בטווח הזה</div>';
     return;
   }
 
@@ -4799,6 +4799,21 @@ function endedServiceBefore(t, month) {
   if (m.length < 6) return false;
   const first = m.substring(0, 4) + '-' + m.substring(4, 6) + '-01';
   return [t && t.endDate, t && t.dutyEndDate].some(v => { const iso = normalizeEndDate(v); return !!iso && iso < first; });
+}
+// יוצא מהלוח ב-90 הימים הקרובים — סיום שירות או 🏁 סיום תורנות, המוקדם מביניהם.
+// מחזיר {iso, kind:'שירות'|'תורנות', diff} או null
+function leavingSoon(t) {
+  if (!t) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  let best = null;
+  [[t.endDate, 'שירות'], [t.dutyEndDate, 'תורנות']].forEach(([v, kind]) => {
+    const iso = normalizeEndDate(v); if (!iso) return;
+    const dt = parseISODate(iso); if (!dt) return;
+    const diff = Math.round((dt - today) / 86400000);
+    if (diff < 0 || diff > 90) return;
+    if (!best || diff < best.diff) best = {iso, kind, diff, dt};
+  });
+  return best;
 }
 function endedDutyBefore(t, month) {
   const iso = normalizeEndDate(t && t.dutyEndDate);
@@ -5391,26 +5406,19 @@ function renderAdminEndDateCard(tornimRes) {
   if (!tornimRes || !tornimRes.success) return;
   const now = new Date(); now.setHours(0,0,0,0);
   const in90 = new Date(now); in90.setDate(now.getDate()+90);
-  const expiring = (tornimRes.tornim||[]).filter(p => {
-    if (!p.endDate) return false;
-    const parts = p.endDate.includes('-') ? p.endDate.split('-') : p.endDate.split('/').reverse();
-    const dt = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
-    return dt >= now && dt <= in90;
-  }).map(p => {
-    const parts = p.endDate.includes('-') ? p.endDate.split('-') : p.endDate.split('/').reverse();
-    const dt = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
-    const diff = Math.round((dt-now)/86400000);
-    return {...p, _dt: dt, _diff: diff};
-  }).sort((a,b)=>a._dt-b._dt);
+  const expiring = (tornimRes.tornim||[])
+    .filter(p => p.active !== false && !p.archived && leavingSoon(p))
+    .map(p => { const ls = leavingSoon(p); return {...p, _dt: ls.dt, _diff: ls.diff, _kind: ls.kind}; })
+    .sort((a,b)=>a._dt-b._dt);
   if (!expiring.length) { card.style.display='none'; return; }
   card.style.display='block';
   card.innerHTML = `<div>
-    <div style="font-weight:700;font-size:14px;margin-bottom:10px">⚠️ תורנים עם סיום שירות קרוב</div>
+    <div style="font-weight:700;font-size:14px;margin-bottom:10px">⚠️ יוצאים מהלוח ב-3 החודשים הקרובים</div>
     ${expiring.map(p => {
       const color = p._diff<=30?'var(--danger)':'var(--warning,#d29922)';
       const d = p._dt.getDate(), m = p._dt.getMonth()+1, y = p._dt.getFullYear();
       return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)">
-        <div style="flex:1;font-weight:600;font-size:13px">${escapeHtml(p.name)}</div>
+        <div style="flex:1;font-weight:600;font-size:13px">${escapeHtml(p.name)} <span style="font-size:11px;font-weight:400;color:var(--text3)">${p._kind === 'תורנות' ? '🏁 סיום תורנות' : '📅 סיום שירות'}</span></div>
         <div style="font-size:12px;color:${color};font-weight:700">${d}/${m}/${y}</div>
         <div style="font-size:11px;color:${color}">בעוד ${p._diff} ימים</div>
       </div>`;
