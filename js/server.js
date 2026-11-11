@@ -237,8 +237,8 @@ function routeInner(req) {
   if (action === 'debugSwap') return actionDebugSwap(req);
   if (action === 'resetPassword' && user.role === 'admin') return withAudit(user, 'איפוס סיסמה', String(req.username||''), actionResetPassword(req));
   if (action === 'getAllTornim') return actionGetAllTornim();
-  if (action === 'addTorani') return withAudit(user, 'הוספת תורן', String(req.name||'') + ' | ' + auditFields({'תפקיד':req.role||'user', 'פעילות':req.activity, 'קטגוריה':req.dutyCategory, 'מחזור אב':req.avCycle, 'סופ"ש':req.weekendType, 'סיום שירות':req.endDate, 'רכב צבאי':req.isMilitaryVehicle, 'לוחית זיהוי':req.isMilitaryVehicle==='כן'?req.vehiclePlate:undefined}), actionAddTorani(req));
-  if (action === 'updateTorani') return withAudit(user, 'עריכת תורן', String(req.username||'') + (auditFields({'שם חדש':req.name, 'תפקיד':req.role, 'פעילות':req.activity, 'קטגוריה':req.dutyCategory, 'מחזור אב':req.avCycle, 'סופ"ש':req.weekendType, 'טלפון':req.phone, 'אימייל':req.email, 'סיום שירות':req.endDate, 'פעיל':req.active!==undefined?(req.active?'כן':'לא'):undefined, 'סיסמה':req.newPassword?'שונתה':undefined, 'רכב צבאי':req.isMilitaryVehicle, 'לוחית זיהוי':req.isMilitaryVehicle==='כן'?req.vehiclePlate:undefined}) ? ' | ' + auditFields({'שם חדש':req.name, 'תפקיד':req.role, 'פעילות':req.activity, 'קטגוריה':req.dutyCategory, 'מחזור אב':req.avCycle, 'סופ"ש':req.weekendType, 'טלפון':req.phone, 'אימייל':req.email, 'סיום שירות':req.endDate, 'פעיל':req.active!==undefined?(req.active?'כן':'לא'):undefined, 'סיסמה':req.newPassword?'שונתה':undefined, 'רכב צבאי':req.isMilitaryVehicle, 'לוחית זיהוי':req.isMilitaryVehicle==='כן'?req.vehiclePlate:undefined}) : ''), actionUpdateTorani(req));
+  if (action === 'addTorani') return withAudit(user, 'הוספת תורן', String(req.name||'') + ' | ' + auditFields({'תפקיד':req.role||'user', 'פעילות':req.activity, 'קטגוריה':req.dutyCategory, 'מחזור אב':req.avCycle, 'סופ"ש':req.weekendType, 'סיום שירות':req.endDate, 'סיום תורנות':req.dutyEndDate, 'רכב צבאי':req.isMilitaryVehicle, 'לוחית זיהוי':req.isMilitaryVehicle==='כן'?req.vehiclePlate:undefined}), actionAddTorani(req));
+  if (action === 'updateTorani') return withAudit(user, 'עריכת תורן', String(req.username||'') + (auditFields({'שם חדש':req.name, 'תפקיד':req.role, 'פעילות':req.activity, 'קטגוריה':req.dutyCategory, 'מחזור אב':req.avCycle, 'סופ"ש':req.weekendType, 'טלפון':req.phone, 'אימייל':req.email, 'סיום שירות':req.endDate, 'סיום תורנות':req.dutyEndDate, 'פעיל':req.active!==undefined?(req.active?'כן':'לא'):undefined, 'סיסמה':req.newPassword?'שונתה':undefined, 'רכב צבאי':req.isMilitaryVehicle, 'לוחית זיהוי':req.isMilitaryVehicle==='כן'?req.vehiclePlate:undefined}) ? ' | ' + auditFields({'שם חדש':req.name, 'תפקיד':req.role, 'פעילות':req.activity, 'קטגוריה':req.dutyCategory, 'מחזור אב':req.avCycle, 'סופ"ש':req.weekendType, 'טלפון':req.phone, 'אימייל':req.email, 'סיום שירות':req.endDate, 'סיום תורנות':req.dutyEndDate, 'פעיל':req.active!==undefined?(req.active?'כן':'לא'):undefined, 'סיסמה':req.newPassword?'שונתה':undefined, 'רכב צבאי':req.isMilitaryVehicle, 'לוחית זיהוי':req.isMilitaryVehicle==='כן'?req.vehiclePlate:undefined}) : ''), actionUpdateTorani(req));
   if (action === 'toggleTorani') return withAudit(user, 'הפעלה/השבתה של תורן', String(req.username||''), actionToggleTorani(req));
   if (action === 'deleteTorani') return withAudit(user, 'מחיקת תורן', String(req.username||''), actionDeleteTorani(req));
   if (action === 'getToraniImpact') return actionGetToraniImpact(req, user);
@@ -527,9 +527,10 @@ function actionGetPeople() {
   const people = [];
   for (let i = 1; i < rows.length; i++) {
     const [name, activity, dutyCategory, phone, weekendType, email, endDate,
-      isMilitaryVehicle, vehicleCompany, vehicleModel, vehicleColor, vehiclePlate, avCycle] = rows[i];
+      isMilitaryVehicle, vehicleCompany, vehicleModel, vehicleColor, vehiclePlate, avCycle, dutyEndDate] = rows[i];
     if (name) people.push({
       avCycle: normAvCycle(avCycle),
+      dutyEndDate: isoDateOf(dutyEndDate),
       name: String(name),
       activity: String(activity),
       dutyCategory: String(dutyCategory || ''),
@@ -601,6 +602,35 @@ function normAvCycle(v) {
   if (v === AV_CYCLE_EVEN || v === 'even') return AV_CYCLE_EVEN;
   if (v === AV_CYCLE_ODD || v === 'אי זוגי' || v === 'odd') return AV_CYCLE_ODD;
   return '';
+}
+// 🏁 סיום תורנות (People עמודה 14) — אחרי התאריך התורן לא משובץ ולא נדרש להגיש אילוצים.
+// שונה מ"סיום שירות" (עמודה 7), אך שניהם חוסמים; הקודם מביניהם קובע.
+function isoDateOf(v) {
+  if (!v) return '';
+  if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  var s = String(v).trim().split('T')[0];
+  var m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) return m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : '';
+}
+// הסיום האפקטיבי: {date:'yyyy-mm-dd', reason:'סיים תורנויות'|'סיים שירות'} או null
+function effectiveEnd(endDate, dutyEndDate) {
+  var a = isoDateOf(dutyEndDate), b = isoDateOf(endDate);
+  if (a && (!b || a <= b)) return {date: a, reason: 'סיים תורנויות'};
+  if (b) return {date: b, reason: 'סיים שירות'};
+  return null;
+}
+// לתורן ולחודש (YYYYMM): dutyEnd = תאריך הסיום אם הוא נופל לפני סוף החודש;
+// dutyEnded = true אם הסתיים לפני תחילת החודש (אין שום יום פעיל בחודש)
+function dutyEndInfo(name, month) {
+  var person = actionGetPeople().people.find(function(p) { return p.name === name; });
+  var ee = person ? effectiveEnd(person.endDate, person.dutyEndDate) : null;
+  if (!ee) return {};
+  var m = String(month).replace(/\D/g, '');
+  var first = m.substring(0, 4) + '-' + m.substring(4, 6) + '-01';
+  var last  = m.substring(0, 4) + '-' + m.substring(4, 6) + '-31';
+  if (ee.date >= last) return {};
+  return {dutyEnd: ee.date, dutyEndReason: ee.reason, dutyEnded: ee.date < first};
 }
 function isPaternityPerson(p) {
   return !!p && (String(p.activity) === '0.5' || String(p.dutyCategory || '').trim() === 'אב');
@@ -1028,7 +1058,7 @@ function actionGetConstraints(req, user) {
   const viewAs = (user && user.role === 'admin') ? req.viewAs : null;  // v2: only admins may act as someone else
   const lookupName = viewAs ? getNameByUsername(viewAs) : user.name;
 
-  const av = avRestInfo(lookupName, month);
+  const av = Object.assign(avRestInfo(lookupName, month), dutyEndInfo(lookupName, month));
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName('Constraints_' + month);
   if (!sheet) return Object.assign({success: true, constraints: new Array(31).fill(''), notes: ''}, av);
@@ -1108,6 +1138,9 @@ function actionSaveConstraints(req, user) {
   if (!saveName) return {success: false, error: 'לא נמצא שם לשמירת האילוצים'};
   const isAdmin = user.role === 'admin';
 
+  if (!isAdmin && dutyEndInfo(saveName, month).dutyEnded) {
+    return {success: false, error: 'סיימת תורנויות — אין צורך להגיש אילוצים לחודש זה'};
+  }
   if (!isAdmin && avRestInfo(saveName, month).avRest) {
     return {success: false, error: 'חודש מנוחה (משרת אב) — אין צורך להגיש אילוצים לחודש זה'};
   }
@@ -2036,9 +2069,10 @@ function actionGetAllTornim() {
   const peopleMap = {};
   for (let i = 1; i < peopleRows.length; i++) {
     const [name, activity, dutyCategory, phone, weekendType, email, endDate,
-      isMilitaryVehicle, vehicleCompany, vehicleModel, vehicleColor, vehiclePlate, avCycle] = peopleRows[i];
+      isMilitaryVehicle, vehicleCompany, vehicleModel, vehicleColor, vehiclePlate, avCycle, dutyEndDate] = peopleRows[i];
     if (name) peopleMap[String(name)] = {
       avCycle: normAvCycle(avCycle),
+      dutyEndDate: isoDateOf(dutyEndDate),
       activity: String(activity || '1'),
       dutyCategory: String(dutyCategory || ''),
       phone: String(phone || ''),
@@ -2068,6 +2102,7 @@ function actionGetAllTornim() {
       email: p.email || '',
       weekendType: p.weekendType || 'מלא',
       endDate: p.endDate || '',
+      dutyEndDate: p.dutyEndDate || '',
       isMilitaryVehicle: p.isMilitaryVehicle || 'לא',
       vehicleCompany: p.vehicleCompany || '',
       vehicleModel: p.vehicleModel || '',
@@ -2181,13 +2216,14 @@ function actionAddTorani(req) {
       if (endDate !== undefined) peopleSheet.getRange(i+1,7).setValue(endDate || '');
       peopleSheet.getRange(i+1,8,1,5).setValues([[vf.isMilitaryVehicle, vf.vehicleCompany, vf.vehicleModel, vf.vehicleColor, vf.vehiclePlate]]);
       peopleSheet.getRange(i+1,13).setValue(dutyCategory === 'אב' ? normAvCycle(req.avCycle) : '');
+      if (req.dutyEndDate !== undefined) peopleSheet.getRange(i+1,14).setValue(isoDateOf(req.dutyEndDate));
       found = true; break;
     }
   }
   if (!found) {
     peopleSheet.appendRow([name, activity||'1', dutyCategory||'', phone||'', weekendType||'מלא', email||'', endDate||'',
       vf.isMilitaryVehicle, vf.vehicleCompany, vf.vehicleModel, vf.vehicleColor, vf.vehiclePlate,
-      dutyCategory === 'אב' ? normAvCycle(req.avCycle) : '']);
+      dutyCategory === 'אב' ? normAvCycle(req.avCycle) : '', isoDateOf(req.dutyEndDate)]);
   }
 
   // Set starting score = average of all active tornim (fair entry into rotation)
@@ -2255,10 +2291,12 @@ function calcAverageScore(forYear) {
     var activity = p ? String(p.activity || '1').trim() : scoresActivity;
     var category = p ? String(p.dutyCategory || '').trim() : '';
     var endDate  = p ? String(p.endDate || '').trim() : '';
+    var dutyEnd  = p ? String(p.dutyEndDate || '').trim() : '';
 
     if (activity === '0' || activity === '0.5') continue;           // לא פעיל / משרת הורה
     if (AVG_EXCLUDED_CATEGORIES.indexOf(category) !== -1) continue; // אב / פטור / לא מוסמך / מנהל
     if (endDate && endDate < todayStr) continue;                    // סיים שירות
+    if (dutyEnd && dutyEnd < todayStr) continue;                    // סיים תורנויות
 
     total += score;
     count++;
@@ -2318,6 +2356,8 @@ function actionUpdateTorani(req) {
       // מחזור משרת אב — רק כשנשלח (עריכת מנהל); יציאה מקטגוריית אב מנקה אותו
       if (req.avCycle !== undefined) peopleSheet.getRange(i+1,13).setValue(normAvCycle(req.avCycle));
       else if (dutyCategory !== undefined && dutyCategory !== 'אב') peopleSheet.getRange(i+1,13).setValue('');
+      // 🏁 סיום תורנות — רק בעריכת מנהל (לא חלק מעדכון פרופיל עצמי)
+      if (req.dutyEndDate !== undefined) peopleSheet.getRange(i+1,14).setValue(isoDateOf(req.dutyEndDate));
       found = true; break;
     }
   }
@@ -2325,7 +2365,7 @@ function actionUpdateTorani(req) {
     const vf = normalizeVehicleFields(req);
     peopleSheet.appendRow([name||lookupName, activity||'1', dutyCategory||'', phone||'', weekendType||'מלא', email||'', endDate||'',
       vf.isMilitaryVehicle, vf.vehicleCompany, vf.vehicleModel, vf.vehicleColor, vf.vehiclePlate,
-      dutyCategory === 'אב' ? normAvCycle(req.avCycle) : '']);
+      dutyCategory === 'אב' ? normAvCycle(req.avCycle) : '', isoDateOf(req.dutyEndDate)]);
   }
 
   return {success: true};
@@ -4327,7 +4367,8 @@ function actionGenerateScheduleV2(req) {
         dutyCategory:String(peopleRows[i][2]||'').trim(),
         weekendType: String(peopleRows[i][4]||'מלא').trim(),
         endDate:     peopleRows[i][6] || null,
-        avCycle:     normAvCycle(peopleRows[i][12])
+        avCycle:     normAvCycle(peopleRows[i][12]),
+        dutyEndDate: peopleRows[i][13] || null
       };
       // משרת אב is identified by CATEGORY in the UI — normalize to activity 0.5
       // so every paternity protection (Thursday-only, 2-month gap) applies.
@@ -4356,10 +4397,13 @@ function actionGenerateScheduleV2(req) {
     if (pmx.dutyCategory === 'מנהל מערכת') return;
     if (usersActive[exn] === false) { excludedNames[exn] = 'לא פעיל'; return; }
     if (usersRole[exn] === 'viewer') { excludedNames[exn] = 'צפייה בלבד'; return; }
-    if (pmx.endDate) {
-      var edd = (pmx.endDate instanceof Date) ? pmx.endDate : new Date(String(pmx.endDate));
+    // סיום שירות / 🏁 סיום תורנות — הקודם מביניהם קובע
+    var eeX = effectiveEnd(pmx.endDate, pmx.dutyEndDate);
+    if (eeX) {
+      var edp = eeX.date.split('-');
+      var edd = new Date(Number(edp[0]), Number(edp[1]) - 1, Number(edp[2]));
       if (!isNaN(edd)) {
-        if (edd < monthStart) { excludedNames[exn] = 'סיים שירות'; return; }
+        if (edd < monthStart) { excludedNames[exn] = eeX.reason; return; }
         pmx.endDateObj = edd; // ends mid-month: block days after the end date
       }
     }
@@ -5237,6 +5281,8 @@ function actionGenerateScheduleV2(req) {
   // Report only surprising exclusions (service ended); inactive/viewer accounts are expected
   var exList = Object.keys(excludedNames).filter(function(n){return excludedNames[n] === 'סיים שירות';});
   if(exList.length) msg += '\nℹ️ סיימו שירות ולא שובצו: ' + exList.join(', ');
+  var exDuty = Object.keys(excludedNames).filter(function(n){return excludedNames[n] === 'סיים תורנויות';});
+  if(exDuty.length) msg += '\n🏁 סיימו תורנויות ולא שובצו: ' + exDuty.join(', ');
 
   // ── 10. Auto-create next month's skeleton (rolling window) ───────
   // Keeps a skeleton always one month ahead so Itai never needs to bulk-build

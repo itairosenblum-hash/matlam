@@ -1783,6 +1783,11 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
         <input id="t-enddate" type="text" placeholder="dd/mm/yyyy" maxlength="10" oninput="maskDateInput(this)">
       </div>
       <div class="form-group" style="grid-column:1/-1">
+        <label>🏁 תאריך סיום תורנות <span class="text-muted text-sm">(אופציונלי)</span></label>
+        <input id="t-dutyend" type="text" placeholder="dd/mm/yyyy" maxlength="10" oninput="maskDateInput(this)">
+        <div class="text-muted text-sm" style="margin-top:4px">אחרי תאריך זה התורן לא ישובץ, ולא יידרש להגיש אילוצים לחודשים שאחריו. ריק = ממשיך כרגיל.</div>
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
         <label>🚗 האם מגיע ברכב צבאי?</label>
         <select id="t-vehicle-military" onchange="toggleVehicleFields('t-')">
           <option value="לא">לא</option>
@@ -1942,7 +1947,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">v2 09/11/2026 20:38</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">v2 11/11/2026 11:12</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1955,8 +1960,8 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = 'v2 09/11/2026 20:38';
-const BUILD_EPOCH = 1794249489286; // ms — when this exact file was pushed
+const BUILD_STAMP = 'v2 11/11/2026 11:12';
+const BUILD_EPOCH = 1794388320989; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -2986,6 +2991,10 @@ function populateMonthSelects() {
 let constraintData = new Array(31).fill(false);
 let constraintPinnedOrig = [];  // 📌 days the admin pinned (as last loaded)
 let constraintAvRest = false;   // 👶 משרת אב — חודש מנוחה לפי המחזור (חסימה וירטואלית, לא נשמרת)
+let constraintEndDay = 0;       // 🏁 סיום תורנות/שירות באמצע החודש: הימים אחרי היום הזה חסומים (0 = אין)
+let constraintEndLabel = 'מנוחה';
+// יום (1..31) חסום לעריכה: חודש מנוחה, או אחרי סיום התורנות
+function constraintDayOff(d) { return constraintAvRest || (constraintEndDay > 0 && d > constraintEndDay); }
 
 function applyAvRestMode(cycle) {
   const rest = constraintAvRest;
@@ -2993,7 +3002,11 @@ function applyAvRestMode(cycle) {
     const el = document.getElementById(id);
     if (el) el.style.display = rest ? 'none' : '';
   });
-  if (rest) {
+  if (rest && window._constraintDutyEndMsg) {
+    const avBtn = document.getElementById('btn-av-skip-month');
+    if (avBtn) avBtn.style.display = 'none';
+    showAlert('constraint-alert', window._constraintDutyEndMsg, 'info');
+  } else if (rest) {
     const avBtn = document.getElementById('btn-av-skip-month');
     if (avBtn) avBtn.style.display = 'none';
     showAlert('constraint-alert', '👶 חודש מנוחה — לפי המחזור שלך (חודשים ' + escapeHtml(cycle || '') + ') אינך משובץ החודש, ואין צורך להגיש אילוצים.', 'info');
@@ -3005,6 +3018,9 @@ async function loadConstraints() {
   showLoading(true);
   const res = await api({action:'getConstraints', month, viewAs: currentUser.username});
   showLoading(false);
+  window._constraintDutyEndMsg = '';
+  constraintEndDay = 0; constraintEndLabel = 'מנוחה';
+  let midEndMsg = '';
   if (res.success) {
     // Support both old boolean format and new V/X format
     constraintData = res.constraints.slice(0, days).map(c => {
@@ -3016,6 +3032,19 @@ async function loadConstraints() {
     while (constraintData.length < days) constraintData.push('');
     constraintPinnedOrig = constraintData.map(c => c === 'P');
     constraintAvRest = !!res.avRest;
+    // 🏁 סיום תורנות / שירות
+    if (res.dutyEnd) {
+      const endTxt = formatEndDateDisplay(res.dutyEnd);
+      const what = res.dutyEndReason === 'סיים שירות' ? 'השירות שלך מסתיים' : 'התורנויות שלך מסתיימות';
+      if (res.dutyEnded) {
+        constraintAvRest = true; constraintEndLabel = 'סיום';
+        window._constraintDutyEndMsg = '🏁 ' + (res.dutyEndReason === 'סיים שירות' ? 'סיימת שירות' : 'סיימת תורנויות') + ' (' + endTxt + ') — אינך משובץ החודש ואין צורך להגיש אילוצים.';
+      } else {
+        constraintEndDay = parseInt(res.dutyEnd.split('-')[2], 10) || 0;
+        for (let i = constraintEndDay; i < constraintData.length; i++) if (constraintData[i] !== 'P') constraintData[i] = '';
+      }
+      if (!res.dutyEnded) midEndMsg = '🏁 ' + what + ' ב-' + endTxt + ' — לא תשובץ אחרי תאריך זה, ואין צורך לסמן אילוצים לימים שאחריו.';
+    }
     const pinDays = constraintData.map((c, i) => c === 'P' ? i + 1 : 0).filter(Boolean);
     document.getElementById('constraint-notes').value = res.notes || '';
     if (String(res.notes || '').includes('[דילוג מנהל')) {
@@ -3023,6 +3052,8 @@ async function loadConstraints() {
       showAlert('constraint-alert', 'ℹ️ המנהל סימן עבורך דילוג מלא לחודש זה' + (reason ? ' (' + escapeHtml(reason) + ')' : '') + ' — לא תשובץ. ניתן לשנות במידת הצורך.', 'info');
     } else if (pinDays.length) {
       showAlert('constraint-alert', '📌 המנהל נעץ אותך כמבצע ביום ' + pinDays.join(', ') + ' — תשובץ בוודאות. אם אינך יכול/ה, סמן/י X ביום והמנהל יקבל התראה.', 'info');
+    } else if (midEndMsg) {
+      showAlert('constraint-alert', midEndMsg, 'info');
     }
   }
   if (!res.success) constraintAvRest = false;
@@ -3068,9 +3099,10 @@ function renderConstraintGrid(year, mon, days) {
       if (val === 'X') cls += ' constraint-blocked';
       if (val === 'V') cls += ' constraint-preferred';
       if (val === 'P') cls += ' constraint-pinned';
-      if (constraintAvRest) cls += ' constraint-rest';
+      const dOff = constraintDayOff(d);
+      if (dOff) cls += ' constraint-rest';
 
-      const indicatorHtml = constraintAvRest ? '<span style="color:var(--text3);font-size:11px;font-weight:600">מנוחה</span>' : constraintIndicator(val, true);
+      const indicatorHtml = dOff ? '<span style="color:var(--text3);font-size:11px;font-weight:600">' + (constraintAvRest ? constraintEndLabel : 'סיום') + '</span>' : constraintIndicator(val, true);
 
       let typeLabel = isWE ? 'סוף שבוע' : isThu ? 'חמישי' : 'חול';
       let typeCls = isWE ? 'badge-weekend' : isThu ? 'badge-thursday' : 'badge-weekday';
@@ -3118,7 +3150,8 @@ function renderConstraintGrid(year, mon, days) {
     if (constraintData[d-1] === 'X') dayCls += ' constraint-blocked';
     if (constraintData[d-1] === 'V') dayCls += ' constraint-preferred';
     if (constraintData[d-1] === 'P') dayCls += ' constraint-pinned';
-    if (constraintAvRest) dayCls += ' constraint-rest';
+    const dOff = constraintDayOff(d);
+    if (dOff) dayCls += ' constraint-rest';
 
     let typeLabel = isWeekend ? 'סוף שבוע' : isThursday ? 'חמישי' : 'חול';
     let typeCls = isWeekend ? 'badge-weekend' : isThursday ? 'badge-thursday' : 'badge-weekday';
@@ -3128,7 +3161,7 @@ function renderConstraintGrid(year, mon, days) {
       <div class="cal-day-num">${d}</div>
       <div class="cal-day-type ${typeCls}" style="font-size:9px;padding:1px 5px;border-radius:10px;margin-top:2px;width:fit-content">${typeLabel}</div>
       <div class="constraint-indicator" id="ci-${d}" style="margin-top:4px;font-size:16px;font-weight:700;text-align:center">
-        ${constraintAvRest ? '<span style="color:var(--text3);font-size:10px;font-weight:600">מנוחה</span>' : constraintIndicator(constraintData[d-1], false)}
+        ${dOff ? '<span style="color:var(--text3);font-size:10px;font-weight:600">' + (constraintAvRest ? constraintEndLabel : 'סיום') + '</span>' : constraintIndicator(constraintData[d-1], false)}
       </div>
     </div>`;
   }
@@ -3154,7 +3187,7 @@ function constraintIndicator(v, mob) {
 }
 
 function toggleConstraint(idx) {
-  if (constraintAvRest) return;   // חודש מנוחה — הלוח לקריאה בלבד
+  if (constraintDayOff(idx + 1)) return;   // חודש מנוחה / אחרי סיום תורנות — לקריאה בלבד
   const cur = constraintData[idx] || '';
   let next;
   if (constraintPinnedOrig[idx]) {
@@ -3477,6 +3510,7 @@ async function loadUsers() { // keep name for tab switching
           style="background:${eds==='expired'?'rgba(218,54,51,0.12)':eds==='soon'?'rgba(210,153,34,0.12)':'var(--surface2)'};border-radius:20px;padding:3px 10px;font-size:11px;color:${eds==='expired'?'var(--danger)':eds==='soon'?'var(--warn)':'var(--text2)'};font-weight:${eds&&eds!=='ok'?'700':'400'};${eds&&eds!=='ok'?'cursor:pointer;text-decoration:underline dotted;':''}"
           ${eds&&eds!=='ok' ? `onclick="openEndDateWhatsApp('${t.name}','${t.phone}','${t.endDate}')" title="שלח הודעת וואטסאפ על סיום שירות"` : ''}
           >📅 ${formatEndDateDisplay(t.endDate)}${eds&&eds!=='ok'?' 💬':''}</span>` : ''}
+        ${dutyEndPill(t)}
       </div>
 
       <!-- Action buttons -->
@@ -4503,6 +4537,7 @@ function filterTornim(query) {
           style="background:${eds==='expired'?'rgba(218,54,51,0.12)':eds==='soon'?'rgba(210,153,34,0.12)':'var(--surface2)'};border-radius:20px;padding:3px 10px;font-size:11px;color:${eds==='expired'?'var(--danger)':eds==='soon'?'var(--warn)':'var(--text2)'};font-weight:${eds&&eds!=='ok'?'700':'400'};${eds&&eds!=='ok'?'cursor:pointer;text-decoration:underline dotted;':''}"
           ${eds&&eds!=='ok' ? `onclick="openEndDateWhatsApp('${t.name}','${t.phone}','${t.endDate}')" title="שלח הודעת וואטסאפ על סיום שירות"` : ''}
           >📅 ${formatEndDateDisplay(t.endDate)}${eds&&eds!=='ok'?' 💬':''}</span>` : ''}
+        ${dutyEndPill(t)}
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         ${phone ? `<a href="tel:${phone}" class="btn btn-secondary btn-sm" title="התקשר" style="flex:1;min-width:40px;text-align:center;display:flex;align-items:center;justify-content:center">📞</a>` : ''}
@@ -4599,6 +4634,7 @@ function filterTornimByCategory(kind) {
           style="background:${eds==='expired'?'rgba(218,54,51,0.12)':eds==='soon'?'rgba(210,153,34,0.12)':'var(--surface2)'};border-radius:20px;padding:3px 10px;font-size:11px;color:${eds==='expired'?'var(--danger)':eds==='soon'?'var(--warn)':'var(--text2)'};font-weight:${eds&&eds!=='ok'?'700':'400'};${eds&&eds!=='ok'?'cursor:pointer;text-decoration:underline dotted;':''}"
           ${eds&&eds!=='ok' ? `onclick="openEndDateWhatsApp('${t.name}','${t.phone}','${t.endDate}')" title="שלח הודעת וואטסאפ על סיום שירות"` : ''}
           >📅 ${formatEndDateDisplay(t.endDate)}${eds&&eds!=='ok'?' 💬':''}</span>` : ''}
+        ${dutyEndPill(t)}
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         ${phone ? `<a href="tel:${phone}" class="btn btn-secondary btn-sm" title="התקשר" style="flex:1;min-width:40px;text-align:center;display:flex;align-items:center;justify-content:center">📞</a>` : ''}
@@ -4671,6 +4707,7 @@ function filterTornimEndingSoon() {
           style="background:${eds==='expired'?'rgba(218,54,51,0.12)':eds==='soon'?'rgba(210,153,34,0.12)':'var(--surface2)'};border-radius:20px;padding:3px 10px;font-size:11px;color:${eds==='expired'?'var(--danger)':eds==='soon'?'var(--warn)':'var(--text2)'};font-weight:${eds&&eds!=='ok'?'700':'400'};${eds&&eds!=='ok'?'cursor:pointer;text-decoration:underline dotted;':''}"
           ${eds&&eds!=='ok' ? `onclick="openEndDateWhatsApp('${t.name}','${t.phone}','${t.endDate}')" title="שלח הודעת וואטסאפ על סיום שירות"` : ''}
           >📅 ${formatEndDateDisplay(t.endDate)}${eds&&eds!=='ok'?' 💬':''}</span>` : ''}
+        ${dutyEndPill(t)}
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         ${phone ? `<a href="tel:${phone}" class="btn btn-secondary btn-sm" title="התקשר" style="flex:1;min-width:40px;text-align:center;display:flex;align-items:center;justify-content:center">📞</a>` : ''}
@@ -4714,6 +4751,7 @@ function openAddTorani() {
   toggleAvCycleField();
   document.getElementById('t-weekend').value = 'מלא';
   document.getElementById('t-enddate').value = '';
+  document.getElementById('t-dutyend').value = '';
   document.getElementById('t-vehicle-military').value = 'לא';
   toggleVehicleFields('t-');
   document.getElementById('torani-alert').innerHTML = '';
@@ -4736,6 +4774,7 @@ function openEditTorani(t) {
   toggleAvCycleField();
   document.getElementById('t-weekend').value = t.weekendType||'מלא';
   document.getElementById('t-enddate').value = isoToDdmm(t.endDate||'');
+  document.getElementById('t-dutyend').value = isoToDdmm(t.dutyEndDate||'');
   document.getElementById('t-vehicle-military').value = t.isMilitaryVehicle === 'כן' ? 'כן' : 'לא';
   document.getElementById('t-vehicle-company').value = t.vehicleCompany||'';
   document.getElementById('t-vehicle-model').value = t.vehicleModel||'';
@@ -4753,12 +4792,24 @@ function toggleAvCycleField() {
 
 // משרת אב — חודש מנוחה לפי המחזור (זהה לשרת: isAvRestMonth). month = YYYYMM
 // תורן שסיים שירות לפני תחילת החודש (תאריך סיום < היום הראשון בחודש) — לא נדרש להגיש אילוצים
+// כולל 🏁 סיום תורנות (dutyEndDate) — מי שסיים תורנויות לפני החודש לא נדרש להגיש
 function endedServiceBefore(t, month) {
-  const iso = normalizeEndDate(t && t.endDate);
-  if (!iso) return false;
   const m = String(month || '').replace(/\D/g, '');
   if (m.length < 6) return false;
-  return iso < m.substring(0, 4) + '-' + m.substring(4, 6) + '-01';
+  const first = m.substring(0, 4) + '-' + m.substring(4, 6) + '-01';
+  return [t && t.endDate, t && t.dutyEndDate].some(v => { const iso = normalizeEndDate(v); return !!iso && iso < first; });
+}
+function endedDutyBefore(t, month) {
+  const iso = normalizeEndDate(t && t.dutyEndDate);
+  const m = String(month || '').replace(/\D/g, '');
+  return !!iso && m.length >= 6 && iso < m.substring(0, 4) + '-' + m.substring(4, 6) + '-01';
+}
+// 🏁 תגית סיום תורנות לכרטיס תורן
+function dutyEndPill(t) {
+  if (!t || !t.dutyEndDate) return '';
+  const iso = normalizeEndDate(t.dutyEndDate);
+  const done = iso && iso < new Date().toISOString().slice(0, 10);
+  return `<span style="background:${done?'rgba(139,148,158,0.15)':'rgba(56,139,253,0.12)'};border-radius:20px;padding:3px 10px;font-size:11px;color:${done?'var(--text3)':'var(--accent)'};font-weight:600" title="${done?'סיים תורנויות':'מסיים תורנויות — לא ישובץ אחרי התאריך'}">🏁 ${done?'סיים':'סיום'} תורנות ${formatEndDateDisplay(t.dutyEndDate)}</span>`;
 }
 
 function isAvRestFor(t, month) {
@@ -4806,6 +4857,9 @@ async function saveTorani() {
   const avCycle = dutyCategory === 'אב' ? document.getElementById('t-avcycle').value : '';
   const weekendType = document.getElementById('t-weekend').value;
   const endDate = ddmmToISO(document.getElementById('t-enddate').value || '');
+  const dutyEndRaw = (document.getElementById('t-dutyend').value || '').trim();
+  const dutyEndDate = dutyEndRaw ? ddmmToISO(dutyEndRaw) : '';
+  if (dutyEndRaw && !/^\d{4}-\d{2}-\d{2}$/.test(dutyEndDate || '')) return showAlert('torani-alert','תאריך סיום תורנות לא תקין (dd/mm/yyyy)','error');
   const isMilitaryVehicle = document.getElementById('t-vehicle-military').value;
   const vehicleCompany = document.getElementById('t-vehicle-company').value.trim();
   const vehicleModel = document.getElementById('t-vehicle-model').value.trim();
@@ -4818,12 +4872,12 @@ async function saveTorani() {
   let res;
   if (editingTorani) {
     res = await api({action:'updateTorani', username:editingTorani,
-      name, role, phone, email, activity, dutyCategory, avCycle, weekendType, endDate,
+      name, role, phone, email, activity, dutyCategory, avCycle, weekendType, endDate, dutyEndDate,
       isMilitaryVehicle, vehicleCompany, vehicleModel, vehicleColor, vehiclePlate,
       newPassword: password||undefined});
   } else {
     if (!username||!password) { showLoading(false); return showAlert('torani-alert','חסרים שם משתמש וסיסמה','error'); }
-    res = await api({action:'addTorani', name, username, password, role, phone, activity, dutyCategory, avCycle, weekendType, endDate,
+    res = await api({action:'addTorani', name, username, password, role, phone, activity, dutyCategory, avCycle, weekendType, endDate, dutyEndDate,
       isMilitaryVehicle, vehicleCompany, vehicleModel, vehicleColor, vehiclePlate});
   }
   showLoading(false);
@@ -6128,7 +6182,9 @@ function buildPendingConstraintsRow(submittedNames, month) {
     ).sort((a, b) => a.name.localeCompare(b.name, 'he'));
     window._pendingConstraints = pending;
     const avRest = (window._allUsers || []).filter(t => t.active && !t.archived && isAvRestFor(t, month)).map(t => t.name);
-    const avRestHtml = avRest.length ? '<div style="font-size:12.5px;color:var(--text3);margin:-4px 0 12px">👶 משרתי אב בחודש מנוחה (לא נדרשים להגיש): ' + avRest.length + ' — ' + avRest.map(escapeHtml).join(', ') + '</div>' : '';
+    const dutyDone = (window._allUsers || []).filter(t => t.active && !t.archived && endedDutyBefore(t, month)).map(t => t.name);
+    const avRestHtml = (avRest.length ? '<div style="font-size:12.5px;color:var(--text3);margin:-4px 0 12px">👶 משרתי אב בחודש מנוחה (לא נדרשים להגיש): ' + avRest.length + ' — ' + avRest.map(escapeHtml).join(', ') + '</div>' : '')
+      + (dutyDone.length ? '<div style="font-size:12.5px;color:var(--text3);margin:-4px 0 12px">🏁 סיימו תורנויות (לא נדרשים להגיש): ' + dutyDone.length + ' — ' + dutyDone.map(escapeHtml).join(', ') + '</div>' : '');
     window._pendingConstraintsMonth = month;
     if (!pending.length) {
       return avRestHtml + '<div style="background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.3);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:var(--accent)">✅ כל התורנים הפעילים הגישו אילוצים לחודש זה</div>';
@@ -7105,9 +7161,15 @@ function renderHomeDuties(res, containerId, month) {
   }
 }
 
-function renderHomeConstraintCard(openMonth, submitted) {
+function renderHomeConstraintCard(openMonth, submitted, dutyEnded) {
   const card = document.getElementById('home-constraint-card');
   if (!card) return;
+  if (dutyEnded) {
+    card.style.display = 'block';
+    updateBadge('constraints', 0);
+    card.innerHTML = `<div style="display:flex;align-items:center;gap:10px;background:var(--surface);border-radius:14px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.07)"><span style="font-size:20px">🏁</span><div style="font-size:13px;color:var(--text2)">סיימת תורנויות — אין צורך להגיש אילוצים</div></div>`;
+    return;
+  }
   const {year: cyear, mon: cmon} = openMonth ? parseMonth(openMonth) : {};
   const label = openMonth ? `${MONTHS[cmon-1]} ${cyear}` : '';
   card.style.display = 'block';
@@ -7357,6 +7419,7 @@ async function loadHomePage() {
       (cRes.constraints || []).some(c => c === 'X' || c === 'x' || c === 'V' || c === 'v' || c === true) ||
       (cRes.notes && String(cRes.notes).trim())
     ));
+    if (cRes && cRes.success && cRes.dutyEnded) { renderHomeConstraintCard(openMonth, false, true); return; }
     renderHomeConstraintCard(openMonth, submitted);
   } catch(e) { renderHomeConstraintCard(null, false); }
 }
