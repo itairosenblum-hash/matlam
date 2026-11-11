@@ -1375,7 +1375,7 @@ function actionGetSchedule(req, user) {
   const month = String(req.month || '');
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName('Schedule_' + month);
-  if (!sheet) return {success: true, schedule: [], month};
+  if (!sheet) return {success: true, schedule: [], month, potential: (user && user.role === 'admin') ? computeRosterPotential(month) : null};
   const rows = sheetValues(sheet);
   const schedule = [];
   for (let i = 1; i < rows.length; i++) {
@@ -1396,7 +1396,64 @@ function actionGetSchedule(req, user) {
   // Admin-only: names of tornim whose pre-month score already sat at/above the group
   // average but got no duty this month — the persistent "🚫 מדולגים החודש" banner.
   const skippedNames = (user && user.role === 'admin') ? computeSkippedTornim(month) : [];
-  return {success: true, schedule, month, draft: schedStatus === 'draft', skippedNames};
+  const potential = (user && user.role === 'admin' && !isMonthGenerated(month)) ? computeRosterPotential(month) : null;
+  return {success: true, schedule, month, draft: schedStatus === 'draft', skippedNames, potential};
+}
+
+// 🔮 צפי לפני הפקה: מי צפוי לא להשתבץ החודש ולמה, ומי נשאר כפוטנציאל לשיבוץ.
+// אותם כללים כמו בהפקה (actionGenerateScheduleV2): חשבון מושבת/צפייה/מנהל לא נספרים בכלל.
+function computeRosterPotential(month) {
+  try {
+    var mon = parseInt(String(month).substring(4, 6), 10);
+    if (!mon) return null;
+    var year = parseInt(String(month).substring(0, 4), 10);
+    var daysInMonth = new Date(year, mon, 0).getDate();
+    var first = year + '-' + ('0' + mon).slice(-2) + '-01';
+    var last  = year + '-' + ('0' + mon).slice(-2) + '-' + ('0' + daysInMonth).slice(-2);
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+    var fullX = {}, adminSkip = {};
+    var cs = ss.getSheetByName('Constraints_' + month);
+    if (cs) {
+      var cr = sheetValues(cs);
+      for (var i = 1; i < cr.length; i++) {
+        var cn = String(cr[i][0] || '').trim(); if (!cn) continue;
+        var dv = cr[i].slice(1, 1 + daysInMonth);
+        if (dv.length === daysInMonth && dv.every(function(c){ var v = String(c||'').trim().toUpperCase(); return v === 'X' || c === true; })) fullX[cn] = true;
+        if (String(cr[i][32] || '').indexOf(ADMIN_SKIP_MARK) !== -1) adminSkip[cn] = true;
+      }
+    }
+
+    var uActive = {}, uRole = {};
+    var ur = sheetValues(getSheet(SH.USERS));
+    for (var u = 1; u < ur.length; u++) {
+      var un = String(ur[u][1] || '').trim(); if (!un) continue;
+      uActive[un] = !!ur[u][5] && !ur[u][6]; uRole[un] = String(ur[u][4] || '').trim();
+    }
+
+    var available = [], partial = [], excluded = [];
+    (actionGetPeople().people || []).forEach(function(p) {
+      var name = String(p.name || '').trim(); if (!name) return;
+      var cat = String(p.dutyCategory || '').trim();
+      if (cat === 'מנהל מערכת' || uRole[name] === 'admin' || uRole[name] === 'viewer') return;
+      if (uActive[name] === false) return;                    // חשבון מושבת / בארכיון
+      var ee = effectiveEnd(p.endDate, p.dutyEndDate);
+      if (ee && ee.date < first) { excluded.push({name: name, reason: ee.reason}); return; }
+      if (String(p.activity) === '0') { excluded.push({name: name, reason: 'לא פעיל בסבב'}); return; }
+      if (cat === 'פטור' || cat === 'לא מוסמך' || cat === 'טרם הוסמך') { excluded.push({name: name, reason: cat}); return; }
+      if (isPaternityPerson(p) && isAvRestMonth(p.avCycle, mon)) { excluded.push({name: name, reason: 'משרת אב — חודש מנוחה'}); return; }
+      if (fullX[name]) { excluded.push({name: name, reason: adminSkip[name] ? 'דילוג מנהל' : 'אילוץ מלא החודש'}); return; }
+      var notes = [];
+      if (isPaternityPerson(p)) notes.push('משרת אב');
+      if (cat === EXEMPT_24H) notes.push('פטור 24 שעות');
+      if (ee && ee.date < last) notes.push('עד ' + ee.date.split('-').reverse().slice(0, 2).join('/'));
+      if (notes.length) partial.push({name: name, note: notes.join(' · ')}); else available.push(name);
+    });
+    return {days: daysInMonth, available: available, partial: partial, excluded: excluded};
+  } catch (e) {
+    Logger.log('computeRosterPotential error: ' + e);
+    return null;
+  }
 }
 
 // Names of tornim who received no duty this month at all (no V/V2 main duty,
