@@ -1430,6 +1430,9 @@ function computeSkippedTornim(month) {
         if (v2) assigned[v2] = true;
       }
     }
+    // הלוח עוד לא הופק (שלד ריק) — אין "מדולגים", כולם פשוט עוד לא שובצו
+    if (!Object.keys(assigned).length) return [];
+    var monthFirst = String(year) + '-' + ('0' + mon).slice(-2) + '-01';
 
     // Full-month "X" constraints (e.g. via the "🚫 לא מבצע החודש" button, or
     // manually marking every day) are a skip for a known, explicit reason —
@@ -1476,6 +1479,8 @@ function computeSkippedTornim(month) {
       if (usersActive[name] === false) continue;      // account disabled
       if (usersRole[name] === 'viewer') continue;
       if (assigned[name]) continue;                    // got a duty this month
+      var eeS = effectiveEnd(p.endDate, p.dutyEndDate);
+      if (eeS && eeS.date < monthFirst) continue;      // 🏁 סיים תורנויות/שירות לפני החודש — לא חלק מהלוח
 
       // A verified full-month block (e.g. "🚫 לא מבצע החודש") is a skip on its
       // own, regardless of duty category (אב/פטור/etc.) or 0.5 activity —
