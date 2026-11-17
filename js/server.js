@@ -206,7 +206,7 @@ function routeInner(req) {
       vehicleColor: req.vehicleColor,
       vehiclePlate: req.vehiclePlate
     };
-    return withAudit(user, 'עדכון פרופיל עצמי', String(user.username||'') + (auditFields({'טלפון':selfReq.phone, 'אימייל':selfReq.email, 'סיום שירות':selfReq.endDate, 'סופ"ש':selfReq.weekendType, 'רכב צבאי':selfReq.isMilitaryVehicle, 'לוחית זיהוי':selfReq.isMilitaryVehicle==='כן'?selfReq.vehiclePlate:undefined}) ? ' | ' + auditFields({'טלפון':selfReq.phone, 'אימייל':selfReq.email, 'סיום שירות':selfReq.endDate, 'סופ"ש':selfReq.weekendType, 'רכב צבאי':selfReq.isMilitaryVehicle, 'לוחית זיהוי':selfReq.isMilitaryVehicle==='כן'?selfReq.vehiclePlate:undefined}) : ''), actionUpdateTorani(selfReq));
+    return withAudit(user, 'עדכון פרופיל עצמי', String(user.username||'') + (auditFields({'טלפון':selfReq.phone, 'אימייל':selfReq.email, 'סיום שירות':selfReq.endDate, 'סופ"ש':selfReq.weekendType, 'רכב':selfReq.isMilitaryVehicle, 'לוחית זיהוי':(selfReq.isMilitaryVehicle&&selfReq.isMilitaryVehicle!=='לא')?selfReq.vehiclePlate:undefined}) ? ' | ' + auditFields({'טלפון':selfReq.phone, 'אימייל':selfReq.email, 'סיום שירות':selfReq.endDate, 'סופ"ש':selfReq.weekendType, 'רכב':selfReq.isMilitaryVehicle, 'לוחית זיהוי':(selfReq.isMilitaryVehicle&&selfReq.isMilitaryVehicle!=='לא')?selfReq.vehiclePlate:undefined}) : ''), actionUpdateTorani(selfReq));
   }
 
   // Admin only
@@ -237,8 +237,8 @@ function routeInner(req) {
   if (action === 'debugSwap') return actionDebugSwap(req);
   if (action === 'resetPassword' && user.role === 'admin') return withAudit(user, 'איפוס סיסמה', String(req.username||''), actionResetPassword(req));
   if (action === 'getAllTornim') return actionGetAllTornim();
-  if (action === 'addTorani') return withAudit(user, 'הוספת תורן', String(req.name||'') + ' | ' + auditFields({'תפקיד':req.role||'user', 'פעילות':req.activity, 'קטגוריה':req.dutyCategory, 'מחזור אב':req.avCycle, 'סופ"ש':req.weekendType, 'סיום שירות':req.endDate, 'סיום תורנות':req.dutyEndDate, 'רכב צבאי':req.isMilitaryVehicle, 'לוחית זיהוי':req.isMilitaryVehicle==='כן'?req.vehiclePlate:undefined}), actionAddTorani(req));
-  if (action === 'updateTorani') return withAudit(user, 'עריכת תורן', String(req.username||'') + (auditFields({'שם חדש':req.name, 'תפקיד':req.role, 'פעילות':req.activity, 'קטגוריה':req.dutyCategory, 'מחזור אב':req.avCycle, 'סופ"ש':req.weekendType, 'טלפון':req.phone, 'אימייל':req.email, 'סיום שירות':req.endDate, 'סיום תורנות':req.dutyEndDate, 'פעיל':req.active!==undefined?(req.active?'כן':'לא'):undefined, 'סיסמה':req.newPassword?'שונתה':undefined, 'רכב צבאי':req.isMilitaryVehicle, 'לוחית זיהוי':req.isMilitaryVehicle==='כן'?req.vehiclePlate:undefined}) ? ' | ' + auditFields({'שם חדש':req.name, 'תפקיד':req.role, 'פעילות':req.activity, 'קטגוריה':req.dutyCategory, 'מחזור אב':req.avCycle, 'סופ"ש':req.weekendType, 'טלפון':req.phone, 'אימייל':req.email, 'סיום שירות':req.endDate, 'סיום תורנות':req.dutyEndDate, 'פעיל':req.active!==undefined?(req.active?'כן':'לא'):undefined, 'סיסמה':req.newPassword?'שונתה':undefined, 'רכב צבאי':req.isMilitaryVehicle, 'לוחית זיהוי':req.isMilitaryVehicle==='כן'?req.vehiclePlate:undefined}) : ''), actionUpdateTorani(req));
+  if (action === 'addTorani') return withAudit(user, 'הוספת תורן', String(req.name||'') + ' | ' + auditFields({'תפקיד':req.role||'user', 'פעילות':req.activity, 'קטגוריה':req.dutyCategory, 'מחזור אב':req.avCycle, 'סופ"ש':req.weekendType, 'סיום שירות':req.endDate, 'סיום תורנות':req.dutyEndDate, 'רכב':req.isMilitaryVehicle, 'לוחית זיהוי':(req.isMilitaryVehicle&&req.isMilitaryVehicle!=='לא')?req.vehiclePlate:undefined}), actionAddTorani(req));
+  if (action === 'updateTorani') return withAudit(user, 'עריכת תורן', String(req.username||'') + (auditFields({'שם חדש':req.name, 'תפקיד':req.role, 'פעילות':req.activity, 'קטגוריה':req.dutyCategory, 'מחזור אב':req.avCycle, 'סופ"ש':req.weekendType, 'טלפון':req.phone, 'אימייל':req.email, 'סיום שירות':req.endDate, 'סיום תורנות':req.dutyEndDate, 'פעיל':req.active!==undefined?(req.active?'כן':'לא'):undefined, 'סיסמה':req.newPassword?'שונתה':undefined, 'רכב':req.isMilitaryVehicle, 'לוחית זיהוי':(req.isMilitaryVehicle&&req.isMilitaryVehicle!=='לא')?req.vehiclePlate:undefined}) ? ' | ' + auditFields({'שם חדש':req.name, 'תפקיד':req.role, 'פעילות':req.activity, 'קטגוריה':req.dutyCategory, 'מחזור אב':req.avCycle, 'סופ"ש':req.weekendType, 'טלפון':req.phone, 'אימייל':req.email, 'סיום שירות':req.endDate, 'סיום תורנות':req.dutyEndDate, 'פעיל':req.active!==undefined?(req.active?'כן':'לא'):undefined, 'סיסמה':req.newPassword?'שונתה':undefined, 'רכב':req.isMilitaryVehicle, 'לוחית זיהוי':(req.isMilitaryVehicle&&req.isMilitaryVehicle!=='לא')?req.vehiclePlate:undefined}) : ''), actionUpdateTorani(req));
   if (action === 'toggleTorani') return withAudit(user, 'הפעלה/השבתה של תורן', String(req.username||''), actionToggleTorani(req));
   if (action === 'deleteTorani') return withAudit(user, 'מחיקת תורן', String(req.username||''), actionDeleteTorani(req));
   if (action === 'getToraniImpact') return actionGetToraniImpact(req, user);
@@ -538,7 +538,7 @@ function actionGetPeople() {
       weekendType: String(weekendType || 'מלא'),
       email: String(email || ''),
       endDate: endDate ? (endDate instanceof Date ? Utilities.formatDate(endDate, Session.getScriptTimeZone(), 'yyyy-MM-dd') : String(endDate).split('T')[0]) : '',
-      isMilitaryVehicle: String(isMilitaryVehicle || '') === 'כן' ? 'כן' : 'לא',
+      isMilitaryVehicle: vehicleKind(isMilitaryVehicle),
       vehicleCompany: String(vehicleCompany || ''),
       vehicleModel: String(vehicleModel || ''),
       vehicleColor: String(vehicleColor || ''),
@@ -552,14 +552,25 @@ function actionGetPeople() {
 // actually has a military vehicle — if not, the sub-fields are cleared server-side
 // too (not just hidden in the UI), so stale data never lingers after the toggle
 // is switched off.
+// The vehicle column (People col H, historically "רכב צבאי") holds one of:
+// 'כן' = military vehicle (legacy value, kept so existing rows need no migration),
+// 'אזרחי' = civilian vehicle, 'לא' = no vehicle.
+function vehicleKind(v) {
+  const s = String(v || '').trim();
+  if (s === 'כן' || s === 'צבאי') return 'כן';
+  if (s === 'אזרחי') return 'אזרחי';
+  return 'לא';
+}
+
 function normalizeVehicleFields(req) {
-  const isMilitary = String(req.isMilitaryVehicle || '') === 'כן';
+  const kind = vehicleKind(req.isMilitaryVehicle);
+  const has = kind !== 'לא';
   return {
-    isMilitaryVehicle: isMilitary ? 'כן' : 'לא',
-    vehicleCompany: isMilitary ? String(req.vehicleCompany || '').trim() : '',
-    vehicleModel: isMilitary ? String(req.vehicleModel || '').trim() : '',
-    vehicleColor: isMilitary ? String(req.vehicleColor || '').trim() : '',
-    vehiclePlate: isMilitary ? String(req.vehiclePlate || '').trim() : ''
+    isMilitaryVehicle: kind,
+    vehicleCompany: has ? String(req.vehicleCompany || '').trim() : '',
+    vehicleModel: has ? String(req.vehicleModel || '').trim() : '',
+    vehicleColor: has ? String(req.vehicleColor || '').trim() : '',
+    vehiclePlate: has ? String(req.vehiclePlate || '').trim() : ''
   };
 }
 
@@ -2141,7 +2152,7 @@ function actionGetAllTornim() {
       weekendType: String(weekendType || 'מלא'),
       email: String(email || ''),
       endDate: endDate ? (endDate instanceof Date ? Utilities.formatDate(endDate, Session.getScriptTimeZone(), 'yyyy-MM-dd') : String(endDate).split('T')[0]) : '',
-      isMilitaryVehicle: String(isMilitaryVehicle || '') === 'כן' ? 'כן' : 'לא',
+      isMilitaryVehicle: vehicleKind(isMilitaryVehicle),
       vehicleCompany: String(vehicleCompany || ''),
       vehicleModel: String(vehicleModel || ''),
       vehicleColor: String(vehicleColor || ''),

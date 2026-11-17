@@ -1166,10 +1166,11 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
             <div class="card-title">🚗 פרטי רכב</div>
             <div id="vehicle-alert" style="margin-bottom:8px"></div>
             <div class="form-group">
-              <label>האם מגיע ברכב צבאי?</label>
+              <label>האם מגיע ברכב?</label>
               <select id="profile-vehicle-military" onchange="toggleVehicleFields('profile-')" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;color:var(--text);font-family:inherit;outline:none">
                 <option value="לא">לא</option>
-                <option value="כן">כן</option>
+                <option value="כן">כן — רכב צבאי</option>
+                <option value="אזרחי">כן — רכב אזרחי</option>
               </select>
             </div>
             <div id="profile-vehicle-fields" style="display:none">
@@ -1788,10 +1789,11 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
         <div class="text-muted text-sm" style="margin-top:4px">אחרי תאריך זה התורן לא ישובץ, ולא יידרש להגיש אילוצים לחודשים שאחריו. ריק = ממשיך כרגיל.</div>
       </div>
       <div class="form-group" style="grid-column:1/-1">
-        <label>🚗 האם מגיע ברכב צבאי?</label>
+        <label>🚗 האם מגיע ברכב?</label>
         <select id="t-vehicle-military" onchange="toggleVehicleFields('t-')">
-          <option value="לא">לא</option>
-          <option value="כן">כן</option>
+<option value="לא">לא</option>
+          <option value="כן">כן — רכב צבאי</option>
+          <option value="אזרחי">כן — רכב אזרחי</option>
         </select>
       </div>
       <div id="t-vehicle-fields" style="display:none;grid-column:1/-1;grid-template-columns:1fr 1fr;gap:12px">
@@ -1837,6 +1839,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
       <button class="modal-close" onclick="closeModal('modal-vehicles')">✕</button>
     </div>
     <div id="vehicles-subtitle" style="font-size:13px;color:var(--text2);margin:-6px 0 10px"></div>
+    <div id="vehicles-filter" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px"></div>
     <div id="vehicles-list"></div>
     <div class="modal-footer" style="display:flex;gap:8px">
       <button class="btn btn-primary" id="vehicles-share-btn" onclick="shareVehiclesImage()" style="flex:1">📤 שתף כתמונה</button>
@@ -1962,7 +1965,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">v2 17/11/2026 13:11</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">v2 17/11/2026 13:38</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1975,8 +1978,8 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = 'v2 17/11/2026 13:11';
-const BUILD_EPOCH = 1794913909116; // ms — when this exact file was pushed
+const BUILD_STAMP = 'v2 17/11/2026 13:38';
+const BUILD_EPOCH = 1794915517030; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -3519,7 +3522,7 @@ async function loadUsers() { // keep name for tab switching
         <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:${catColor(cat)};font-weight:600">${cat}${t.dutyCategory === 'אב' && t.avCycle ? ' · ' + t.avCycle : ''}</span>
         ${t.dutyCategory === 'אב' && !t.avCycle ? '<span style="background:rgba(210,153,34,0.12);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--warn);font-weight:700" title="ערוך את התורן כדי לבחור זוגי/אי-זוגי">⚠️ מחזור לא הוגדר</span>' : ''}
         <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">${wkd}</span>
-        ${t.isMilitaryVehicle === 'כן' ? `<span style="background:rgba(46,160,67,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600" title="${(t.vehicleCompany||'')} ${(t.vehicleModel||'')} ${(t.vehicleColor||'')} • ${formatPlate(t.vehiclePlate)}">🚗 רכב צבאי</span>` : ''}
+        ${vehicleKindOf(t) !== 'לא' ? `<span style="background:rgba(46,160,67,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600" title="${(t.vehicleCompany||'')} ${(t.vehicleModel||'')} ${(t.vehicleColor||'')} • ${formatPlate(t.vehiclePlate)}">🚗 ${vehicleKindLabel(t)}</span>` : ''}
         ${t.role === 'admin' ? '<span style="background:rgba(56,139,253,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600">מנהל</span>' : ''}
         ${t.phone ? `<span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">📱 ${formatPhoneDisplay(t.phone)}</span>` : ''}
         ${t.endDate ? `<span
@@ -4441,7 +4444,17 @@ function loadScriptOnce(src) {
   return _loadedScripts[src];
 }
 
-// Who goes in the report: active, non-admin tornim who reported a military vehicle.
+// Vehicle column values: 'כן' = military (legacy value), 'אזרחי' = civilian, 'לא' = none.
+function vehicleKindOf(t) {
+  const v = String((t && t.isMilitaryVehicle) || '').trim();
+  return v === 'כן' ? 'כן' : (v === 'אזרחי' ? 'אזרחי' : 'לא');
+}
+function vehicleKindLabel(t) {
+  const k = vehicleKindOf(t);
+  return k === 'כן' ? 'רכב צבאי' : (k === 'אזרחי' ? 'רכב אזרחי' : '');
+}
+
+// Who goes in the report: active, non-admin tornim who reported any vehicle.
 async function getVehicleReportList() {
   let data = window._allTornimData;
   if (!data) {
@@ -4449,7 +4462,7 @@ async function getVehicleReportList() {
     if (!res.success) throw new Error(res.error || 'שגיאה בטעינת נתונים');
     data = res.tornim;
   }
-  return data.filter(t => t.active && t.role !== 'admin' && t.isMilitaryVehicle === 'כן')
+  return data.filter(t => t.active && t.role !== 'admin' && vehicleKindOf(t) !== 'לא')
     .sort((a,b) => a.name.localeCompare(b.name,'he'));
 }
 
@@ -4463,34 +4476,58 @@ async function openVehiclesReport() {
   const orig = btn ? btn.innerHTML : '';
   if (btn) { btn.disabled = true; btn.innerHTML = '⏳ טוען...'; }
   try {
-    const list = await getVehicleReportList();
-    window._vehicleReportData = list;
-    document.getElementById('vehicles-subtitle').textContent =
-      `${list.length} רכבים בדוח · נכון ל־${vehicleTodayLabel()}`;
-    const plate = p => p ? `<span style="display:inline-block;background:#fac775;color:#412402;border:1px solid #854f0b;border-radius:4px;padding:1px 7px;font-size:13px;font-weight:700;font-family:monospace;direction:ltr;white-space:nowrap">${escapeHtml(p)}</span>` : '<span style="color:var(--text3)">—</span>';
-    document.getElementById('vehicles-list').innerHTML = list.length
-      ? list.map(t => {
-          const car = [t.vehicleCompany, t.vehicleModel].filter(Boolean).join(' ');
-          const sub = [car, t.vehicleColor].filter(Boolean).map(escapeHtml).join(' · ');
-          const ph = formatPhoneDisplay(t.phone || '');
-          return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
-            <div style="min-width:0">
-              <div style="font-weight:700;font-size:14px">${escapeHtml(t.name)}</div>
-              <div style="font-size:12px;color:var(--text2)">${sub || '—'}</div>
-              ${ph ? `<div style="font-size:12px;color:var(--text3);direction:ltr;text-align:right">${escapeHtml(ph)}</div>` : ''}
-            </div>
-            <div style="flex:none">${plate(formatPlate(t.vehiclePlate))}</div>
-          </div>`;
-        }).join('')
-      : '<div style="text-align:center;color:var(--text2);padding:24px 0">אין תורנים שדיווחו על רכב צבאי</div>';
-    const shareBtn = document.getElementById('vehicles-share-btn');
-    if (shareBtn) shareBtn.disabled = !list.length;
+    window._vehicleReportAll = await getVehicleReportList();
+    window._vehicleFilter = 'all';
+    renderVehiclesReport();
     openModal('modal-vehicles');
   } catch (err) {
     alert('שגיאה בטעינת הדוח: ' + err.message);
   } finally {
     if (btn) { btn.disabled = false; btn.innerHTML = orig; }
   }
+}
+
+const VEHICLE_FILTERS = [['all','הכל'],['כן','צבאי'],['אזרחי','אזרחי']];
+function vehicleFilterLabel() {
+  const f = window._vehicleFilter || 'all';
+  return f === 'כן' ? 'רכבים צבאיים' : (f === 'אזרחי' ? 'רכבים אזרחיים' : 'רכבים');
+}
+
+function setVehicleFilter(f) { window._vehicleFilter = f; renderVehiclesReport(); }
+
+function renderVehiclesReport() {
+  const all = window._vehicleReportAll || [];
+  const f = window._vehicleFilter || 'all';
+  const list = f === 'all' ? all : all.filter(t => vehicleKindOf(t) === f);
+  window._vehicleReportData = list;
+  const count = k => k === 'all' ? all.length : all.filter(t => vehicleKindOf(t) === k).length;
+  document.getElementById('vehicles-filter').innerHTML = VEHICLE_FILTERS.map(([k,lbl]) => {
+    const on = k === f;
+    return `<button type="button" onclick="setVehicleFilter('${k}')" style="border:1px solid ${on?'var(--accent)':'var(--border)'};background:${on?'var(--accent-glow)':'var(--surface2)'};color:${on?'var(--accent)':'var(--text2)'};border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer">${lbl} · ${count(k)}</button>`;
+  }).join('');
+  document.getElementById('vehicles-subtitle').textContent =
+    `${list.length} ${vehicleFilterLabel()} בדוח · נכון ל־${vehicleTodayLabel()}`;
+  const plate = p => p ? `<span style="display:inline-block;background:#fac775;color:#412402;border:1px solid #854f0b;border-radius:4px;padding:1px 7px;font-size:13px;font-weight:700;font-family:monospace;direction:ltr;white-space:nowrap">${escapeHtml(p)}</span>` : '<span style="color:var(--text3)">—</span>';
+  const tag = t => vehicleKindOf(t) === 'כן'
+    ? '<span style="font-size:10.5px;background:rgba(46,160,67,0.15);color:var(--accent);padding:1px 7px;border-radius:20px;font-weight:600;margin-right:4px">צבאי</span>'
+    : '<span style="font-size:10.5px;background:rgba(56,139,253,0.15);color:var(--info);padding:1px 7px;border-radius:20px;font-weight:600;margin-right:4px">אזרחי</span>';
+  document.getElementById('vehicles-list').innerHTML = list.length
+    ? list.map(t => {
+        const car = [t.vehicleCompany, t.vehicleModel].filter(Boolean).join(' ');
+        const sub = [car, t.vehicleColor].filter(Boolean).map(escapeHtml).join(' · ');
+        const ph = formatPhoneDisplay(t.phone || '');
+        return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+          <div style="min-width:0">
+            <div style="font-weight:700;font-size:14px">${escapeHtml(t.name)}${tag(t)}</div>
+            <div style="font-size:12px;color:var(--text2)">${sub || '—'}</div>
+            ${ph ? `<div style="font-size:12px;color:var(--text3);direction:ltr;text-align:right">${escapeHtml(ph)}</div>` : ''}
+          </div>
+          <div style="flex:none">${plate(formatPlate(t.vehiclePlate))}</div>
+        </div>`;
+      }).join('')
+    : '<div style="text-align:center;color:var(--text2);padding:24px 0">אין רכבים להצגה</div>';
+  const shareBtn = document.getElementById('vehicles-share-btn');
+  if (shareBtn) shareBtn.disabled = !list.length;
 }
 
 async function shareVehiclesImage() {
@@ -4510,7 +4547,7 @@ async function shareVehiclesImage() {
     const car = [t.vehicleCompany, t.vehicleModel].filter(Boolean).join(' ');
     return `<div style="display:grid;grid-template-columns:${COL};align-items:center;text-align:right;border-bottom:1px solid #e5e7eb">
       <div style="${cellStyle};color:#6b7280">${i+1}</div>
-      <div style="${cellStyle};font-weight:700">${escapeHtml(t.name)}</div>
+      <div style="${cellStyle};font-weight:700">${escapeHtml(t.name)}<div style="font-size:10.5px;font-weight:700;color:${vehicleKindOf(t)==='כן'?'#15803d':'#1d4ed8'}">${vehicleKindOf(t)==='כן'?'צבאי':'אזרחי'}</div></div>
       <div style="${cellStyle};direction:ltr;text-align:right">${escapeHtml(formatPhoneDisplay(t.phone||'')) || '—'}</div>
       <div style="${cellStyle}">${t.vehiclePlate ? `<span style="display:inline-block;background:#fac775;border:1px solid #854f0b;border-radius:4px;padding:1px 6px;font-family:monospace;font-weight:700;direction:ltr">${escapeHtml(formatPlate(t.vehiclePlate))}</span>` : '—'}</div>
       <div style="${cellStyle}">${escapeHtml(car) || '—'}${t.vehicleColor ? `<div style="font-size:11px;color:#6b7280">${escapeHtml(t.vehicleColor)}</div>` : ''}</div>
@@ -4521,10 +4558,11 @@ async function shareVehiclesImage() {
   wrapper.style.cssText = "position:fixed;top:-9999px;right:-9999px;background:#ffffff;padding:22px;width:620px;box-sizing:border-box;direction:rtl;font-family:Arial,'Segoe UI',sans-serif";
   wrapper.innerHTML = `
     <div style="text-align:center;border-bottom:2px solid #16a34a;padding-bottom:12px;margin-bottom:10px">
-      <div style="font-size:20px;font-weight:900;color:#14532d">🚗 דוח רכבים</div>
-      <div style="font-size:13px;color:#6b7280;margin-top:3px">נכון ל־${vehicleTodayLabel()} · ${list.length} רכבים</div>
+      <div style="font-size:20px;font-weight:900;color:#14532d">🚗 דוח ${vehicleFilterLabel()}</div>
+      <div style="font-size:13px;color:#6b7280;margin-top:3px">נכון ל־${vehicleTodayLabel()} · ${list.length} ${vehicleFilterLabel()}</div>
     </div>
     ${head}${rows}
+    ${(window._vehicleFilter||'all') === 'all' ? `<div style="display:flex;justify-content:center;gap:16px;margin-top:10px;font-size:12px;color:#374151"><span>צבאי: ${list.filter(t=>vehicleKindOf(t)==='כן').length}</span><span>אזרחי: ${list.filter(t=>vehicleKindOf(t)==='אזרחי').length}</span></div>` : ''}
     <div style="text-align:center;font-size:11px;color:#9ca3af;margin-top:14px">מטל״מ · מערכת ניהול תורנויות</div>`;
   document.body.appendChild(wrapper);
 
@@ -4572,15 +4610,16 @@ async function exportVehiclesExcel() {
     const withVehicle = window._vehicleReportData || await getVehicleReportList();
 
     if (!withVehicle.length) {
-      alert('אין תורנים שדיווחו על רכב צבאי');
+      alert('אין רכבים בדוח');
       return;
     }
 
-    const headers = ['#', 'שם', 'טלפון', 'חברת רכב', 'דגם', 'צבע', 'לוחית זיהוי'];
+    const headers = ['#', 'שם', 'טלפון', 'סוג רכב', 'חברת רכב', 'דגם', 'צבע', 'לוחית זיהוי'];
     const rows = withVehicle.map((t,i) => [
       i+1,
       t.name,
       formatPhoneDisplay(t.phone||''),
+      vehicleKindOf(t) === 'כן' ? 'צבאי' : 'אזרחי',
       t.vehicleCompany||'',
       t.vehicleModel||'',
       t.vehicleColor||'',
@@ -4588,7 +4627,7 @@ async function exportVehiclesExcel() {
     ]);
 
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-    ws['!cols'] = [{wch:4},{wch:20},{wch:14},{wch:14},{wch:14},{wch:10},{wch:14}];
+    ws['!cols'] = [{wch:4},{wch:20},{wch:14},{wch:8},{wch:14},{wch:14},{wch:10},{wch:14}];
     ws['!views'] = [{ rightToLeft: true }];
 
     const wb = XLSX.utils.book_new();
@@ -4648,7 +4687,7 @@ function filterTornim(query) {
         <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:${catColor(cat)};font-weight:600">${cat}${t.dutyCategory === 'אב' && t.avCycle ? ' · ' + t.avCycle : ''}</span>
         ${t.dutyCategory === 'אב' && !t.avCycle ? '<span style="background:rgba(210,153,34,0.12);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--warn);font-weight:700" title="ערוך את התורן כדי לבחור זוגי/אי-זוגי">⚠️ מחזור לא הוגדר</span>' : ''}
         <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">${wkd}</span>
-        ${t.isMilitaryVehicle === 'כן' ? `<span style="background:rgba(46,160,67,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600" title="${(t.vehicleCompany||'')} ${(t.vehicleModel||'')} ${(t.vehicleColor||'')} • ${formatPlate(t.vehiclePlate)}">🚗 רכב צבאי</span>` : ''}
+        ${vehicleKindOf(t) !== 'לא' ? `<span style="background:rgba(46,160,67,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600" title="${(t.vehicleCompany||'')} ${(t.vehicleModel||'')} ${(t.vehicleColor||'')} • ${formatPlate(t.vehiclePlate)}">🚗 ${vehicleKindLabel(t)}</span>` : ''}
         ${t.role === 'admin' ? '<span style="background:rgba(56,139,253,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600">מנהל</span>' : ''}
         ${t.phone ? `<span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">📱 ${formatPhoneDisplay(t.phone)}</span>` : ''}
         ${t.endDate ? `<span
@@ -4745,7 +4784,7 @@ function filterTornimByCategory(kind) {
         <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:${catColor(cat)};font-weight:600">${cat}${t.dutyCategory === 'אב' && t.avCycle ? ' · ' + t.avCycle : ''}</span>
         ${t.dutyCategory === 'אב' && !t.avCycle ? '<span style="background:rgba(210,153,34,0.12);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--warn);font-weight:700" title="ערוך את התורן כדי לבחור זוגי/אי-זוגי">⚠️ מחזור לא הוגדר</span>' : ''}
         <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">${wkd}</span>
-        ${t.isMilitaryVehicle === 'כן' ? `<span style="background:rgba(46,160,67,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600" title="${(t.vehicleCompany||'')} ${(t.vehicleModel||'')} ${(t.vehicleColor||'')} • ${formatPlate(t.vehiclePlate)}">🚗 רכב צבאי</span>` : ''}
+        ${vehicleKindOf(t) !== 'לא' ? `<span style="background:rgba(46,160,67,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600" title="${(t.vehicleCompany||'')} ${(t.vehicleModel||'')} ${(t.vehicleColor||'')} • ${formatPlate(t.vehiclePlate)}">🚗 ${vehicleKindLabel(t)}</span>` : ''}
         ${t.role === 'admin' ? '<span style="background:rgba(56,139,253,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600">מנהל</span>' : ''}
         ${t.phone ? `<span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">📱 ${formatPhoneDisplay(t.phone)}</span>` : ''}
         ${t.endDate ? `<span
@@ -4818,7 +4857,7 @@ function filterTornimEndingSoon() {
         <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:${catColor(cat)};font-weight:600">${cat}${t.dutyCategory === 'אב' && t.avCycle ? ' · ' + t.avCycle : ''}</span>
         ${t.dutyCategory === 'אב' && !t.avCycle ? '<span style="background:rgba(210,153,34,0.12);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--warn);font-weight:700" title="ערוך את התורן כדי לבחור זוגי/אי-זוגי">⚠️ מחזור לא הוגדר</span>' : ''}
         <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">${wkd}</span>
-        ${t.isMilitaryVehicle === 'כן' ? `<span style="background:rgba(46,160,67,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600" title="${(t.vehicleCompany||'')} ${(t.vehicleModel||'')} ${(t.vehicleColor||'')} • ${formatPlate(t.vehiclePlate)}">🚗 רכב צבאי</span>` : ''}
+        ${vehicleKindOf(t) !== 'לא' ? `<span style="background:rgba(46,160,67,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600" title="${(t.vehicleCompany||'')} ${(t.vehicleModel||'')} ${(t.vehicleColor||'')} • ${formatPlate(t.vehiclePlate)}">🚗 ${vehicleKindLabel(t)}</span>` : ''}
         ${t.role === 'admin' ? '<span style="background:rgba(56,139,253,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600">מנהל</span>' : ''}
         ${t.phone ? `<span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">📱 ${formatPhoneDisplay(t.phone)}</span>` : ''}
         ${t.endDate ? `<span
@@ -4846,10 +4885,10 @@ function filterTornimEndingSoon() {
 // answer means the data is not relevant and shouldn't be left sitting stale
 // in the form ready to be silently resubmitted.
 function toggleVehicleFields(prefix) {
-  const isMilitary = document.getElementById(prefix + 'vehicle-military').value === 'כן';
+  const hasVehicle = document.getElementById(prefix + 'vehicle-military').value !== 'לא';
   const fieldsEl = document.getElementById(prefix + 'vehicle-fields');
-  if (fieldsEl) fieldsEl.style.display = isMilitary ? (fieldsEl.dataset.shownDisplay || 'block') : 'none';
-  if (!isMilitary) {
+  if (fieldsEl) fieldsEl.style.display = hasVehicle ? (fieldsEl.dataset.shownDisplay || 'block') : 'none';
+  if (!hasVehicle) {
     ['vehicle-company','vehicle-model','vehicle-color','vehicle-plate'].forEach(id => {
       const el = document.getElementById(prefix + id);
       if (el) el.value = '';
@@ -4893,7 +4932,7 @@ function openEditTorani(t) {
   document.getElementById('t-weekend').value = t.weekendType||'מלא';
   document.getElementById('t-enddate').value = isoToDdmm(t.endDate||'');
   document.getElementById('t-dutyend').value = isoToDdmm(t.dutyEndDate||'');
-  document.getElementById('t-vehicle-military').value = t.isMilitaryVehicle === 'כן' ? 'כן' : 'לא';
+  document.getElementById('t-vehicle-military').value = vehicleKindOf(t);
   document.getElementById('t-vehicle-company').value = t.vehicleCompany||'';
   document.getElementById('t-vehicle-model').value = t.vehicleModel||'';
   document.getElementById('t-vehicle-color').value = t.vehicleColor||'';
@@ -5000,7 +5039,7 @@ async function saveTorani() {
   const vehiclePlate = formatPlate(document.getElementById('t-vehicle-plate').value);
 
   if (!name) return showAlert('torani-alert','חסר שם מלא','error');
-  if (isMilitaryVehicle === 'כן' && vehiclePlate && !plateIsValid(vehiclePlate))
+  if (isMilitaryVehicle !== 'לא' && vehiclePlate && !plateIsValid(vehiclePlate))
     return showAlert('torani-alert','מספר רכב צריך להכיל 7 או 8 ספרות','error');
 
   showLoading(true);
@@ -8772,7 +8811,7 @@ async function loadProfile() {
   // Fill vehicle details
   const vmEl = document.getElementById('profile-vehicle-military');
   if (vmEl) {
-    vmEl.value = p.isMilitaryVehicle === 'כן' ? 'כן' : 'לא';
+    vmEl.value = vehicleKindOf(p);
     document.getElementById('profile-vehicle-company').value = p.vehicleCompany || '';
     document.getElementById('profile-vehicle-model').value = p.vehicleModel || '';
     document.getElementById('profile-vehicle-color').value = p.vehicleColor || '';
@@ -8867,7 +8906,7 @@ async function saveVehicleDetails() {
   const vehicleModel = document.getElementById('profile-vehicle-model').value.trim();
   const vehicleColor = document.getElementById('profile-vehicle-color').value.trim();
   const vehiclePlate = formatPlate(document.getElementById('profile-vehicle-plate').value);
-  if (isMilitaryVehicle === 'כן' && vehiclePlate && !plateIsValid(vehiclePlate))
+  if (isMilitaryVehicle !== 'לא' && vehiclePlate && !plateIsValid(vehiclePlate))
     return showAlert('vehicle-alert','מספר רכב צריך להכיל 7 או 8 ספרות','error');
   showLoading(true);
   const res = await api({action:'updateTorani', username: currentUser.username,
@@ -8876,7 +8915,7 @@ async function saveVehicleDetails() {
   if (res.success) {
     showAlert('vehicle-alert','✅ פרטי הרכב נשמרו','success');
     if (_profilePerson) {
-      Object.assign(_profilePerson, isMilitaryVehicle === 'כן'
+      Object.assign(_profilePerson, isMilitaryVehicle !== 'לא'
         ? {isMilitaryVehicle, vehicleCompany, vehicleModel, vehicleColor, vehiclePlate}
         : {isMilitaryVehicle: 'לא', vehicleCompany:'', vehicleModel:'', vehicleColor:'', vehiclePlate:''});
     }
