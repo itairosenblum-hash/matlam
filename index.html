@@ -1230,7 +1230,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
             <button id="btn-prep" class="btn btn-secondary" onclick="switchTab('admin-prep')" style="display:none" title="תרחיש תיאורטי — לא משנה נתונים">🗂️ היערכות לדיון</button>
             <button id="backup-xlsx-btn" class="btn btn-secondary" onclick="exportBackupXlsx()" title="הורדת כל הנתונים כקובץ Excel במבנה הגיליון המקורי">📥 גיבוי לאקסל</button>
             <button class="btn btn-secondary" id="tornim-pdf-btn" onclick="exportTornimPDF()">📄 הפק דוח PDF</button>
-            <button class="btn btn-secondary" id="vehicles-excel-btn" onclick="exportVehiclesExcel()">🚗 דוח רכבים (Excel)</button>
+            <button class="btn btn-secondary" id="vehicles-report-btn" onclick="openVehiclesReport()">🚗 דוח רכבים</button>
             <button class="btn btn-primary" id="btn-add-torani" onclick="openAddTorani()">+ הוסף תורן</button>
           </div>
         </div>
@@ -1830,6 +1830,21 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
   </div>
 </div>
 
+<div id="modal-vehicles" class="modal-overlay">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <div class="modal-title">🚗 דוח רכבים</div>
+      <button class="modal-close" onclick="closeModal('modal-vehicles')">✕</button>
+    </div>
+    <div id="vehicles-subtitle" style="font-size:13px;color:var(--text2);margin:-6px 0 10px"></div>
+    <div id="vehicles-list"></div>
+    <div class="modal-footer" style="display:flex;gap:8px">
+      <button class="btn btn-primary" id="vehicles-share-btn" onclick="shareVehiclesImage()" style="flex:1">📤 שתף כתמונה</button>
+      <button class="btn btn-secondary" id="vehicles-excel-btn" onclick="exportVehiclesExcel()">📊 Excel</button>
+    </div>
+  </div>
+</div>
+
 <div id="modal-history" class="modal-overlay">
   <div class="modal">
     <div class="modal-header">
@@ -1947,7 +1962,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">v2 11/11/2026 11:30</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">v2 17/11/2026 13:06</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1960,8 +1975,8 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = 'v2 11/11/2026 11:30';
-const BUILD_EPOCH = 1794389459682; // ms — when this exact file was pushed
+const BUILD_STAMP = 'v2 17/11/2026 13:06';
+const BUILD_EPOCH = 1794913592383; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -4426,6 +4441,116 @@ function loadScriptOnce(src) {
   return _loadedScripts[src];
 }
 
+// Who goes in the report: active, non-admin tornim who reported a military vehicle.
+async function getVehicleReportList() {
+  let data = window._allTornimData;
+  if (!data) {
+    const res = await api({action:'getAllTornim'});
+    if (!res.success) throw new Error(res.error || 'שגיאה בטעינת נתונים');
+    data = res.tornim;
+  }
+  return data.filter(t => t.active && t.role !== 'admin' && t.isMilitaryVehicle === 'כן')
+    .sort((a,b) => a.name.localeCompare(b.name,'he'));
+}
+
+function vehicleTodayLabel() {
+  const n = new Date();
+  return `${String(n.getDate()).padStart(2,'0')}/${String(n.getMonth()+1).padStart(2,'0')}/${n.getFullYear()}`;
+}
+
+async function openVehiclesReport() {
+  const btn = document.getElementById('vehicles-report-btn');
+  const orig = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ טוען...'; }
+  try {
+    const list = await getVehicleReportList();
+    window._vehicleReportData = list;
+    document.getElementById('vehicles-subtitle').textContent =
+      `${list.length} רכבים בדוח · נכון ל־${vehicleTodayLabel()}`;
+    const plate = p => p ? `<span style="display:inline-block;background:#fac775;color:#412402;border:1px solid #854f0b;border-radius:4px;padding:1px 7px;font-size:13px;font-weight:700;font-family:monospace;direction:ltr;white-space:nowrap">${escapeHtml(p)}</span>` : '<span style="color:var(--text3)">—</span>';
+    document.getElementById('vehicles-list').innerHTML = list.length
+      ? list.map(t => {
+          const car = [t.vehicleCompany, t.vehicleModel].filter(Boolean).join(' ');
+          const sub = [car, t.vehicleColor].filter(Boolean).map(escapeHtml).join(' · ');
+          const ph = formatPhoneDisplay(t.phone || '');
+          return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+            <div style="min-width:0">
+              <div style="font-weight:700;font-size:14px">${escapeHtml(t.name)}</div>
+              <div style="font-size:12px;color:var(--text2)">${sub || '—'}</div>
+              ${ph ? `<div style="font-size:12px;color:var(--text3);direction:ltr;text-align:right">${escapeHtml(ph)}</div>` : ''}
+            </div>
+            <div style="flex:none">${plate(t.vehiclePlate)}</div>
+          </div>`;
+        }).join('')
+      : '<div style="text-align:center;color:var(--text2);padding:24px 0">אין תורנים שדיווחו על רכב צבאי</div>';
+    const shareBtn = document.getElementById('vehicles-share-btn');
+    if (shareBtn) shareBtn.disabled = !list.length;
+    openModal('modal-vehicles');
+  } catch (err) {
+    alert('שגיאה בטעינת הדוח: ' + err.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+  }
+}
+
+async function shareVehiclesImage() {
+  const list = window._vehicleReportData || [];
+  if (!list.length) { alert('אין רכבים בדוח'); return; }
+  if (typeof html2canvas === 'undefined') { alert('ספריית התמונות לא נטענה, רענן את הדף'); return; }
+  const btn = document.getElementById('vehicles-share-btn');
+  const btnOrig = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ מכין תמונה...'; }
+
+  const COL = '6% 25% 22% 22% 25%';
+  const cellStyle = 'padding:8px 4px;font-size:13px;color:#111;word-break:break-word';
+  const head = `<div style="display:grid;grid-template-columns:${COL};background:#f0fdf4;font-size:12px;font-weight:800;color:#14532d;text-align:right">
+      <div style="padding:7px 4px">#</div><div style="padding:7px 4px">שם</div><div style="padding:7px 4px">טלפון</div><div style="padding:7px 4px">לוחית</div><div style="padding:7px 4px">רכב</div>
+    </div>`;
+  const rows = list.map((t,i) => {
+    const car = [t.vehicleCompany, t.vehicleModel].filter(Boolean).join(' ');
+    return `<div style="display:grid;grid-template-columns:${COL};align-items:center;text-align:right;border-bottom:1px solid #e5e7eb">
+      <div style="${cellStyle};color:#6b7280">${i+1}</div>
+      <div style="${cellStyle};font-weight:700">${escapeHtml(t.name)}</div>
+      <div style="${cellStyle};direction:ltr;text-align:right">${escapeHtml(formatPhoneDisplay(t.phone||'')) || '—'}</div>
+      <div style="${cellStyle}">${t.vehiclePlate ? `<span style="display:inline-block;background:#fac775;border:1px solid #854f0b;border-radius:4px;padding:1px 6px;font-family:monospace;font-weight:700;direction:ltr">${escapeHtml(t.vehiclePlate)}</span>` : '—'}</div>
+      <div style="${cellStyle}">${escapeHtml(car) || '—'}${t.vehicleColor ? `<div style="font-size:11px;color:#6b7280">${escapeHtml(t.vehicleColor)}</div>` : ''}</div>
+    </div>`;
+  }).join('');
+
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = "position:fixed;top:-9999px;right:-9999px;background:#ffffff;padding:22px;width:620px;box-sizing:border-box;direction:rtl;font-family:Arial,'Segoe UI',sans-serif";
+  wrapper.innerHTML = `
+    <div style="text-align:center;border-bottom:2px solid #16a34a;padding-bottom:12px;margin-bottom:10px">
+      <div style="font-size:20px;font-weight:900;color:#14532d">🚗 דוח רכבים</div>
+      <div style="font-size:13px;color:#6b7280;margin-top:3px">נכון ל־${vehicleTodayLabel()} · ${list.length} רכבים</div>
+    </div>
+    ${head}${rows}
+    <div style="text-align:center;font-size:11px;color:#9ca3af;margin-top:14px">מטל״מ · מערכת ניהול תורנויות</div>`;
+  document.body.appendChild(wrapper);
+
+  try {
+    const canvas = await html2canvas(wrapper, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+    if (wrapper.parentNode) document.body.removeChild(wrapper);
+    const fileName = 'דוח-רכבים-' + vehicleTodayLabel().replace(/\//g,'-') + '.png';
+    const dataUrl = canvas.toDataURL('image/png');
+    const download = () => { const a=document.createElement('a'); a.download=fileName; a.href=dataUrl; a.click(); };
+    canvas.toBlob(blob => {
+      const file = new File([blob], fileName, {type:'image/png'});
+      if (navigator.canShare && navigator.canShare({files:[file]})) {
+        navigator.share({files:[file], title:'דוח רכבים'})
+          .catch(err => { if (err.name !== 'AbortError') download(); });
+      } else {
+        download();
+      }
+    }, 'image/png');
+  } catch (err) {
+    if (wrapper.parentNode) document.body.removeChild(wrapper);
+    alert('שגיאה בהכנת התמונה: ' + err.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = btnOrig; }
+  }
+}
+
 async function exportVehiclesExcel() {
   const btn = document.getElementById('vehicles-excel-btn');
   const btnOrig = btn ? btn.innerHTML : '';
@@ -4444,15 +4569,7 @@ async function exportVehiclesExcel() {
   if (btn) btn.innerHTML = '⏳ מכין דוח...';
 
   try {
-    let data = window._allTornimData;
-    if (!data) {
-      const res = await api({action:'getAllTornim'});
-      if (!res.success) throw new Error(res.error || 'שגיאה בטעינת נתונים');
-      data = res.tornim;
-    }
-
-    const withVehicle = data.filter(t => t.active && t.role !== 'admin' && t.isMilitaryVehicle === 'כן')
-      .sort((a,b) => a.name.localeCompare(b.name,'he'));
+    const withVehicle = window._vehicleReportData || await getVehicleReportList();
 
     if (!withVehicle.length) {
       alert('אין תורנים שדיווחו על רכב צבאי');
