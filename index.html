@@ -1187,7 +1187,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
               </div>
               <div class="form-group">
                 <label>לוחית זיהוי</label>
-                <input id="profile-vehicle-plate" type="text" placeholder="לדוגמה: 12-345-67">
+                <input id="profile-vehicle-plate" type="text" inputmode="numeric" maxlength="10" dir="ltr" style="text-align:right" placeholder="123-45-678 או 12-345-67" oninput="plateTyping(this)" onblur="this.value=formatPlate(this.value)">
               </div>
             </div>
             <button class="btn btn-primary" style="width:100%" onclick="saveVehicleDetails()">💾 שמור</button>
@@ -1809,7 +1809,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
         </div>
         <div class="form-group">
           <label>לוחית זיהוי</label>
-          <input id="t-vehicle-plate" type="text" placeholder="לדוגמה: 12-345-67">
+          <input id="t-vehicle-plate" type="text" inputmode="numeric" maxlength="10" dir="ltr" style="text-align:right" placeholder="123-45-678 או 12-345-67" oninput="plateTyping(this)" onblur="this.value=formatPlate(this.value)">
         </div>
       </div>
     </div>
@@ -1962,7 +1962,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">v2 17/11/2026 13:06</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">v2 17/11/2026 13:11</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1975,8 +1975,8 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = 'v2 17/11/2026 13:06';
-const BUILD_EPOCH = 1794913592383; // ms — when this exact file was pushed
+const BUILD_STAMP = 'v2 17/11/2026 13:11';
+const BUILD_EPOCH = 1794913909116; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -3519,7 +3519,7 @@ async function loadUsers() { // keep name for tab switching
         <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:${catColor(cat)};font-weight:600">${cat}${t.dutyCategory === 'אב' && t.avCycle ? ' · ' + t.avCycle : ''}</span>
         ${t.dutyCategory === 'אב' && !t.avCycle ? '<span style="background:rgba(210,153,34,0.12);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--warn);font-weight:700" title="ערוך את התורן כדי לבחור זוגי/אי-זוגי">⚠️ מחזור לא הוגדר</span>' : ''}
         <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">${wkd}</span>
-        ${t.isMilitaryVehicle === 'כן' ? `<span style="background:rgba(46,160,67,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600" title="${(t.vehicleCompany||'')} ${(t.vehicleModel||'')} ${(t.vehicleColor||'')} • ${(t.vehiclePlate||'')}">🚗 רכב צבאי</span>` : ''}
+        ${t.isMilitaryVehicle === 'כן' ? `<span style="background:rgba(46,160,67,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600" title="${(t.vehicleCompany||'')} ${(t.vehicleModel||'')} ${(t.vehicleColor||'')} • ${formatPlate(t.vehiclePlate)}">🚗 רכב צבאי</span>` : ''}
         ${t.role === 'admin' ? '<span style="background:rgba(56,139,253,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600">מנהל</span>' : ''}
         ${t.phone ? `<span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">📱 ${formatPhoneDisplay(t.phone)}</span>` : ''}
         ${t.endDate ? `<span
@@ -4479,7 +4479,7 @@ async function openVehiclesReport() {
               <div style="font-size:12px;color:var(--text2)">${sub || '—'}</div>
               ${ph ? `<div style="font-size:12px;color:var(--text3);direction:ltr;text-align:right">${escapeHtml(ph)}</div>` : ''}
             </div>
-            <div style="flex:none">${plate(t.vehiclePlate)}</div>
+            <div style="flex:none">${plate(formatPlate(t.vehiclePlate))}</div>
           </div>`;
         }).join('')
       : '<div style="text-align:center;color:var(--text2);padding:24px 0">אין תורנים שדיווחו על רכב צבאי</div>';
@@ -4512,7 +4512,7 @@ async function shareVehiclesImage() {
       <div style="${cellStyle};color:#6b7280">${i+1}</div>
       <div style="${cellStyle};font-weight:700">${escapeHtml(t.name)}</div>
       <div style="${cellStyle};direction:ltr;text-align:right">${escapeHtml(formatPhoneDisplay(t.phone||'')) || '—'}</div>
-      <div style="${cellStyle}">${t.vehiclePlate ? `<span style="display:inline-block;background:#fac775;border:1px solid #854f0b;border-radius:4px;padding:1px 6px;font-family:monospace;font-weight:700;direction:ltr">${escapeHtml(t.vehiclePlate)}</span>` : '—'}</div>
+      <div style="${cellStyle}">${t.vehiclePlate ? `<span style="display:inline-block;background:#fac775;border:1px solid #854f0b;border-radius:4px;padding:1px 6px;font-family:monospace;font-weight:700;direction:ltr">${escapeHtml(formatPlate(t.vehiclePlate))}</span>` : '—'}</div>
       <div style="${cellStyle}">${escapeHtml(car) || '—'}${t.vehicleColor ? `<div style="font-size:11px;color:#6b7280">${escapeHtml(t.vehicleColor)}</div>` : ''}</div>
     </div>`;
   }).join('');
@@ -4584,7 +4584,7 @@ async function exportVehiclesExcel() {
       t.vehicleCompany||'',
       t.vehicleModel||'',
       t.vehicleColor||'',
-      t.vehiclePlate||''
+      formatPlate(t.vehiclePlate)
     ]);
 
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
@@ -4648,7 +4648,7 @@ function filterTornim(query) {
         <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:${catColor(cat)};font-weight:600">${cat}${t.dutyCategory === 'אב' && t.avCycle ? ' · ' + t.avCycle : ''}</span>
         ${t.dutyCategory === 'אב' && !t.avCycle ? '<span style="background:rgba(210,153,34,0.12);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--warn);font-weight:700" title="ערוך את התורן כדי לבחור זוגי/אי-זוגי">⚠️ מחזור לא הוגדר</span>' : ''}
         <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">${wkd}</span>
-        ${t.isMilitaryVehicle === 'כן' ? `<span style="background:rgba(46,160,67,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600" title="${(t.vehicleCompany||'')} ${(t.vehicleModel||'')} ${(t.vehicleColor||'')} • ${(t.vehiclePlate||'')}">🚗 רכב צבאי</span>` : ''}
+        ${t.isMilitaryVehicle === 'כן' ? `<span style="background:rgba(46,160,67,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600" title="${(t.vehicleCompany||'')} ${(t.vehicleModel||'')} ${(t.vehicleColor||'')} • ${formatPlate(t.vehiclePlate)}">🚗 רכב צבאי</span>` : ''}
         ${t.role === 'admin' ? '<span style="background:rgba(56,139,253,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600">מנהל</span>' : ''}
         ${t.phone ? `<span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">📱 ${formatPhoneDisplay(t.phone)}</span>` : ''}
         ${t.endDate ? `<span
@@ -4745,7 +4745,7 @@ function filterTornimByCategory(kind) {
         <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:${catColor(cat)};font-weight:600">${cat}${t.dutyCategory === 'אב' && t.avCycle ? ' · ' + t.avCycle : ''}</span>
         ${t.dutyCategory === 'אב' && !t.avCycle ? '<span style="background:rgba(210,153,34,0.12);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--warn);font-weight:700" title="ערוך את התורן כדי לבחור זוגי/אי-זוגי">⚠️ מחזור לא הוגדר</span>' : ''}
         <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">${wkd}</span>
-        ${t.isMilitaryVehicle === 'כן' ? `<span style="background:rgba(46,160,67,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600" title="${(t.vehicleCompany||'')} ${(t.vehicleModel||'')} ${(t.vehicleColor||'')} • ${(t.vehiclePlate||'')}">🚗 רכב צבאי</span>` : ''}
+        ${t.isMilitaryVehicle === 'כן' ? `<span style="background:rgba(46,160,67,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600" title="${(t.vehicleCompany||'')} ${(t.vehicleModel||'')} ${(t.vehicleColor||'')} • ${formatPlate(t.vehiclePlate)}">🚗 רכב צבאי</span>` : ''}
         ${t.role === 'admin' ? '<span style="background:rgba(56,139,253,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600">מנהל</span>' : ''}
         ${t.phone ? `<span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">📱 ${formatPhoneDisplay(t.phone)}</span>` : ''}
         ${t.endDate ? `<span
@@ -4818,7 +4818,7 @@ function filterTornimEndingSoon() {
         <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:${catColor(cat)};font-weight:600">${cat}${t.dutyCategory === 'אב' && t.avCycle ? ' · ' + t.avCycle : ''}</span>
         ${t.dutyCategory === 'אב' && !t.avCycle ? '<span style="background:rgba(210,153,34,0.12);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--warn);font-weight:700" title="ערוך את התורן כדי לבחור זוגי/אי-זוגי">⚠️ מחזור לא הוגדר</span>' : ''}
         <span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">${wkd}</span>
-        ${t.isMilitaryVehicle === 'כן' ? `<span style="background:rgba(46,160,67,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600" title="${(t.vehicleCompany||'')} ${(t.vehicleModel||'')} ${(t.vehicleColor||'')} • ${(t.vehiclePlate||'')}">🚗 רכב צבאי</span>` : ''}
+        ${t.isMilitaryVehicle === 'כן' ? `<span style="background:rgba(46,160,67,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600" title="${(t.vehicleCompany||'')} ${(t.vehicleModel||'')} ${(t.vehicleColor||'')} • ${formatPlate(t.vehiclePlate)}">🚗 רכב צבאי</span>` : ''}
         ${t.role === 'admin' ? '<span style="background:rgba(56,139,253,0.15);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600">מנהל</span>' : ''}
         ${t.phone ? `<span style="background:var(--surface2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2)">📱 ${formatPhoneDisplay(t.phone)}</span>` : ''}
         ${t.endDate ? `<span
@@ -4897,7 +4897,7 @@ function openEditTorani(t) {
   document.getElementById('t-vehicle-company').value = t.vehicleCompany||'';
   document.getElementById('t-vehicle-model').value = t.vehicleModel||'';
   document.getElementById('t-vehicle-color').value = t.vehicleColor||'';
-  document.getElementById('t-vehicle-plate').value = t.vehiclePlate||'';
+  document.getElementById('t-vehicle-plate').value = formatPlate(t.vehiclePlate);
   toggleVehicleFields('t-');
   document.getElementById('torani-alert').innerHTML = '';
   openModal('modal-add-torani');
@@ -4997,9 +4997,11 @@ async function saveTorani() {
   const vehicleCompany = document.getElementById('t-vehicle-company').value.trim();
   const vehicleModel = document.getElementById('t-vehicle-model').value.trim();
   const vehicleColor = document.getElementById('t-vehicle-color').value.trim();
-  const vehiclePlate = document.getElementById('t-vehicle-plate').value.trim();
+  const vehiclePlate = formatPlate(document.getElementById('t-vehicle-plate').value);
 
   if (!name) return showAlert('torani-alert','חסר שם מלא','error');
+  if (isMilitaryVehicle === 'כן' && vehiclePlate && !plateIsValid(vehiclePlate))
+    return showAlert('torani-alert','מספר רכב צריך להכיל 7 או 8 ספרות','error');
 
   showLoading(true);
   let res;
@@ -8539,6 +8541,21 @@ function formatPhoneDisplay(phone) {
   return phone;
 }
 
+// Israeli plates: 8 digits (newer) → ###-##-### ; 7 digits (older) → ##-###-##.
+// Anything else is returned as typed so odd legacy values are never mangled.
+function formatPlate(plate) {
+  const raw = String(plate || '').trim();
+  const d = raw.replace(/\D/g, '');
+  if (d.length === 8) return d.substring(0,3) + '-' + d.substring(3,5) + '-' + d.substring(5);
+  if (d.length === 7) return d.substring(0,2) + '-' + d.substring(2,5) + '-' + d.substring(5);
+  return raw;
+}
+function plateIsValid(plate) {
+  const d = String(plate || '').replace(/\D/g, '');
+  return d.length === 7 || d.length === 8;
+}
+function plateTyping(input) { input.value = input.value.replace(/[^\d-]/g, '').substring(0, 10); }
+
 function formatPhoneInput(input) {
   let val = input.value.replace(/\D/g, '').substring(0, 10);
   if (val.length >= 7) {
@@ -8759,7 +8776,7 @@ async function loadProfile() {
     document.getElementById('profile-vehicle-company').value = p.vehicleCompany || '';
     document.getElementById('profile-vehicle-model').value = p.vehicleModel || '';
     document.getElementById('profile-vehicle-color').value = p.vehicleColor || '';
-    document.getElementById('profile-vehicle-plate').value = p.vehiclePlate || '';
+    document.getElementById('profile-vehicle-plate').value = formatPlate(p.vehiclePlate);
     toggleVehicleFields('profile-');
   }
 
@@ -8849,7 +8866,9 @@ async function saveVehicleDetails() {
   const vehicleCompany = document.getElementById('profile-vehicle-company').value.trim();
   const vehicleModel = document.getElementById('profile-vehicle-model').value.trim();
   const vehicleColor = document.getElementById('profile-vehicle-color').value.trim();
-  const vehiclePlate = document.getElementById('profile-vehicle-plate').value.trim();
+  const vehiclePlate = formatPlate(document.getElementById('profile-vehicle-plate').value);
+  if (isMilitaryVehicle === 'כן' && vehiclePlate && !plateIsValid(vehiclePlate))
+    return showAlert('vehicle-alert','מספר רכב צריך להכיל 7 או 8 ספרות','error');
   showLoading(true);
   const res = await api({action:'updateTorani', username: currentUser.username,
     isMilitaryVehicle, vehicleCompany, vehicleModel, vehicleColor, vehiclePlate});
