@@ -4630,6 +4630,13 @@ function actionGenerateScheduleV2(req) {
     var cat = String(schedRows[si2][2]||'חול').trim();
     // Normalize
     if (cat === 'שישי' || cat === 'שבת') cat = 'סוף שבוע';
+    // 🕎 חנוכה היא הערה בלבד: שלד ישן שנשמר עם 'חג' ביום חנוכה (ולא שונה בחלון ההפקה) — סוג יום לפי היום בשבוע
+    if ((cat === 'חג' || cat === 'ערב חג') && /^חנוכה/.test(String(schedRows[si2][6]||'').trim()) && !dayCats) {
+      var hdow = new Date(year, mon-1, dn).getDay();
+      cat = (hdow === 5 || hdow === 6) ? 'סוף שבוע' : hdow === 4 ? 'חמישי' : 'חול';
+      schedRows[si2][2] = cat;
+      try { schedSheet.getRange(si2+1, 3).setValue(cat); } catch(e) {}
+    }
     DAY_CAT[dn] = cat;
   }
   
