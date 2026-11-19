@@ -1965,7 +1965,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">v2 18/11/2026 15:59</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">v2 19/11/2026 10:37</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1978,8 +1978,8 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = 'v2 18/11/2026 15:59';
-const BUILD_EPOCH = 1795010382254; // ms — when this exact file was pushed
+const BUILD_STAMP = 'v2 19/11/2026 10:37';
+const BUILD_EPOCH = 1795077447104; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -4590,14 +4590,16 @@ async function shareVehiclesImage() {
   }
 }
 
+// Styled Excel via ExcelJS (SheetJS community can't write cell styles).
+// Lazily loaded the first time the button is clicked, like the old library.
 async function exportVehiclesExcel() {
   const btn = document.getElementById('vehicles-excel-btn');
   const btnOrig = btn ? btn.innerHTML : '';
   if (btn) { btn.disabled = true; btn.innerHTML = '⏳ טוען ספרייה...'; }
 
-  if (typeof XLSX === 'undefined') {
+  if (typeof ExcelJS === 'undefined') {
     try {
-      await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+      await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js');
     } catch (e) {
       alert('שגיאה בטעינת ספריית האקסל — בדוק חיבור לאינטרנט ונסה שוב');
       if (btn) { btn.disabled = false; btn.innerHTML = btnOrig; }
@@ -4608,35 +4610,102 @@ async function exportVehiclesExcel() {
   if (btn) btn.innerHTML = '⏳ מכין דוח...';
 
   try {
-    const withVehicle = window._vehicleReportData || await getVehicleReportList();
+    const list = window._vehicleReportData || await getVehicleReportList();
+    if (!list.length) { alert('אין רכבים בדוח'); return; }
 
-    if (!withVehicle.length) {
-      alert('אין רכבים בדוח');
-      return;
-    }
+    const FONT = 'Arial';
+    const thin = c => ({style:'thin', color:{argb:c}});
+    const grid = {top:thin('FFD1D5DB'), bottom:thin('FFD1D5DB'), left:thin('FFD1D5DB'), right:thin('FFD1D5DB')};
+    const fill = c => ({type:'pattern', pattern:'solid', fgColor:{argb:c}});
+    const nMil = list.filter(t => vehicleKindOf(t) === 'כן').length;
+    const nCiv = list.length - nMil;
+    const COLS = [
+      {h:'#', w:5}, {h:'שם', w:22}, {h:'טלפון', w:15}, {h:'סוג רכב', w:11},
+      {h:'יצרן', w:14}, {h:'דגם', w:16}, {h:'צבע', w:11}, {h:'לוחית רישוי', w:16}
+    ];
+    const last = String.fromCharCode(64 + COLS.length); // 'H'
 
-    const headers = ['#', 'שם', 'טלפון', 'סוג רכב', 'חברת רכב', 'דגם', 'צבע', 'לוחית זיהוי'];
-    const rows = withVehicle.map((t,i) => [
-      i+1,
-      t.name,
-      formatPhoneDisplay(t.phone||''),
-      vehicleKindOf(t) === 'כן' ? 'צבאי' : 'אזרחי',
-      t.vehicleCompany||'',
-      t.vehicleModel||'',
-      t.vehicleColor||'',
-      formatPlate(t.vehiclePlate)
-    ]);
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'מטל"מ';
+    const ws = wb.addWorksheet('רכבים', {
+      views: [{ rightToLeft: true, state: 'frozen', ySplit: 4, showGridLines: false }],
+      pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+                   horizontalCentered: true, printTitlesRow: '4:4',
+                   margins: {left:0.4, right:0.4, top:0.5, bottom:0.6, header:0.3, footer:0.3} },
+      headerFooter: { oddFooter: '&C&8מטל״מ · מערכת ניהול תורנויות&L&8&P/&N' }
+    });
+    ws.columns = COLS.map(c => ({ width: c.w }));
 
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-    ws['!cols'] = [{wch:4},{wch:20},{wch:14},{wch:8},{wch:14},{wch:14},{wch:10},{wch:14}];
-    ws['!views'] = [{ rightToLeft: true }];
+    // Title + subtitle bands
+    ws.mergeCells(`A1:${last}1`);
+    const t1 = ws.getCell('A1');
+    t1.value = '🚗 דוח ' + vehicleFilterLabel();
+    t1.font = { name: FONT, size: 18, bold: true, color: {argb:'FFFFFFFF'} };
+    t1.fill = fill('FF14532D');
+    t1.alignment = { horizontal: 'center', vertical: 'middle' };
+    ws.getRow(1).height = 34;
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'רכבים');
+    ws.mergeCells(`A2:${last}2`);
+    const t2 = ws.getCell('A2');
+    t2.value = `נכון ל־${vehicleTodayLabel()}   ·   סה"כ ${list.length}` +
+      ((window._vehicleFilter || 'all') === 'all' ? `   ·   צבאי ${nMil}   ·   אזרחי ${nCiv}` : '');
+    t2.font = { name: FONT, size: 11, color: {argb:'FF14532D'} };
+    t2.fill = fill('FFDCFCE7');
+    t2.alignment = { horizontal: 'center', vertical: 'middle' };
+    ws.getRow(2).height = 22;
+    ws.getRow(3).height = 6;
 
-    const now = new Date();
-    const fileDate = `${String(now.getDate()).padStart(2,'0')}-${String(now.getMonth()+1).padStart(2,'0')}-${now.getFullYear()}`;
-    XLSX.writeFile(wb, `דוח-רכבים-${fileDate}.xlsx`);
+    // Header row
+    const hr = ws.getRow(4);
+    COLS.forEach((c,i) => {
+      const cell = hr.getCell(i+1);
+      cell.value = c.h;
+      cell.font = { name: FONT, size: 11, bold: true, color: {argb:'FFFFFFFF'} };
+      cell.fill = fill('FF16A34A');
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      cell.border = { top:thin('FF15803D'), bottom:thin('FF15803D'), left:thin('FF15803D'), right:thin('FF15803D') };
+    });
+    hr.height = 24;
+
+    // Data rows
+    list.forEach((t, i) => {
+      const mil = vehicleKindOf(t) === 'כן';
+      const r = ws.getRow(5 + i);
+      const vals = [i+1, t.name, formatPhoneDisplay(t.phone||''), mil ? 'צבאי' : 'אזרחי',
+        t.vehicleCompany||'', t.vehicleModel||'', t.vehicleColor||'', formatPlate(t.vehiclePlate)];
+      const zebra = i % 2 ? 'FFF0FDF4' : 'FFFFFFFF';
+      vals.forEach((v, j) => {
+        const cell = r.getCell(j+1);
+        cell.value = v;
+        cell.font = { name: FONT, size: 11, color: {argb:'FF111827'} };
+        cell.fill = fill(zebra);
+        cell.border = grid;
+        cell.alignment = (j === 1 || j === 4 || j === 5) ? { vertical: 'middle', horizontal: 'right', indent: 1 } : { vertical: 'middle', horizontal: 'center' };
+      });
+      r.getCell(1).font = { name: FONT, size: 10, color: {argb:'FF6B7280'} };
+      r.getCell(2).font = { name: FONT, size: 11, bold: true, color: {argb:'FF111827'} };
+      const kind = r.getCell(4);
+      kind.font = { name: FONT, size: 10, bold: true, color: {argb: mil ? 'FF15803D' : 'FF1D4ED8'} };
+      kind.fill = fill(mil ? 'FFDCFCE7' : 'FFDBEAFE');
+      const plate = r.getCell(8);
+      if (plate.value) {
+        plate.font = { name: 'Consolas', size: 12, bold: true, color: {argb:'FF412402'} };
+        plate.fill = fill('FFFAC775');
+        plate.border = { top:thin('FF854F0B'), bottom:thin('FF854F0B'), left:thin('FF854F0B'), right:thin('FF854F0B') };
+      }
+      r.height = 21;
+    });
+
+    ws.autoFilter = { from: 'A4', to: `${last}${4 + list.length}` };
+
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const fileName = `דוח-רכבים-${vehicleTodayLabel().replace(/\//g,'-')}.xlsx`;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fileName;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   } catch (err) {
     alert('שגיאה בהפקת הדוח: ' + err.message);
   } finally {
