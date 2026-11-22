@@ -5068,7 +5068,16 @@ function actionGenerateScheduleV2(req) {
     if (fwCovered[fri]||fwCovered[sat]) return;
     // Try as full pair first — pickLowest now only returns מלא candidates for pairs,
     // so a low-score נפרד torani no longer blocks the pair
-    var chosen = pickLowest([fri,sat], 'סוף שבוע מלא', null);
+    // סופ"ש מלא נחשב סופ"ש לכל דבר: מי שעשה סופ"ש (גם בודד) ב-3 החודשים האחרונים — רק אם אין אחר.
+    // הרף מתרכך 3 → 2 → 1 → בלי, ומדווח.
+    var chosen = null, fwGap = null, fwGapSteps = [3, 2, 1, null];
+    for (var fgi = 0; fgi < fwGapSteps.length && !chosen; fgi++) {
+      chosen = pickLowest([fri,sat], 'סוף שבוע מלא', fwGapSteps[fgi]);
+      fwGap = fwGapSteps[fgi];
+    }
+    if (chosen && fwGap !== 3) {
+      relaxNotes.push('ימים ' + fri + '-' + sat + ' (סוף שבוע מלא): פער הסופ"שים הוקטן ל-' + (fwGap === null ? '0' : fwGap) + ' חודשים');
+    }
     if (chosen && people[chosen].weekendType === 'מלא') {
       // מלא: covers both fri+sat
       usedV[chosen]=true; dayToV[fri]=dayToV[sat]=chosen;
@@ -5156,6 +5165,8 @@ function actionGenerateScheduleV2(req) {
       if (isWkOrHag(cat)) {
         if (p.weekendType === 'מלא') return false;            // יום סופ"ש/חג בודד — לתורני "נפרד"
         if (cat === 'סוף שבוע' && p.prev_hag) return false;
+        // פער סופ"שים: 3 חודשים, אלא בשלב ההקלה האחרון
+        if (cat === 'סוף שבוע' && rest && p.last_weekend !== null && p.last_weekend !== undefined && (mon - p.last_weekend) < 3) return false;
       }
       return restGapOk(n, [day], rest);
     }
