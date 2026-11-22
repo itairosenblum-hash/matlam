@@ -4922,7 +4922,7 @@ function actionGenerateScheduleV2(req) {
   // Candidate selection. Policy: score fairness FIRST — preferences only steer placement.
   // Sort order: score → "לא לדלג" → V mark on this day → text preference.
   // prev_hag (did a חג last month) is a SOFT block on weekends: ignored only if nobody else qualifies.
-  function pickLowest(days, slotType, minWeekendGap) {
+  function pickLowest(days, slotType, minWeekendGap, strict) {
     var isHagSlot = slotType === 'חג' || slotType === 'ערב חג' || slotType === 'חג + סוף שבוע';
     var isWeekendSlot = !isHagSlot && String(slotType).indexOf('סוף שבוע') !== -1;
 
@@ -4973,13 +4973,13 @@ function actionGenerateScheduleV2(req) {
     for (var rs = 0; rs < restSteps.length && !candidates.length; rs++) {
       var minRest = restSteps[rs];
       candidates = collect(false, false, minRest);
-      if (!candidates.length && isWeekendSlot) {
+      if (!candidates.length && isWeekendSlot && !strict) {
         candidates = collect(true, false, minRest);
         if (candidates.length) {
           relaxNotes.push('יום ' + days[0] + ': שובץ תורן שעשה חג בחודש הקודם (לא היה מועמד אחר)');
         }
       }
-      if (!candidates.length && (isWeekendSlot || isHagSlot) && days.length === 1) {
+      if (!candidates.length && (isWeekendSlot || isHagSlot) && days.length === 1 && !strict) {
         candidates = collect(true, true, minRest);
         if (candidates.length) {
           var slotLabel = isHagSlot ? 'יום חג בודד' : 'סוף שבוע בודד';
@@ -5069,11 +5069,30 @@ function actionGenerateScheduleV2(req) {
     // Try as full pair first — pickLowest now only returns מלא candidates for pairs,
     // so a low-score נפרד torani no longer blocks the pair
     // סופ"ש מלא נחשב סופ"ש לכל דבר: מי שעשה סופ"ש (גם בודד) ב-3 החודשים האחרונים — רק אם אין אחר.
-    // הרף מתרכך 3 → 2 → 1 → בלי, ומדווח.
-    var chosen = null, fwGap = null, fwGapSteps = [3, 2, 1, null];
-    for (var fgi = 0; fgi < fwGapSteps.length && !chosen; fgi++) {
-      chosen = pickLowest([fri,sat], 'סוף שבוע מלא', fwGapSteps[fgi]);
-      fwGap = fwGapSteps[fgi];
+    // סדר: מלא עם פער 3 → פיצול לשני תורני נפרד (פער 3, בלי הקלות) → מלא עם פער מוקטן 2 → 1 → בלי (מדווח).
+    var chosen = pickLowest([fri,sat], 'סוף שבוע מלא', 3), fwGap = 3;
+    if (!chosen) {
+      var notesLen = relaxNotes.length;
+      var sA = pickLowest([fri], 'סוף שבוע', 3, true), sB = null;
+      if (sA) { usedV[sA] = true; sB = pickLowest([sat], 'סוף שבוע', 3, true); usedV[sA] = false; }
+      if (sA && sB) {
+        [[fri, sA], [sat, sB]].forEach(function(x){
+          usedV[x[1]] = true; dayToV[x[0]] = x[1];
+          slotPrimary[x[0]] = [x[1], 'סוף שבוע', DUTY_SCORES_MAP['סוף שבוע']];
+          scores[x[1]] += DUTY_SCORES_MAP['סוף שבוע'];
+          people[x[1]].last_weekend = mon;
+        });
+        var nl2 = relaxNotes.length, anyMala = pickLowest([fri,sat], 'סוף שבוע מלא', null);
+        relaxNotes.length = nl2;
+        if (anyMala) relaxNotes.push('ימים ' + fri + '-' + sat + ': אין תורן "מלא" בלי סופ"ש ב-3 החודשים האחרונים — פוצל לשני תורני "נפרד"');
+        return;
+      }
+      relaxNotes.length = notesLen;
+      var fwGapSteps = [2, 1, null];
+      for (var fgi = 0; fgi < fwGapSteps.length && !chosen; fgi++) {
+        chosen = pickLowest([fri,sat], 'סוף שבוע מלא', fwGapSteps[fgi]);
+        fwGap = fwGapSteps[fgi];
+      }
     }
     if (chosen && fwGap !== 3) {
       relaxNotes.push('ימים ' + fri + '-' + sat + ' (סוף שבוע מלא): פער הסופ"שים הוקטן ל-' + (fwGap === null ? '0' : fwGap) + ' חודשים');

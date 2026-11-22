@@ -34,3 +34,4 @@ const res = runRoute(factory, ss, { action: "generateSchedule", month: "202612",
 console.log("== dry-run message\n" + anon(res.message || res.error));
 const dec = ss.getSheetByName("Schedule_202612").getDataRange().getValues();
 dec.slice(1).forEach(r => { const d = r[0] instanceof Date ? r[0].getDate() : parseInt(String(r[0])); if ([4, 5, 11, 12, 18, 19, 25, 26].includes(d)) console.log("day", d, r[2], "V:", lab(r[3])); });
+// run 1795335769
