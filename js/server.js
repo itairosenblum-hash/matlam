@@ -5137,6 +5137,95 @@ function actionGenerateScheduleV2(req) {
     });
   });
 
+  // ── 5b. תיקון ימים ריקים בהחלפה ─────────────────────────────────
+  // האלגוריתם חמדני: יום שנשאר ריק כי כל הפנויים נפסלו *לאותו יום* (X, סיום וכו')
+  // יכול להתמלא בהחלפה: תורן משובץ (P) עובר מיום D ליום הריק, ותורן לא משובץ (U) לוקח את D.
+  // כל הכללים נשמרים, ואף אחד לא מקבל מבצע שני בחודש.
+  var emptyExplain = [];
+  (function(){
+    var pairDay = {};
+    WEEKEND_PAIRS.concat(HAG_PAIRS).forEach(function(pr){
+      if (dayToV[pr[0]] && dayToV[pr[0]] === dayToV[pr[1]]) { pairDay[pr[0]] = pairDay[pr[1]] = true; }
+    });
+    function isWkOrHag(cat){ return cat === 'סוף שבוע' || cat === 'חג' || cat === 'ערב חג'; }
+    function fitsSingle(n, day, rest) {
+      var p = people[n]; if (!p) return false;
+      if (p.activity === '0.5') return false;                 // משרת אב — מחזור נפרד, לא מזיזים
+      if (!canDoDay(n, day, false)) return false;
+      var cat = DAY_CAT[day] || 'חול';
+      if (isWkOrHag(cat)) {
+        if (p.weekendType === 'מלא') return false;            // יום סופ"ש/חג בודד — לתורני "נפרד"
+        if (cat === 'סוף שבוע' && p.prev_hag) return false;
+      }
+      return restGapOk(n, [day], rest);
+    }
+    function movable(d) {
+      return dayToV[d] && !pairDay[d] && !fwCovered[d] && !PINNED_V[d] && people[dayToV[d]] && people[dayToV[d]].activity !== '0.5';
+    }
+    function scoreOf(d) { return (slotPrimary[d] && slotPrimary[d][2]) || DUTY_SCORES_MAP[DAY_CAT[d]||'חול'] || 10; }
+    function hasV(n, d) { return !!((calInfo[n]||{}).forced_v && calInfo[n].forced_v[d]); }
+
+    for (var e = 1; e <= daysInMonth2; e++) {
+      if (DAY_CAT[e] === undefined || dayToV[e]) continue;
+      var unused = activeNames.filter(function(n){ return !usedV[n] && people[n].activity !== '0.5'; })
+        .sort(function(a,b){ return scores[a] - scores[b]; });
+      var done = false, rests = [MIN_REST_DAYS, 10, 7, 0];
+      for (var ri = 0; ri < rests.length && !done; ri++) {
+        var rest = rests[ri], best = null;
+        // מילוי ישיר (אם התפנה מישהו)
+        for (var u0 = 0; u0 < unused.length; u0++) if (fitsSingle(unused[u0], e, rest)) { best = {u: unused[u0]}; break; }
+        if (!best) {
+          for (var ui = 0; ui < unused.length && !best; ui++) {
+            var U = unused[ui], opts = [];
+            for (var D = 1; D <= daysInMonth2; D++) {
+              if (!movable(D)) continue;
+              var P = dayToV[D];
+              if (!fitsSingle(U, D, rest)) continue;
+              if (!fitsSingle(P, e, rest)) continue;
+              opts.push([hasV(P, D) ? 1 : 0, hasV(U, D) ? 0 : 1, Math.abs(scoreOf(D) - scoreOf(e)), D]);
+            }
+            opts.sort(function(a,b){ for (var k=0;k<4;k++) if (a[k]!==b[k]) return a[k]-b[k]; return 0; });
+            if (opts.length) best = {u: U, d: opts[0][3]};
+          }
+        }
+        if (!best) continue;
+        var catE = DAY_CAT[e] || 'חול', valE = DUTY_SCORES_MAP[catE] || 10;
+        if (best.d === undefined) {
+          usedV[best.u] = true; dayToV[e] = best.u; slotPrimary[e] = [best.u, catE, valE]; scores[best.u] += valE;
+          if (catE === 'סוף שבוע') people[best.u].last_weekend = mon;
+          relaxNotes.push('יום ' + e + ': מולא ע"י ' + best.u);
+        } else {
+          var D2 = best.d, P2 = dayToV[D2], catD = DAY_CAT[D2] || 'חול', valD = scoreOf(D2);
+          scores[P2] += valE - valD;
+          dayToV[e] = P2; slotPrimary[e] = [P2, catE, valE];
+          if (catE === 'סוף שבוע') people[P2].last_weekend = mon;
+          usedV[best.u] = true; dayToV[D2] = best.u; slotPrimary[D2] = [best.u, slotPrimary[D2] ? slotPrimary[D2][1] : catD, valD];
+          scores[best.u] += valD;
+          if (catD === 'סוף שבוע') people[best.u].last_weekend = mon;
+          relaxNotes.push('יום ' + e + ': מולא בהחלפה — ' + P2 + ' הועבר מיום ' + D2 + ' ליום ' + e + ', ו-' + best.u + ' שובץ ביום ' + D2);
+        }
+        if (rest < MIN_REST_DAYS) relaxNotes.push('יום ' + e + ': בהחלפה המרווח מהחודש הסמוך הוקטן ל-' + (rest || 'פחות מ-7') + ' ימים');
+        done = true;
+      }
+      if (!done) {
+        // הסבר: למה כל תורן לא משובץ לא התאים ליום הזה
+        var why = activeNames.filter(function(n){ return !usedV[n]; }).map(function(n){
+          var p = people[n], cat = DAY_CAT[e] || 'חול', r;
+          if ((calInfo[n]||{}).constraints && calInfo[n].constraints[e]) r = 'X ביום ' + e;
+          else if (p.av_rest) r = 'משרת אב — חודש מנוחה';
+          else if (p.activity === '0.5') r = 'משרת אב — מחזור חודשיים';
+          else if (p.dutyCategory === 'פטור' || p.dutyCategory === 'לא מוסמך' || p.dutyCategory === 'טרם הוסמך') r = p.dutyCategory;
+          else if (p.endDateObj && new Date(year, mon-1, e) > p.endDateObj) r = 'מסיים לפני היום';
+          else if (p.dutyCategory === EXEMPT_24H && NON24_CATS.indexOf(cat) === -1) r = 'פטור 24 שעות';
+          else if (isWkOrHag(cat) && p.weekendType === 'מלא') r = 'תורן "מלא" — לא ליום סופ"ש/חג בודד';
+          else r = 'אין יום שאפשר להחליף איתו';
+          return n + ' (' + r + ')';
+        });
+        emptyExplain.push('יום ' + e + ': ' + (why.length ? why.join(', ') : 'אין תורנים פנויים — כולם כבר שובצו החודש'));
+      }
+    }
+  })();
+
   var dolag = activeNames.filter(function(n){return !usedV[n];});
 
   // ── 6. Reserve A/B assignment ────────────────────────────────────
@@ -5356,6 +5445,7 @@ function actionGenerateScheduleV2(req) {
   }
   var msg='השיבוץ הופק: ' + (totalDays-unassigned.length) + '/' + totalDays + ' ימים שובצו';
   if(unassigned.length) msg += '\n❗ ימים ללא מבצע: ' + unassigned.join(', ');
+  if(emptyExplain.length) msg += '\n🔎 למה לא שובצו הפנויים:\n• ' + emptyExplain.join('\n• ');
   if(noReserve.length) msg += '\n⚠️ ימים ללא עתודה מלאה: ' + noReserve.join(', ');
   if(relaxNotes.length) msg += '\n⚠️ הקלות שהופעלו:\n• ' + relaxNotes.join('\n• ');
   if(pinnedNotes.length) msg += '\n📌 קיבועים ידניים:\n• ' + pinnedNotes.join('\n• ');
