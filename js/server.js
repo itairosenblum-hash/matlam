@@ -5063,6 +5063,7 @@ function actionGenerateScheduleV2(req) {
   });
 
   // PRIORITY 2: Weekend pairs (Fri+Sat) — מלא covers both, נפרד covers one
+  var splitPairs = [];   // זוגות שפוצלו לשני "נפרד" — יבוטל הפיצול אם בגללו נשאר יום ריק
   WEEKEND_PAIRS.forEach(function(pair){
     var fri=pair[0], sat=pair[1];
     if (fwCovered[fri]||fwCovered[sat]) return;
@@ -5076,6 +5077,7 @@ function actionGenerateScheduleV2(req) {
       var sA = pickLowest([fri], 'סוף שבוע', 3, true), sB = null;
       if (sA) { usedV[sA] = true; sB = pickLowest([sat], 'סוף שבוע', 3, true); usedV[sA] = false; }
       if (sA && sB) {
+        splitPairs.push({fri: fri, sat: sat, lw: [people[sA].last_weekend, people[sB].last_weekend]});
         [[fri, sA], [sat, sB]].forEach(function(x){
           usedV[x[1]] = true; dayToV[x[0]] = x[1];
           slotPrimary[x[0]] = [x[1], 'סוף שבוע', DUTY_SCORES_MAP['סוף שבוע']];
@@ -5172,9 +5174,12 @@ function actionGenerateScheduleV2(req) {
   var emptyExplain = [];
   (function(){
     var pairDay = {};
-    WEEKEND_PAIRS.concat(HAG_PAIRS).forEach(function(pr){
-      if (dayToV[pr[0]] && dayToV[pr[0]] === dayToV[pr[1]]) { pairDay[pr[0]] = pairDay[pr[1]] = true; }
-    });
+    function markPairs() {
+      pairDay = {};
+      WEEKEND_PAIRS.concat(HAG_PAIRS).forEach(function(pr){
+        if (dayToV[pr[0]] && dayToV[pr[0]] === dayToV[pr[1]]) { pairDay[pr[0]] = pairDay[pr[1]] = true; }
+      });
+    }
     function isWkOrHag(cat){ return cat === 'סוף שבוע' || cat === 'חג' || cat === 'ערב חג'; }
     function fitsSingle(n, day, rest) {
       var p = people[n]; if (!p) return false;
@@ -5195,6 +5200,9 @@ function actionGenerateScheduleV2(req) {
     function scoreOf(d) { return (slotPrimary[d] && slotPrimary[d][2]) || DUTY_SCORES_MAP[DAY_CAT[d]||'חול'] || 10; }
     function hasV(n, d) { return !!((calInfo[n]||{}).forced_v && calInfo[n].forced_v[d]); }
 
+    function repairPass() {
+    markPairs();
+    var left = 0;
     for (var e = 1; e <= daysInMonth2; e++) {
       if (DAY_CAT[e] === undefined || dayToV[e]) continue;
       var unused = activeNames.filter(function(n){ return !usedV[n] && people[n].activity !== '0.5'; })
@@ -5223,7 +5231,6 @@ function actionGenerateScheduleV2(req) {
         if (best.d === undefined) {
           usedV[best.u] = true; dayToV[e] = best.u; slotPrimary[e] = [best.u, catE, valE]; scores[best.u] += valE;
           if (catE === 'סוף שבוע') people[best.u].last_weekend = mon;
-          relaxNotes.push('יום ' + e + ': מולא ע"י ' + best.u);
         } else {
           var D2 = best.d, P2 = dayToV[D2], catD = DAY_CAT[D2] || 'חול', valD = scoreOf(D2);
           scores[P2] += valE - valD;
@@ -5237,7 +5244,72 @@ function actionGenerateScheduleV2(req) {
         if (rest < MIN_REST_DAYS) relaxNotes.push('יום ' + e + ': בהחלפה המרווח מהחודש הסמוך הוקטן ל-' + (rest || 'פחות מ-7') + ' ימים');
         done = true;
       }
-      if (!done) {
+      if (!done) left++;
+    }
+    return left;
+    }
+
+    function snapshot() {
+      var lw = {};
+      Object.keys(people).forEach(function(n){ lw[n] = [people[n].last_weekend, people[n].last_fw]; });
+      return {dayToV: Object.assign({}, dayToV), slotPrimary: JSON.parse(JSON.stringify(slotPrimary)),
+              usedV: Object.assign({}, usedV), scores: Object.assign({}, scores),
+              fwCovered: Object.assign({}, fwCovered), notes: relaxNotes.slice(), lw: lw};
+    }
+    function restore(sn) {
+      dayToV = sn.dayToV; slotPrimary = sn.slotPrimary; usedV = sn.usedV; scores = sn.scores; fwCovered = sn.fwCovered;
+      relaxNotes.length = 0; sn.notes.forEach(function(x){ relaxNotes.push(x); });
+      Object.keys(sn.lw).forEach(function(n){ people[n].last_weekend = sn.lw[n][0]; people[n].last_fw = sn.lw[n][1]; });
+    }
+    function unassign(d) {
+      var n = dayToV[d]; if (!n) return;
+      scores[n] -= scoreOf(d);
+      delete dayToV[d]; delete slotPrimary[d]; delete fwCovered[d];
+      usedV[n] = Object.keys(dayToV).some(function(k){ return dayToV[k] === n; });
+    }
+
+    var emptyNow = repairPass();
+
+    // ביטול פיצול: אם פיצול סופ"ש לשני "נפרד" גרם למחסור — "מלא" עם פער סופ"שים מוקטן לוקח את הזוג
+    splitPairs.forEach(function(sp){
+      if (!emptyNow) return;
+      var fri = sp.fri, sat = sp.sat, A = dayToV[fri], B = dayToV[sat];
+      if (!A || !B || A === B) return;
+      var cands = activeNames.filter(function(n){
+        var p = people[n];
+        if (p.weekendType !== 'מלא' || p.activity === '0.5' || n === A || n === B) return false;
+        if (!fwEligible(p) || !canDoDay(n, fri, true) || !canDoDay(n, sat, true)) return false;
+        if (!usedV[n]) return true;
+        var ds = Object.keys(dayToV).filter(function(k){ return dayToV[k] === n; });
+        return ds.length === 1 && movable(Number(ds[0]));
+      }).sort(function(a,b){ return (usedV[a]?1:0) - (usedV[b]?1:0) || scores[a] - scores[b]; });
+      for (var ci = 0; ci < cands.length; ci++) {
+        var C = cands[ci], sn = snapshot(), origLW = people[C].last_weekend;
+        unassign(fri); unassign(sat);
+        people[A].last_weekend = sp.lw[0]; people[B].last_weekend = sp.lw[1];
+        if (usedV[C]) unassign(Number(Object.keys(dayToV).filter(function(k){ return dayToV[k] === C; })[0]));
+        usedV[C] = true; dayToV[fri] = dayToV[sat] = C;
+        slotPrimary[fri] = [C, 'סוף שבוע מלא', DUTY_SCORES_MAP['סוף שבוע מלא']];
+        slotPrimary[sat] = [C, 'סוף שבוע מלא', 0];
+        scores[C] += DUTY_SCORES_MAP['סוף שבוע מלא'];
+        people[C].last_fw = mon; people[C].last_weekend = mon;
+        fwCovered[fri] = fwCovered[sat] = true;
+        var noteIdx = relaxNotes.length;
+        var after = repairPass();
+        if (after < emptyNow) {
+          emptyNow = after;
+          for (var q = relaxNotes.length - 1; q >= 0; q--) if (relaxNotes[q].indexOf('ימים ' + fri + '-' + sat + ':') === 0) relaxNotes.splice(q, 1);
+          relaxNotes.splice(Math.min(noteIdx, relaxNotes.length), 0, 'ימים ' + fri + '-' + sat + ' (סוף שבוע מלא): פיצול לשני "נפרד" היה משאיר יום ריק — שובץ ' + C +
+            ' למרות סופ"ש לפני ' + (origLW === null || origLW === undefined ? '?' : (mon - origLW)) + ' חודשים');
+          return;
+        }
+        restore(sn);
+      }
+    });
+
+    for (var e = 1; e <= daysInMonth2; e++) {
+      if (DAY_CAT[e] === undefined || dayToV[e]) continue;
+      {
         // הסבר: למה כל תורן לא משובץ לא התאים ליום הזה
         var why = activeNames.filter(function(n){ return !usedV[n]; }).map(function(n){
           var p = people[n], cat = DAY_CAT[e] || 'חול', r;
