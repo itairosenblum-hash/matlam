@@ -2203,7 +2203,9 @@ function actionGetAllTornim() {
 var _valMemo = null;
 function sheetValues(sh) {
   if (!_valMemo) return sh.getDataRange().getValues();
-  var k = sh.getSheetId();
+  // Keyed by NAME: sheet ids can collide (Schedule_202611 and Schedule_202612 share one),
+  // which made the dashboard serve November's rows as December's board.
+  var k = 'n:' + sh.getName();
   if (!_valMemo.hasOwnProperty(k)) _valMemo[k] = sh.getDataRange().getValues();
   return _valMemo[k];
 }
