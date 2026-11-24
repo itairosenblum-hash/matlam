@@ -3603,12 +3603,17 @@ function actionReApplySwap(req) {
     if (String(rows[i][0]).trim() !== String(id).trim()) continue;
     var colInfo2 = {};
     try { colInfo2 = JSON.parse(String(rows[i][9]||'{}')); } catch(e) {}
+    // Dates may be stored as Date cells — pass them raw (executeSwap normalizes Dates);
+    // String(Date) produced "Mon Nov 30 2026 …" and never matched a board row.
+    var raMonth = rows[i][1] instanceof Date
+      ? Utilities.formatDate(rows[i][1], SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), 'yyyyMM')
+      : String(rows[i][1]).trim();
     var result = executeSwap(
-      String(rows[i][1]).trim(),
-      String(rows[i][2]).trim(),
+      raMonth,
+      rows[i][2],
       String(rows[i][3]).trim(),
       String(rows[i][4]).trim(),
-      String(rows[i][5] || rows[i][2]).trim(),
+      rows[i][5] || rows[i][2],
       colInfo2.myCol||0, colInfo2.theirCol||0,
       swapTheirMonth_(rows[i])
     );
@@ -3640,6 +3645,38 @@ function swapTheirMonth_(row) {
   var m = row[1];
   if (Object.prototype.toString.call(m) === '[object Date]') return swapMonthOfDate_(m);
   return String(m || '').trim();
+}
+
+// Re-derive a person's monthly type/score cells in Scores_<year> from the month's
+// schedule (V + V2, same rule as yearMonthScoresFor). Needed after a swap: when a
+// torani gives away his only duty of a month, the scores table falls back to the
+// stored cell — which still held the pre-swap value — and the scheduler's
+// weekend-gap rules read the stored type too.
+function syncMonthScoreCells_(monthStr, names) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName('Schedule_' + monthStr);
+  var mon = parseInt(String(monthStr).substring(4, 6), 10);
+  if (!sh || !mon) return;
+  var rows = sh.getDataRange().getValues();
+  var want = {};
+  names.forEach(function(n) { n = String(n || '').trim(); if (n) want[n] = {score: 0, type: ''}; });
+  for (var i = 1; i < rows.length; i++) {
+    var sc = Number(rows[i][8]) || 0;
+    if (sc <= 0) continue;
+    var dt = String(rows[i][7] || rows[i][2] || '');
+    var v = String(rows[i][3] || '').trim(), v2 = String(rows[i][9] || '').trim();
+    if (want[v])  { want[v].score += sc;  want[v].type = dt; }
+    if (want[v2]) { if (!want[v2].type) want[v2].type = dt; want[v2].score += sc; }
+  }
+  var scoreSheet = getScoresSheet(scoreYearOf(monthStr));
+  var sRows = scoreSheet.getDataRange().getValues();
+  var colType = 4 + (mon - 1) * 2 + 1, colScore = colType + 1; // 1-based
+  for (var r = 1; r < sRows.length; r++) {
+    var nm = String(sRows[r][0] || '').trim();
+    if (!want[nm]) continue;
+    scoreSheet.getRange(r + 1, colType).setValue(want[nm].score ? want[nm].type : '');
+    scoreSheet.getRange(r + 1, colScore).setValue(want[nm].score ? want[nm].score : '');
+  }
 }
 
 // ─── CORE EXECUTE SWAP ────────────────────────────────────
@@ -3704,10 +3741,20 @@ function executeSwap(month, myDate, fromName, withWho, theirDate, myCol, theirCo
             score:Number(row[8])||0, type:String(row[7]||row[2]||'')};
   }
 
+  function holds(row, who) { return [3,4,5].some(function(c){ return String(row[c]||'').trim() === who; }); }
+  var sameRow = !crossMonth && myRowIdx === theirRowIdx;
+  // Already applied (e.g. "🔄 בצע מחדש" on an approved swap): don't swap back —
+  // just re-sync both people's monthly score cells.
+  if (!sameRow && holds(data[myRowIdx], withTrim) && !holds(data[myRowIdx], fromTrim) &&
+      holds(thData[theirRowIdx], fromTrim) && !holds(thData[theirRowIdx], withTrim)) {
+    syncMonthScoreCells_(monthStr, [fromTrim, withTrim]);
+    if (crossMonth) syncMonthScoreCells_(thMonthStr, [fromTrim, withTrim]);
+    return {success:true, message:'ההחלפה כבר מופיעה בלוח — הניקוד החודשי סונכרן'};
+  }
+
   // Validate both sides BEFORE writing anything, so a failure never leaves a half-swap.
   var mine = plan(data[myRowIdx], myCol, fromTrim, withTrim, myDateN);
   if (mine.error) return {success:false, error:mine.error};
-  var sameRow = !crossMonth && myRowIdx === theirRowIdx;
   var theirs = null;
   if (!sameRow) {
     theirs = plan(thData[theirRowIdx], theirCol, withTrim, fromTrim, theirDateN);
@@ -3729,6 +3776,9 @@ function executeSwap(month, myDate, fromName, withWho, theirDate, myCol, theirCo
     Logger.log('theirRow: V:'+theirs.V+'->'+theirs.nV+' A:'+theirs.A+'->'+theirs.nA+' B:'+theirs.B+'->'+theirs.nB);
     if (theirs.V!==theirs.nV && theirs.score>0) updateScoreForSwap(theirs.V, theirs.nV, thMonthStr, theirs.score, theirs.type);
   }
+
+  syncMonthScoreCells_(monthStr, [fromTrim, withTrim]);
+  if (crossMonth) syncMonthScoreCells_(thMonthStr, [fromTrim, withTrim]);
 
   return {success:true, message:'ההחלפה בוצעה: '+fromTrim+' ⇄ '+withTrim + (crossMonth ? ' (חוצת חודש)' : '')};
 }
