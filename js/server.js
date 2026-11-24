@@ -3444,6 +3444,9 @@ function getSwapsSheet() {
 function actionSubmitSwap(req, user) {
   const {month, date, theirDate, withWho, note, fromName, myCol, theirCol} = req;
   if (!date || !withWho || !theirDate) return {success:false, error:'חסרים פרטים'};
+  // Cross-month swap: the duty I receive may be in another month than the one I give.
+  var thMonth = String(req.theirMonth || '').trim();
+  if (!/^\d{6}$/.test(thMonth)) thMonth = swapMonthOfDate_(theirDate) || String(month || '').trim();
   const id = Utilities.getUuid().substring(0,8);
   // Store: col info for exact cell replacement (4=V, 5=A, 6=B)
   var fName = String(fromName || user.name || '').trim();
@@ -3457,7 +3460,7 @@ function actionSubmitSwap(req, user) {
     String(note       || '').trim(),
     'pending_target',
     new Date().toISOString(),
-    JSON.stringify({myCol: parseInt(myCol)||4, theirCol: parseInt(theirCol)||4})
+    JSON.stringify({myCol: parseInt(myCol)||4, theirCol: parseInt(theirCol)||4, theirMonth: thMonth})
   ]);
   // Notify target person by email
   notifySwapTarget(wWho, fName, myD, thD, String(note||'').trim());
@@ -3477,7 +3480,8 @@ function actionGetSwaps(req, user) {
       withWho:   String(rows[i][4] || '').trim(),
       theirDate: String(rows[i][5] || '').trim(),
       note:      String(rows[i][6] || '').trim(),
-      status:    String(rows[i][7] || 'pending_target').trim()
+      status:    String(rows[i][7] || 'pending_target').trim(),
+      theirMonth: swapTheirMonth_(rows[i])
     });
   }
   return {success:true, swaps};
@@ -3553,7 +3557,7 @@ function actionUpdateSwap(req, user) {
       sheet.getRange(i+1,8).setValue('approved');
       var colInfo = {};
       try { colInfo = JSON.parse(String(rows[i][9]||'{}')); } catch(e) {}
-      var result = executeSwap(month, date, fromName, withWho, theirDate || date, colInfo.myCol||0, colInfo.theirCol||0);
+      var result = executeSwap(month, date, fromName, withWho, theirDate || date, colInfo.myCol||0, colInfo.theirCol||0, swapTheirMonth_(rows[i]));
       if (!result.success) {
         sheet.getRange(i+1,10).setValue('שגיאה: ' + result.error);
         return {success:true, warning: result.error};
@@ -3603,7 +3607,8 @@ function actionReApplySwap(req) {
       String(rows[i][3]).trim(),
       String(rows[i][4]).trim(),
       String(rows[i][5] || rows[i][2]).trim(),
-      colInfo2.myCol||0, colInfo2.theirCol||0
+      colInfo2.myCol||0, colInfo2.theirCol||0,
+      swapTheirMonth_(rows[i])
     );
     if (result.success) sheet.getRange(i+1,8).setValue('approved');
     return result;
@@ -3611,19 +3616,49 @@ function actionReApplySwap(req) {
   return {success:false, error:'לא נמצא'};
 }
 
+// ─── SWAP MONTH HELPERS ───────────────────────────────────
+// yyyyMM of a swap date ('dd/MM/yyyy', 'yyyy-MM-dd' or Date); '' if unparseable.
+function swapMonthOfDate_(v) {
+  if (!v) return '';
+  if (Object.prototype.toString.call(v) === '[object Date]') {
+    try { return Utilities.formatDate(v, SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), 'yyyyMM'); } catch(e) { return ''; }
+  }
+  var s = String(v).trim(), m;
+  if ((m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/))) return m[3] + ('0' + m[2]).slice(-2);
+  if ((m = s.match(/^(\d{4})-(\d{2})-\d{2}/))) return m[1] + m[2];
+  return '';
+}
+// The month of the duty the requester RECEIVES. Derived from the date itself
+// (so it survives col 10 being overwritten by an error note); falls back to
+// the stored theirMonth, then to the request's month (old same-month rows).
+function swapTheirMonth_(row) {
+  var d = swapMonthOfDate_(row[5]);
+  if (d) return d;
+  try { var ci = JSON.parse(String(row[9] || '{}')); if (ci && /^\d{6}$/.test(String(ci.theirMonth||''))) return String(ci.theirMonth); } catch(e) {}
+  var m = row[1];
+  if (Object.prototype.toString.call(m) === '[object Date]') return swapMonthOfDate_(m);
+  return String(m || '').trim();
+}
+
 // ─── CORE EXECUTE SWAP ────────────────────────────────────
-function executeSwap(month, myDate, fromName, withWho, theirDate, myCol, theirCol) {
+// Supports cross-month swaps: myDate lives in `month`, theirDate in `theirMonth`.
+function executeSwap(month, myDate, fromName, withWho, theirDate, myCol, theirCol, theirMonth) {
   // myCol/theirCol: 4=V, 5=A, 6=B - which slot each person holds
   myCol    = parseInt(myCol)    || 0; // 0 = auto-detect
   theirCol = parseInt(theirCol) || 0;
 
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var monthStr = String(month).trim();
+  var thMonthStr = String(theirMonth || '').trim() || swapMonthOfDate_(theirDate) || monthStr;
   var sheet = ss.getSheetByName('Schedule_' + monthStr);
   if (!sheet) return {success:false, error:'לא נמצא לוח לחודש ' + monthStr};
+  var crossMonth = thMonthStr !== monthStr;
+  var thSheet = crossMonth ? ss.getSheetByName('Schedule_' + thMonthStr) : sheet;
+  if (!thSheet) return {success:false, error:'לא נמצא לוח לחודש ' + thMonthStr};
 
   var TZ = ss.getSpreadsheetTimeZone();
   var data = sheet.getDataRange().getValues();
+  var thData = crossMonth ? thSheet.getDataRange().getValues() : data;
 
   function norm(val) {
     if (!val) return '';
@@ -3639,74 +3674,61 @@ function executeSwap(month, myDate, fromName, withWho, theirDate, myCol, theirCo
   var fromTrim   = String(fromName).trim();
   var withTrim   = String(withWho).trim();
 
-  Logger.log('executeSwap: my='+myDateN+'(col'+myCol+') their='+theirDateN+'(col'+theirCol+') '+fromTrim+' <-> '+withTrim);
+  Logger.log('executeSwap: my='+myDateN+'@'+monthStr+'(col'+myCol+') their='+theirDateN+'@'+thMonthStr+'(col'+theirCol+') '+fromTrim+' <-> '+withTrim);
 
-  var myRowIdx=-1, theirRowIdx=-1;
-  for (var i=1; i<data.length; i++) {
-    var rd = norm(data[i][0]);
-    if (rd === myDateN)    myRowIdx    = i;
-    if (rd === theirDateN) theirRowIdx = i;
+  function findRow(rows, dn) {
+    for (var i=1; i<rows.length; i++) if (norm(rows[i][0]) === dn) return i;
+    return -1;
   }
+  var myRowIdx    = findRow(data, myDateN);
+  var theirRowIdx = findRow(thData, theirDateN);
 
   Logger.log('myRow='+myRowIdx+' theirRow='+theirRowIdx);
   if (myRowIdx<0)    return {success:false, error:'לא נמצא תאריך ' + myDateN + ' בלוח ' + monthStr};
-  if (theirRowIdx<0) return {success:false, error:'לא נמצא תאריך ' + theirDateN + ' בלוח ' + monthStr};
+  if (theirRowIdx<0) return {success:false, error:'לא נמצא תאריך ' + theirDateN + ' בלוח ' + thMonthStr};
+
+  // Work out the new slot values for a row: replace `who` with `by` (preferred col, else auto-detect).
+  function plan(row, col, who, by, dn) {
+    var V=String(row[3]||'').trim(), A=String(row[4]||'').trim(), B=String(row[5]||'').trim();
+    var nV=V, nA=A, nB=B;
+    if (col===4 && V===who) nV=by;
+    else if (col===5 && A===who) nA=by;
+    else if (col===6 && B===who) nB=by;
+    else if (V===who) nV=by;
+    else if (A===who) nA=by;
+    else if (B===who) nB=by;
+    else return {error: who+' לא נמצא ב-'+dn+' (V:'+V+' A:'+A+' B:'+B+')'};
+    return {V:V, A:A, B:B, nV:nV, nA:nA, nB:nB,
+            score:Number(row[8])||0, type:String(row[7]||row[2]||'')};
+  }
+
+  // Validate both sides BEFORE writing anything, so a failure never leaves a half-swap.
+  var mine = plan(data[myRowIdx], myCol, fromTrim, withTrim, myDateN);
+  if (mine.error) return {success:false, error:mine.error};
+  var sameRow = !crossMonth && myRowIdx === theirRowIdx;
+  var theirs = null;
+  if (!sameRow) {
+    theirs = plan(thData[theirRowIdx], theirCol, withTrim, fromTrim, theirDateN);
+    if (theirs.error) return {success:false, error:theirs.error};
+  }
 
   // --- Replace fromName with withWho on myRow ---
-  var myV=String(data[myRowIdx][3]||'').trim();
-  var myA=String(data[myRowIdx][4]||'').trim();
-  var myB=String(data[myRowIdx][5]||'').trim();
-  var myScore=Number(data[myRowIdx][8])||0;
-  var myType=String(data[myRowIdx][7]||data[myRowIdx][2]||'');
+  sheet.getRange(myRowIdx+1,4).setValue(mine.nV);
+  sheet.getRange(myRowIdx+1,5).setValue(mine.nA);
+  sheet.getRange(myRowIdx+1,6).setValue(mine.nB);
+  Logger.log('myRow: V:'+mine.V+'->'+mine.nV+' A:'+mine.A+'->'+mine.nA+' B:'+mine.B+'->'+mine.nB);
+  if (mine.V!==mine.nV && mine.score>0) updateScoreForSwap(mine.V, mine.nV, monthStr, mine.score, mine.type);
 
-  var newMyV=myV, newMyA=myA, newMyB=myB;
-  if (myCol===4 && myV===fromTrim) newMyV=withTrim;
-  else if (myCol===5 && myA===fromTrim) newMyA=withTrim;
-  else if (myCol===6 && myB===fromTrim) newMyB=withTrim;
-  else {
-    // Auto-detect
-    if (myV===fromTrim) newMyV=withTrim;
-    else if (myA===fromTrim) newMyA=withTrim;
-    else if (myB===fromTrim) newMyB=withTrim;
-    else return {success:false, error:fromTrim+' לא נמצא ב-'+myDateN+' (V:'+myV+' A:'+myA+' B:'+myB+')'};
-  }
-  sheet.getRange(myRowIdx+1,4).setValue(newMyV);
-  sheet.getRange(myRowIdx+1,5).setValue(newMyA);
-  sheet.getRange(myRowIdx+1,6).setValue(newMyB);
-  Logger.log('myRow: V:'+myV+'->'+newMyV+' A:'+myA+'->'+newMyA+' B:'+myB+'->'+newMyB);
-
-  var changedMyV = (myV!==newMyV);
-  if (changedMyV && myScore>0) updateScoreForSwap(myV, newMyV, monthStr, myScore, myType);
-
-  // --- Replace withWho with fromName on theirRow (if different date) ---
-  if (myRowIdx !== theirRowIdx) {
-    var thV=String(data[theirRowIdx][3]||'').trim();
-    var thA=String(data[theirRowIdx][4]||'').trim();
-    var thB=String(data[theirRowIdx][5]||'').trim();
-    var thScore=Number(data[theirRowIdx][8])||0;
-    var thType=String(data[theirRowIdx][7]||data[theirRowIdx][2]||'');
-
-    var newThV=thV, newThA=thA, newThB=thB;
-    if (theirCol===4 && thV===withTrim) newThV=fromTrim;
-    else if (theirCol===5 && thA===withTrim) newThA=fromTrim;
-    else if (theirCol===6 && thB===withTrim) newThB=fromTrim;
-    else {
-      // Auto-detect
-      if (thV===withTrim) newThV=fromTrim;
-      else if (thA===withTrim) newThA=fromTrim;
-      else if (thB===withTrim) newThB=fromTrim;
-      else return {success:false, error:withTrim+' לא נמצא ב-'+theirDateN+' (V:'+thV+' A:'+thA+' B:'+thB+')'};
-    }
-    sheet.getRange(theirRowIdx+1,4).setValue(newThV);
-    sheet.getRange(theirRowIdx+1,5).setValue(newThA);
-    sheet.getRange(theirRowIdx+1,6).setValue(newThB);
-    Logger.log('theirRow: V:'+thV+'->'+newThV+' A:'+thA+'->'+newThA+' B:'+thB+'->'+newThB);
-
-    var changedThV = (thV!==newThV);
-    if (changedThV && thScore>0) updateScoreForSwap(thV, newThV, monthStr, thScore, thType);
+  // --- Replace withWho with fromName on theirRow (other date, possibly other month) ---
+  if (theirs) {
+    thSheet.getRange(theirRowIdx+1,4).setValue(theirs.nV);
+    thSheet.getRange(theirRowIdx+1,5).setValue(theirs.nA);
+    thSheet.getRange(theirRowIdx+1,6).setValue(theirs.nB);
+    Logger.log('theirRow: V:'+theirs.V+'->'+theirs.nV+' A:'+theirs.A+'->'+theirs.nA+' B:'+theirs.B+'->'+theirs.nB);
+    if (theirs.V!==theirs.nV && theirs.score>0) updateScoreForSwap(theirs.V, theirs.nV, thMonthStr, theirs.score, theirs.type);
   }
 
-  return {success:true, message:'ההחלפה בוצעה: '+fromTrim+' ⇄ '+withTrim};
+  return {success:true, message:'ההחלפה בוצעה: '+fromTrim+' ⇄ '+withTrim + (crossMonth ? ' (חוצת חודש)' : '')};
 }
 
 

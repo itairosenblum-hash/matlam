@@ -12,7 +12,7 @@ window.__fbCall = function (p) {
     : new Promise(function (res, rej) { window.__fbQueue.push({p: p, res: res, rej: rej}); });
 };
 </script>
-<script src="js/server.js?v=1795010382254"></script>
+<script src="js/server.js?v=1795522175429"></script>
 <script type="module" src="js/backend.js"></script>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" href="https://itairosenblum-hash.github.io/matlam/SemelMatzad_Color.svg.png">
@@ -1390,7 +1390,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
             <div class="card-title">בקשה חדשה</div>
             <div id="swap-alert"></div>
             <div class="form-group">
-              <label>בחר חודש</label>
+              <label>חודש התורנות שאני נותן</label>
               <select id="swap-month" onchange="clearApiCache();loadMyDutiesForSwap();" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;color:var(--text);font-family:inherit;outline:none"></select>
             </div>
 
@@ -1406,6 +1406,12 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
               <select id="swap-with" onchange="loadTheirDuties()" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;color:var(--text);font-family:inherit;outline:none">
                 <option value="">— בחר תורן —</option>
               </select>
+            </div>
+
+            <div class="form-group">
+              <label>חודש התורנות שאני מקבל</label>
+              <select id="swap-their-month" onchange="loadTheirDuties()" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;color:var(--text);font-family:inherit;outline:none"></select>
+              <div id="swap-cross-hint" style="display:none;font-size:12px;color:var(--warn);margin-top:6px">🔀 החלפה חוצת חודש — כל אחד יבצע תורנות נוספת בחודש של השני</div>
             </div>
 
             <div class="form-group">
@@ -1965,7 +1971,7 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 </div>
 
 <div id="version-footer" style="text-align:center;padding:14px 10px 18px;font-size:11px;color:var(--text3,#8b949e);direction:ltr">
-  מטל"מ · גרסה <span id="version-stamp">v2 22/11/2026 10:26</span><span id="version-update-hint"></span>
+  מטל"מ · גרסה <span id="version-stamp">v2 24/11/2026 14:09</span><span id="version-update-hint"></span>
 </div>
 
 <div class="loading-overlay" id="loading">
@@ -1978,8 +1984,8 @@ body.login-mode #version-footer a,body.login-mode #version-update-hint{pointer-e
 // VERSION CHECK — אוטומטי לפי SHA של GitHub
 // =====================================================
 // Build stamp — updated automatically on every push
-const BUILD_STAMP = 'v2 22/11/2026 10:26';
-const BUILD_EPOCH = 1795336002025; // ms — when this exact file was pushed
+const BUILD_STAMP = 'v2 24/11/2026 14:09';
+const BUILD_EPOCH = 1795522175429; // ms — when this exact file was pushed
 
 (function() {
   // בדוק גרסה ברקע מול GitHub
@@ -7875,16 +7881,22 @@ async function initSwapTab() {
   updateBellIcon(currentUser?.role === 'admin' ? 0 : 0);
   // Populate month select
   const sel = document.getElementById('swap-month');
+  const thSel = document.getElementById('swap-their-month');
   if (sel && !sel.options.length) {
     const now = new Date();
+    const cur = String(now.getFullYear()) + String(now.getMonth()+1).padStart(2,'0');
     for (let y = 2026; y <= 2029; y++) {
       for (let m = 1; m <= 12; m++) {
         const val = `${y}${String(m).padStart(2,'0')}`;
         sel.add(new Option(`${MONTHS[m-1]} ${y}`, val));
+        if (thSel) thSel.add(new Option(`${MONTHS[m-1]} ${y}`, val));
       }
     }
-    sel.value = String(now.getFullYear()) + String(now.getMonth()+1).padStart(2,'0');
-    sel.onchange = () => { clearApiCache(); loadMyDutiesForSwap(); };
+    sel.value = cur;
+    if (thSel) thSel.value = cur;
+    // Changing "my" month moves "their" month along with it (the common same-month case);
+    // the user can then pick a different month for the duty he receives.
+    sel.onchange = () => { clearApiCache(); if (thSel) thSel.value = sel.value; loadMyDutiesForSwap(); loadTheirDuties(); };
     loadMyDutiesForSwap();
   }
   // Load people for swap partner - always fetch if not loaded
@@ -7923,7 +7935,10 @@ async function loadMyDutiesForSwap() {
 }
 
 async function loadTheirDuties() {
-  const month = String(document.getElementById('swap-month').value);
+  const myMonth = String(document.getElementById('swap-month').value);
+  const month = String((document.getElementById('swap-their-month')||{}).value || myMonth);
+  const hint = document.getElementById('swap-cross-hint');
+  if (hint) hint.style.display = month !== myMonth ? 'block' : 'none';
   const withWho = document.getElementById('swap-with').value;
   const sel = document.getElementById('swap-their-duty');
   sel.innerHTML = '<option value="">— טוען... —</option>';
@@ -7942,7 +7957,7 @@ async function loadTheirDuties() {
     });
   if (sel.options.length === 1) {
     sel.innerHTML = '<option value="">— אין תורנות בחודש זה —</option>';
-    showAlert('swap-alert', 'לא נמצאו תורנויות עבורך בחודש זה. וודא שהלוח הופק.', 'info');
+    showAlert('swap-alert', `לא נמצאו תורנויות של ${withWho} ב${swapMonthLabel(month)}. אפשר לבחור חודש אחר, או לוודא שהלוח הופק.`, 'info');
   } else {
     document.getElementById('swap-alert').innerHTML = '';
   }
@@ -7953,6 +7968,7 @@ async function submitSwapRequest() {
   const myDutyRaw = document.getElementById('swap-my-duty').value;
   const theirDutyRaw = document.getElementById('swap-their-duty').value;
   const withWho = document.getElementById('swap-with').value;
+  const theirMonth = String((document.getElementById('swap-their-month')||{}).value || month);
   const note = document.getElementById('swap-note').value.trim();
   if (!myDutyRaw) return showAlert('swap-alert','בחר את התורנות שלך','error');
   if (!withWho) return showAlert('swap-alert','בחר תורן להחלפה','error');
@@ -7962,7 +7978,7 @@ async function submitSwapRequest() {
   try { mySlot = JSON.parse(myDutyRaw); } catch(e) { mySlot = {date:myDutyRaw, col:4, name:currentUser.name}; }
   try { theirSlot = JSON.parse(theirDutyRaw); } catch(e) { theirSlot = {date:theirDutyRaw, col:4, name:withWho}; }
   showLoading(true);
-  const res = await api({action:'submitSwap', month,
+  const res = await api({action:'submitSwap', month, theirMonth,
     date: mySlot.date, theirDate: theirSlot.date,
     myCol: mySlot.col, theirCol: theirSlot.col,
     mySchedRow: mySlot.schedRow, theirSchedRow: theirSlot.schedRow,
@@ -7974,6 +7990,10 @@ async function submitSwapRequest() {
     document.getElementById('swap-their-duty').innerHTML = '<option value="">— בחר קודם תורן —</option>';
     document.getElementById('swap-with').value = '';
     document.getElementById('swap-note').value = '';
+    const _th = document.getElementById('swap-their-month');
+    if (_th) _th.value = month;
+    const _h = document.getElementById('swap-cross-hint');
+    if (_h) _h.style.display = 'none';
     loadSwapRequests();
   } else {
     showAlert('swap-alert', res.error||'שגיאה','error');
@@ -8012,7 +8032,10 @@ async function loadSwapRequests() {
     const statusCls = s.status==='approved'?'status-active':s.status==='rejected'?'status-inactive':'';
     const statusStyle = s.status.startsWith('pending')||s.status==='target_approved'?'background:rgba(210,153,34,0.1);color:var(--warn)':'';
     const isMyRequest = s.fromName === currentUser.name;
-    const label = isMyRequest ? `${formatDate(s.date)} ← עם ${s.withWho}` : `${s.fromName} מבקש להחליף ב-${formatDate(s.date)}`;
+    const _cross = swapIsCross(s) ? ' <span style="font-size:11px;color:var(--warn)">🔀 חוצת חודש</span>' : '';
+    const label = isMyRequest
+      ? `נותן ${swapFmtDate(s.date)} ⇄ מקבל ${swapFmtDate(s.theirDate||s.date)} · עם ${s.withWho}${_cross}`
+      : `${s.fromName} נותן לך ${swapFmtDate(s.date)} ⇄ מקבל ממך ${swapFmtDate(s.theirDate||s.date)}${_cross}`;
     return `<div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px">
       <div class="flex gap-8 items-center" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
         <div>
@@ -8249,7 +8272,7 @@ function renderAdminSwapsFiltered() {
         <div>
           <div style="font-weight:700;font-size:15px">${s.fromName} ↔ ${s.withWho}</div>
           <div style="font-size:13px;color:var(--text2);margin-top:2px">
-            ${formatDate(s.date)}${s.theirDate&&s.theirDate!==s.date?' / '+formatDate(s.theirDate):''}
+            ${swapFmtDate(s.date)}${s.theirDate&&s.theirDate!==s.date?' / '+swapFmtDate(s.theirDate):''}${swapIsCross(s)?' <span style="font-size:11px;color:var(--warn);font-weight:600">🔀 חוצת חודש</span>':''}
           </div>
           ${s.note?`<div style="font-size:12px;color:var(--text3);margin-top:4px">${s.note}</div>`:''}
         </div>
@@ -8619,6 +8642,26 @@ document.querySelectorAll('.modal-overlay').forEach(m => m.addEventListener('cli
 function escapeHtml(s) {
   if (!s) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// Swap dates are stored as dd/MM/yyyy — new Date() would misread them (day/month flipped).
+function swapFmtDate(v) {
+  const t = String(v||'').trim();
+  const m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) return `${m[1].padStart(2,'0')}/${m[2].padStart(2,'0')}/${m[3]}`;
+  return formatDate(t);
+}
+function swapMonthKey(v) {
+  const t = swapFmtDate(v); const m = t.match(/^\d{2}\/(\d{2})\/(\d{4})$/);
+  return m ? m[2] + m[1] : '';
+}
+function swapIsCross(s) {
+  const a = swapMonthKey(s.date), b = swapMonthKey(s.theirDate || s.date);
+  return !!(a && b && a !== b);
+}
+function swapMonthLabel(key) {
+  const k = String(key||''); if (!/^\d{6}$/.test(k)) return k;
+  return `${MONTHS[parseInt(k.slice(4),10)-1]} ${k.slice(0,4)}`;
 }
 
 function formatDate(dateStr) {
